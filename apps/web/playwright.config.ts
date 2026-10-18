@@ -16,9 +16,16 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${port}`,
     trace: 'retain-on-failure',
   },
+  timeout: 60_000,
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /mobile\.spec/ },
+    // runs after the desktop suite has created the admin account
+    {
+      name: 'mobile',
+      use: { ...devices['Pixel 7'] },
+      testMatch: /mobile\.spec/,
+      dependencies: ['chromium'],
+    },
   ],
   webServer: {
     command: `node ./e2e/start-server.mjs`,

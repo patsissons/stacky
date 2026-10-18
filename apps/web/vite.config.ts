@@ -8,7 +8,7 @@ const serverUrl = process.env.STACKY_DEV_SERVER ?? 'http://localhost:5005'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: { '@': path.resolve(import.meta.dirname, 'src') },
+    alias: [{ find: '@', replacement: path.resolve(import.meta.dirname, 'src') }],
   },
   server: {
     port: 5173,
