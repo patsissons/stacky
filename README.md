@@ -45,6 +45,7 @@ Open `http://<host>:5005` and create the admin account. From then on, stacky app
 | `STACKY_AUTH_DISABLED`                        | `false`       | Disable built-in auth (only behind an authenticating reverse proxy)    |
 | `STACKY_TRUSTED_PROXIES`                      | (none)        | Comma-separated proxy addresses/CIDRs whose `X-Forwarded-*` is trusted |
 | `STACKY_ADMIN_USER` / `STACKY_ADMIN_PASSWORD` | (none)        | Seed the admin account instead of using the setup page                 |
+| `STACKY_UPDATE_CHECK`                         | `true`        | Check GitHub for newer stacky releases                                 |
 | `STACKY_BASE_URL`                             | (none)        | Public URL, used for links and OIDC callbacks                          |
 
 ## Development
@@ -60,16 +61,17 @@ In development the server uses `STACKY_STACKS_DIR` and `STACKY_DATA_DIR` from yo
 
 ### Scripts
 
-| Script                     | What it does                                                        |
-| -------------------------- | ------------------------------------------------------------------- |
-| `pnpm dev`                 | Run server and web UI in watch mode                                 |
-| `pnpm build`               | Build shared, web and server packages                               |
-| `pnpm test`                | Unit tests (Vitest) across all packages                             |
-| `pnpm test:e2e`            | Playwright e2e tests against a production build                     |
-| `pnpm validate:quick`      | Format check + typecheck + lint + unit tests                        |
-| `pnpm validate`            | `validate:quick` + e2e tests (used by CI)                           |
-| `pnpm format-and-validate` | Format with Prettier, then `validate`; run this before every commit |
-| `pnpm site:dev`            | Run the docs site locally                                           |
+| Script                       | What it does                                                              |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `pnpm dev`                   | Run server and web UI in watch mode                                       |
+| `pnpm build`                 | Build shared, web and server packages                                     |
+| `pnpm test`                  | Unit tests (Vitest) across all packages                                   |
+| `pnpm test:e2e`              | Playwright e2e tests against a production build                           |
+| `pnpm validate:quick`        | Format check + typecheck + lint + unit tests                              |
+| `pnpm validate`              | `validate:quick` + e2e tests (used by CI)                                 |
+| `pnpm format-and-validate`   | Format with Prettier, then `validate`; run this before every commit       |
+| `scripts/self-update-e2e.sh` | End-to-end test of stacky updating and rolling back itself (needs Docker) |
+| `pnpm site:dev`              | Run the docs site locally                                                 |
 
 ### Repository layout
 

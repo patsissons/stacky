@@ -15,4 +15,5 @@ description: Environment variables that configure stacky.
 | `STACKY_ADMIN_PASSWORD`  | (none)        | Seed the admin password                                                                           |
 | `STACKY_BASE_URL`        | (none)        | Public URL of stacky, used for links and OIDC callbacks                                           |
 | `STACKY_CONTAINER_ID`    | autodetected  | Override detection of stacky's own container (used by self-update)                                |
+| `STACKY_UPDATE_CHECK`    | `true`        | Check GitHub for newer stacky releases and show an update banner                                  |
 | `STACKY_LOG_LEVEL`       | `info`        | `debug`, `info`, `warn` or `error`                                                                |

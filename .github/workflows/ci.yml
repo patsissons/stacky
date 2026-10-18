@@ -35,3 +35,17 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report
           retention-days: 7
+
+  self-update:
+    # stacky updating (and rolling back) its own container on a real engine
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker
+      - name: Self-update through a registry (pull + pin)
+        run: SELF_E2E_MODE=registry scripts/self-update-e2e.sh
+      - name: Self-update by redeploying an edited compose file
+        run: SELF_E2E_MODE=local scripts/self-update-e2e.sh
