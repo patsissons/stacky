@@ -16,6 +16,7 @@ import { AppError, badRequest, notFound } from '../lib/errors'
 import type { Logger } from '../lib/logger'
 import type { OperationEngine } from '../ops/engine'
 import { assertStackName } from '../stacks/paths'
+import { dockerRunToCompose } from '../stacks/convert'
 import type { StackRepository } from '../stacks/repository'
 import type { StackService } from '../stacks/service'
 import type { StackState } from '../stacks/state'
@@ -247,6 +248,11 @@ export function apiRoutes(ctx: ApiContext) {
     await ctx.repo.deleteFile(name, c.req.query('path') ?? '')
     ctx.state.schedule(0)
     return c.json({ ok: true })
+  })
+
+  api.post('/convert/docker-run', async (c) => {
+    const input = await body(c, z.object({ command: z.string().min(1).max(20_000) }))
+    return c.json({ compose: dockerRunToCompose(input.command) })
   })
 
   // ---- global.env ----

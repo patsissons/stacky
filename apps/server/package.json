@@ -23,6 +23,7 @@
     "@stacky/shared": "workspace:*",
     "better-auth": "^1.7.10",
     "better-sqlite3": "^13.0.3",
+    "composerize": "^1.7.6",
     "dockerode": "^5.0.1",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.13",

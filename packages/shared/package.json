@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./compose-spec.json": "./src/compose-spec.json"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
