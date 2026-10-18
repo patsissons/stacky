@@ -17,7 +17,7 @@ describe('composeArgs', () => {
       '--ansi',
       'always',
       '--progress',
-      'plain',
+      'tty',
       '--project-directory',
       '/opt/stacks/app',
       '-f',

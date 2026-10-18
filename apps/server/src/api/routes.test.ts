@@ -1,0 +1,179 @@
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { createApp } from '../app'
+import { loadConfig } from '../config'
+import { silentLogger } from '../lib/logger'
+import { createRuntime, type Runtime } from '../runtime'
+
+let tmp: string
+let runtime: Runtime
+let app: ReturnType<typeof createApp>
+
+const ORIGIN = 'http://localhost'
+
+async function boot(env: Record<string, string> = {}) {
+  tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'stacky-api-'))
+  const config = loadConfig({
+    STACKY_STACKS_DIR: path.join(tmp, 'stacks'),
+    STACKY_DATA_DIR: path.join(tmp, 'data'),
+    ...env,
+  })
+  runtime = await createRuntime(config, silentLogger, { authRateLimit: false })
+  app = createApp({ config, runtime })
+}
+
+function req(method: string, url: string, init: { body?: unknown; cookie?: string } = {}) {
+  const headers: Record<string, string> = { origin: ORIGIN, host: 'localhost' }
+  if (init.body !== undefined) headers['content-type'] = 'application/json'
+  if (init.cookie) headers.cookie = init.cookie
+  return app.request(url, {
+    method,
+    headers,
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+  })
+}
+
+/** Untyped JSON for assertions. */
+const json = (res: Response): Promise<any> => res.json()
+
+async function setupAdmin() {
+  const res = await req('POST', '/api/setup', {
+    body: { username: 'admin', password: 'correct horse' },
+  })
+  expect(res.status).toBe(200)
+  return res.headers
+    .getSetCookie()
+    .map((c) => c.split(';')[0])
+    .join('; ')
+}
+
+afterEach(() => {
+  runtime?.stop()
+  fs.rmSync(tmp, { recursive: true, force: true })
+})
+
+describe('auth', () => {
+  beforeEach(() => boot())
+
+  it('reports setup state and protects the API', async () => {
+    const session = await json(await req('GET', '/api/session'))
+    expect(session).toEqual({ authDisabled: false, needsSetup: true, user: null })
+
+    const res = await req('GET', '/api/stacks')
+    expect(res.status).toBe(401)
+    expect(await json(res)).toMatchObject({ error: { code: 'unauthenticated' } })
+  })
+
+  it('creates the admin once, signs them in, and keeps the token out of the body', async () => {
+    const res = await req('POST', '/api/setup', {
+      body: { username: 'Admin', password: 'correct horse' },
+    })
+    const body = await json(res)
+    expect(body).toEqual({ ok: true, user: { username: 'admin' } })
+    expect(JSON.stringify(body)).not.toContain('token')
+    const cookie = res.headers
+      .getSetCookie()
+      .map((c) => c.split(';')[0])
+      .join('; ')
+
+    expect((await req('GET', '/api/stacks', { cookie })).status).toBe(200)
+    const again = await req('POST', '/api/setup', {
+      body: { username: 'other', password: 'correct horse' },
+    })
+    expect(again.status).toBe(409)
+  })
+})
+
+describe('auth disabled', () => {
+  beforeEach(() => boot({ STACKY_AUTH_DISABLED: 'true' }))
+
+  it('serves the API without a session', async () => {
+    expect((await req('GET', '/api/stacks')).status).toBe(200)
+    expect(await json(await req('GET', '/api/session'))).toMatchObject({ authDisabled: true })
+  })
+})
+
+describe('stacks', () => {
+  let cookie: string
+  beforeEach(async () => {
+    await boot()
+    cookie = await setupAdmin()
+  })
+
+  it('creates, reads and saves a stack, preserving the exact text', async () => {
+    const compose = '# my app\nservices:\n  web:\n    image: nginx:1.27 # pinned\n'
+    const created = await req('POST', '/api/stacks', {
+      cookie,
+      body: { name: 'web', compose, env: 'A=1\n' },
+    })
+    expect(created.status).toBe(201)
+    expect((await json(created)).stack).toMatchObject({ name: 'web', status: 'inactive' })
+
+    const read = await json(await req('GET', '/api/stacks/web', { cookie }))
+    expect(read.files).toMatchObject({ compose, env: 'A=1\n', composeFile: 'compose.yaml' })
+
+    const updated = compose.replace('1.27', '1.28')
+    expect(
+      (await req('PUT', '/api/stacks/web', { cookie, body: { compose: updated } })).status,
+    ).toBe(200)
+    expect(fs.readFileSync(path.join(tmp, 'stacks/web/compose.yaml'), 'utf8')).toBe(updated)
+  })
+
+  it('rejects an invalid compose file with positioned issues and writes nothing', async () => {
+    const res = await req('POST', '/api/stacks', {
+      cookie,
+      body: { name: 'bad', compose: 'services:\n  web:\n    imagee: x\n' },
+    })
+    expect(res.status).toBe(422)
+    const body = await json(res)
+    expect(body.error.code).toBe('invalid_compose')
+    expect(body.error.details.issues[0]).toMatchObject({ line: 3, severity: 'error' })
+    expect(fs.existsSync(path.join(tmp, 'stacks/bad'))).toBe(false)
+  })
+
+  it('validates unsaved edits', async () => {
+    await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
+    const ok = await (
+      await req('POST', '/api/stacks/app/validate', {
+        cookie,
+        body: { compose: 'services:\n  web:\n    image: nginx:${TAG}\n', env: 'TAG=1\n' },
+      })
+    ).json()
+    expect(ok).toEqual({ ok: true, issues: [] })
+  })
+
+  it('rejects bad names and paths', async () => {
+    const res = await req('POST', '/api/stacks', {
+      cookie,
+      body: { name: '../evil', compose: 'services: {}\n' },
+    })
+    expect(res.status).toBe(400)
+    await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
+    const file = await req('GET', '/api/stacks/app/file?path=../../data/auth-secret', { cookie })
+    expect(file.status).toBe(403)
+  })
+
+  it('edits other files and global.env', async () => {
+    await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
+    await req('PUT', '/api/stacks/app/file', {
+      cookie,
+      body: { path: 'config/app.ini', content: 'x=1\n' },
+    })
+    const files = await json(await req('GET', '/api/stacks/app/files', { cookie }))
+    expect(files.map((f: { path: string }) => f.path)).toContain('config/app.ini')
+
+    await req('PUT', '/api/global-env', { cookie, body: { content: 'TZ=UTC\n' } })
+    expect(await json(await req('GET', '/api/global-env', { cookie }))).toEqual({
+      content: 'TZ=UTC\n',
+    })
+  })
+
+  it('returns structured 404s', async () => {
+    const res = await req('GET', '/api/stacks/missing', { cookie })
+    expect(res.status).toBe(404)
+    expect(await json(res)).toMatchObject({ error: { code: 'not_found' } })
+    expect((await req('GET', '/api/nope', { cookie })).status).toBe(404)
+  })
+})

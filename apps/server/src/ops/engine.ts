@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { desc, eq } from 'drizzle-orm'
-import type { OperationSummary } from '@stacky/shared'
+import type { OperationError, OperationSummary } from '@stacky/shared'
 import type { Db } from '../db'
 import { operations } from '../db/schema'
 import type { Logger } from '../lib/logger'
@@ -43,6 +43,8 @@ interface EngineEvents {
  * subscribers, streamed as events, and persisted with the result.
  */
 export class OperationEngine extends EventEmitter<EngineEvents> {
+  /** Lets callers add context (e.g. which container owns a port) to classified errors. */
+  enrichError: ((error: OperationError, op: OperationSummary) => OperationError) | undefined
   private live = new Map<string, LiveOperation>()
   private queues = new Map<string, Promise<unknown>>()
 
@@ -176,7 +178,8 @@ export class OperationEngine extends EventEmitter<EngineEvents> {
       if (live.cancelled) return this.finish(live, 'cancelled')
       if (code !== 0) {
         s.exitCode = code
-        s.error = classifyFailure(live.chunks.join('').slice(-64 * 1024), code)
+        const error = classifyFailure(live.chunks.join('').slice(-64 * 1024), code)
+        s.error = this.enrichError?.(error, s) ?? error
         return this.finish(live, 'failed')
       }
     }

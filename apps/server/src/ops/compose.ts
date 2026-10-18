@@ -23,7 +23,7 @@ export function composeArgs(target: ComposeTarget): string[] {
     '--ansi',
     'always',
     '--progress',
-    'plain',
+    'tty',
     '--project-directory',
     target.dir,
     '-f',
