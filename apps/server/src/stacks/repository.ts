@@ -25,7 +25,14 @@ export interface FileEntry {
 
 /** Reads and writes stack files on disk. The directory layout is Dockge-compatible. */
 export class StackRepository {
+  /** Called after every change made through stacky (paths relative to the stacks dir). */
+  onChange: ((paths: string[], message: string) => void) | undefined
+
   constructor(readonly stacksDir: string) {}
+
+  private changed(paths: string[], message: string) {
+    this.onChange?.(paths, message)
+  }
 
   dir(name: string) {
     return stackDir(this.stacksDir, name)
@@ -86,6 +93,11 @@ export class StackRepository {
       if (files.env === '') await fs.rm(envPath, { force: true })
       else await writeInPlace(envPath, files.env, dir)
     }
+    const paths = [
+      ...(files.compose !== undefined ? [`${name}/${composeFile}`] : []),
+      ...(files.env !== undefined ? [`${name}/.env`] : []),
+    ]
+    this.changed(paths, `update ${name}`)
   }
 
   async create(name: string, compose: string, env = '') {
@@ -95,11 +107,13 @@ export class StackRepository {
     await matchOwner(dir, this.stacksDir)
     await writeInPlace(path.join(dir, 'compose.yaml'), compose, dir)
     if (env) await writeInPlace(path.join(dir, '.env'), env, dir)
+    this.changed([`${name}/compose.yaml`, ...(env ? [`${name}/.env`] : [])], `create ${name}`)
   }
 
   async remove(name: string) {
     const dir = this.dir(name)
     await fs.rm(dir, { recursive: true, force: true })
+    this.changed([name], `delete ${name}`)
   }
 
   async readGlobalEnv(): Promise<string | undefined> {
@@ -110,6 +124,7 @@ export class StackRepository {
     const file = path.join(this.stacksDir, GLOBAL_ENV_FILE)
     if (text === '') await fs.rm(file, { force: true })
     else await writeInPlace(file, text, this.stacksDir)
+    this.changed([GLOBAL_ENV_FILE], 'update global.env')
   }
 
   async listFiles(name: string): Promise<FileEntry[]> {
@@ -157,11 +172,20 @@ export class StackRepository {
     const file = await resolveStackFile(dir, relative)
     await fs.mkdir(path.dirname(file), { recursive: true })
     await writeInPlace(file, content, dir)
+    this.changed(
+      [`${name}/${path.relative(dir, file)}`],
+      `update ${name}/${path.relative(dir, file)}`,
+    )
   }
 
   async deleteFile(name: string, relative: string) {
-    const file = await resolveStackFile(this.dir(name), relative)
+    const dir = this.dir(name)
+    const file = await resolveStackFile(dir, relative)
     await fs.rm(file, { force: true })
+    this.changed(
+      [`${name}/${path.relative(dir, file)}`],
+      `delete ${name}/${path.relative(dir, file)}`,
+    )
   }
 }
 

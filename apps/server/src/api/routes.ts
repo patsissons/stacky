@@ -29,6 +29,7 @@ import type { SettingsStore } from '../db/settings'
 import { WUD_KEY, type UpdateChecker } from '../updates/checker'
 import { WudClient, type WudSettings } from '../updates/wud'
 import type { Notifier } from '../notify/notifier'
+import type { GitSync } from '../git/sync'
 
 export interface ApiContext {
   config: Config
@@ -44,6 +45,7 @@ export interface ApiContext {
   settings: SettingsStore
   notifier: Notifier
   tokens: ApiTokenStore
+  gitSync: GitSync
   audit: AuditLog
   system: () => Promise<SystemInfo>
 }
@@ -138,6 +140,13 @@ export function apiRoutes(ctx: ApiContext) {
     const out = c.json({ ok: true, user: { username: input.username.trim().toLowerCase() } })
     for (const cookie of res.headers.getSetCookie()) out.headers.append('set-cookie', cookie)
     return out
+  })
+
+  // push webhooks from GitHub/Gitea/GitLab: the secret in the URL is the credential
+  api.post('/git/webhook/:secret', async (c) => {
+    if (!ctx.gitSync.verifyWebhook(c.req.param('secret'))) throw notFound('webhook')
+    void ctx.gitSync.pull()
+    return c.json({ ok: true }, 202)
   })
 
   api.on(['GET', 'POST'], '/auth/*', (c) => {
@@ -257,6 +266,65 @@ export function apiRoutes(ctx: ApiContext) {
     } catch (err) {
       throw new AppError(502, 'wud_unreachable', err instanceof Error ? err.message : String(err))
     }
+  })
+
+  // ---- git ----
+  const gitView = async () => {
+    const { remote, ...rest } = ctx.gitSync.config()
+    return {
+      settings: {
+        ...rest,
+        remote: remote
+          ? {
+              url: remote.url,
+              branch: remote.branch,
+              username: remote.username,
+              hasToken: !!remote.token,
+            }
+          : undefined,
+      },
+      status: await ctx.gitSync.status(),
+    }
+  }
+  api.get('/git', async (c) => c.json(await gitView()))
+  api.put('/git', async (c) => {
+    const input = await body(
+      c,
+      z.object({
+        enabled: z.boolean(),
+        includeEnv: z.boolean(),
+        push: z.boolean(),
+        pull: z.object({
+          enabled: z.boolean(),
+          intervalMinutes: z.number().int().min(1).max(1440),
+          autoDeploy: z.boolean(),
+        }),
+        remote: z
+          .object({
+            url: z.string().min(1).max(512),
+            branch: z
+              .string()
+              .regex(/^[\w./-]{1,100}$/)
+              .default('main'),
+            username: z.string().max(128).optional(),
+            token: z.string().max(1024).optional(),
+          })
+          .optional(),
+        regenerateSecret: z.boolean().optional(),
+      }),
+    )
+    try {
+      await ctx.gitSync.configure(input)
+    } catch (err) {
+      throw new AppError(422, 'git_failed', err instanceof Error ? err.message : String(err))
+    }
+    return c.json(await gitView())
+  })
+  api.post('/git/push', async (c) => c.json(await ctx.gitSync.push()))
+  api.post('/git/pull', async (c) => c.json(await ctx.gitSync.pull()))
+  api.get('/stacks/:name/git-log', async (c) => {
+    const name = assertStackName(c.req.param('name'))
+    return c.json(await ctx.gitSync.history(name))
   })
 
   // ---- notifications ----

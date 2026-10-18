@@ -21,6 +21,7 @@ import { SettingsStore } from './db/settings'
 import { AuditLog } from './auth/audit'
 import { ApiTokenStore } from './auth/tokens'
 import { Notifier } from './notify/notifier'
+import { GitSync } from './git/sync'
 import { UpdateChecker } from './updates/checker'
 import { loadDockerCredentials, RegistryClient } from './updates/registry'
 import { VERSION } from './version'
@@ -65,6 +66,11 @@ export async function createRuntime(
   )
   stacks.updates = updates
   stacks.revisions = new RevisionStore(db)
+  const gitSync = new GitSync(repo, settings, logger, (stack) =>
+    stacks.stackAction(stack, 'deploy'),
+  )
+  repo.onChange = (paths, message) => gitSync.onChange(paths, message)
+  gitSync.schedule()
   const notifier = new Notifier(settings, logger)
   engine.on('update', (op) => notifier.onOperation(op))
   updates.on('change', (summary) => notifier.onUpdates(summary))
@@ -204,7 +210,9 @@ export async function createRuntime(
     notifier,
     tokens,
     audit,
+    gitSync,
     stop() {
+      gitSync.stop()
       updates.stop()
       state.stop()
       sqlite.close()
