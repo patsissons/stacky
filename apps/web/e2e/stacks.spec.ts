@@ -99,7 +99,20 @@ test('edits with live validation and reviews a diff before deploying', async () 
   await page.keyboard.press('Escape')
 
   await page.goto('/stacks/e2e-app?tab=history')
-  await expect(page.getByRole('button', { name: /Deployed/ })).toHaveCount(2)
+  await expect(page.getByLabel('Activity').getByRole('button', { name: /Deployed/ })).toHaveCount(2)
+})
+
+test('restores an earlier deployed version', async () => {
+  await page.goto('/stacks/e2e-app?tab=history')
+  const versions = page.getByLabel('Deployed versions').getByRole('listitem')
+  await expect(versions).toHaveCount(2)
+  await expect(versions.first()).toContainText('current')
+  await versions.last().getByRole('button', { name: 'Restore' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Restore & deploy' }).click()
+  await expect(page.getByText('Deployed e2e-app').last()).toBeVisible({ timeout: 120_000 })
+  await page.keyboard.press('Escape')
+  await page.goto('/stacks/e2e-app?tab=logs')
+  await expect(page.getByTestId('log-lines')).toContainText('hello-from-e2e', { timeout: 20_000 })
 })
 
 test('deletes the stack after typed confirmation', async () => {
