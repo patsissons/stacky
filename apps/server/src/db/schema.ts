@@ -35,3 +35,18 @@ export const imageUpdates = sqliteTable('image_updates', {
   data: text('data', { mode: 'json' }).$type<import('@stacky/shared').ImageUpdate>().notNull(),
   checkedAt: integer('checked_at').notNull(),
 })
+
+/** The files of a stack as they were at each successful deploy, for diffs and rollback. */
+export const stackRevisions = sqliteTable(
+  'stack_revisions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    stack: text('stack').notNull(),
+    operationId: text('operation_id'),
+    composeFile: text('compose_file').notNull(),
+    compose: text('compose').notNull(),
+    env: text('env'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (t) => [index('stack_revisions_stack_idx').on(t.stack, t.createdAt)],
+)

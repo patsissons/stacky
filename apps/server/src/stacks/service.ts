@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import type {
+  StackFiles,
   ActionOptions,
   OperationError,
   OperationSummary,
@@ -14,6 +15,7 @@ import type { ComposeTarget, Step } from '../ops/compose'
 import { planServiceAction, planStackAction } from '../ops/compose'
 import type { OperationEngine } from '../ops/engine'
 import { GLOBAL_ENV_FILE, type StackRepository } from './repository'
+import type { RevisionStore } from './revisions'
 import type { StackState } from './state'
 import type { UpdateChecker } from '../updates/checker'
 import { setServiceImage } from '../self/compose-edit'
@@ -51,8 +53,14 @@ export interface SelfUpdateHook {
 /** Application logic for stacks: ties files on disk, live state and operations together. */
 const REFRESHES_IMAGES = /^(deploy|update|pull)( |$)/
 
+/** Actions that apply the compose files; their files become a revision when they succeed. */
+const APPLIES_CONFIG = /^(deploy|start|update|recreate)( |$)/
+
 export class StackService {
   selfUpdate: SelfUpdateHook | undefined
+  /** When set, successfully deployed files are recorded for history and rollback. */
+  revisions: RevisionStore | undefined
+  private pendingRevisions = new Map<string, StackFiles>()
   /** When set, images are re-checked after operations that may have changed them. */
   updates: UpdateChecker | undefined
 
@@ -69,6 +77,11 @@ export class StackService {
       if (active) state.setActiveOperation(op.stack, op.id)
       else state.clearActiveOperation(op.stack, op.id, engine.active(op.stack)?.id)
       if (!active) state.schedule(0)
+      const snapshot = this.pendingRevisions.get(op.id)
+      if (snapshot && !active) {
+        this.pendingRevisions.delete(op.id)
+        if (op.state === 'succeeded') this.revisions?.record(op.stack, snapshot, op.id)
+      }
       if (op.state === 'succeeded' && REFRESHES_IMAGES.test(op.action) && this.updates) {
         const refs = this.imageRefs(op.stack)
         setTimeout(() => void this.updates?.checkAll(refs), 2000).unref()
@@ -167,13 +180,41 @@ export class StackService {
       const running = stack.services.some((s) => s.containers.some((c) => UP_STATES.has(c.state)))
       steps = planStackAction(target, action, options, { running })
     }
-    return this.engine.enqueue({
+    const files = await this.filesForRevision(name, action)
+    const op = this.engine.enqueue({
       stack: name,
       action,
       services: options.services,
       cwd: target.dir,
       steps,
     })
+    // set synchronously after enqueue: the operation can't finish before this runs
+    if (files) this.pendingRevisions.set(op.id, files)
+    return op
+  }
+
+  /** The files an operation applies; recorded as a revision if it succeeds. */
+  private async filesForRevision(name: string, action: string) {
+    if (!this.revisions || !APPLIES_CONFIG.test(action)) return undefined
+    return this.repo.read(name).catch(() => undefined)
+  }
+
+  /** Writes an earlier revision's files back and deploys them. */
+  async restoreRevision(name: string, id: number): Promise<OperationSummary> {
+    const revision = this.revisions?.get(name, id)
+    if (!revision) throw notFound(`revision ${id} of stack "${name}"`)
+    const validation = await this.validate(name, revision.compose, revision.env)
+    if (!validation.ok) {
+      throw new AppError(
+        422,
+        'invalid_compose',
+        'That revision no longer validates',
+        validation.issues[0]?.message,
+        validation,
+      )
+    }
+    await this.save(name, { compose: revision.compose, env: revision.env ?? '' })
+    return this.stackAction(name, 'deploy')
   }
 
   async serviceAction(name: string, service: string, action: ServiceAction) {
@@ -185,13 +226,16 @@ export class StackService {
       return this.routeSelf(stack, action, { services: [service] })
     }
     const target = await this.target(name)
-    return this.engine.enqueue({
+    const files = await this.filesForRevision(name, action)
+    const op = this.engine.enqueue({
       stack: name,
       action: `${action} ${service}`,
       services: [service],
       cwd: target.dir,
       steps: planServiceAction(target, action, [service]),
     })
+    if (files) this.pendingRevisions.set(op.id, files)
+    return op
   }
 
   private imageRefs(name: string): string[] {

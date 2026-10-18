@@ -300,6 +300,19 @@ export function apiRoutes(ctx: ApiContext) {
     return c.json(operation, 202)
   })
 
+  // ---- deployed revisions ----
+  api.get('/stacks/:name/revisions', (c) => {
+    const name = assertStackName(c.req.param('name'))
+    return c.json(ctx.stacks.revisions?.list(name) ?? [])
+  })
+
+  api.post('/stacks/:name/revisions/:id/restore', async (c) => {
+    const name = assertStackName(c.req.param('name'))
+    const id = Number(c.req.param('id'))
+    if (!Number.isInteger(id)) throw badRequest('invalid revision id')
+    return c.json(await ctx.stacks.restoreRevision(name, id), 202)
+  })
+
   // ---- arbitrary files inside a stack directory ----
   api.get('/stacks/:name/files', async (c) => {
     const name = assertStackName(c.req.param('name'))

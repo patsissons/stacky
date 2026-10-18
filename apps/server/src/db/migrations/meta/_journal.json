@@ -15,6 +15,13 @@
       "when": 1792363471083,
       "tag": "0001_image_updates",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792363790670,
+      "tag": "0002_stack_revisions",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,7 @@ import { runPreflight } from './self/preflight'
 import { ReleaseChecker } from './self/release'
 import { SelfUpdater } from './self/updater'
 import { StackRepository } from './stacks/repository'
+import { RevisionStore } from './stacks/revisions'
 import { StackService } from './stacks/service'
 import { StackState } from './stacks/state'
 import { SettingsStore } from './db/settings'
@@ -58,6 +59,7 @@ export async function createRuntime(
     config.updateIntervalHours * 60 * 60 * 1000,
   )
   stacks.updates = updates
+  stacks.revisions = new RevisionStore(db)
   const hub = new Hub(state, engine, docker, logger, updates)
 
   let auth: AuthService | undefined

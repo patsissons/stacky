@@ -76,3 +76,14 @@ export interface SelfInfo {
     error?: string
   }
 }
+
+/** A stack's files as they were when a deploy succeeded. */
+export interface StackRevision {
+  id: number
+  stack: string
+  operationId?: string
+  composeFile: string
+  compose: string
+  env?: string
+  createdAt: number
+}
