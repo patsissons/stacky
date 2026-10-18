@@ -1,0 +1,21 @@
+# Put this file at /opt/stacks/stacky/compose.yaml and run `docker compose up -d`
+# once from that directory. After that, stacky manages (and updates) itself.
+services:
+  stacky:
+    image: ghcr.io/patsissons/stacky:latest
+    restart: unless-stopped
+    ports:
+      - 5005:5005
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data
+      # The stacks directory MUST be mounted at the same path inside the
+      # container as on the host (compose resolves relative paths client-side).
+      - /opt/stacks:/opt/stacks
+    environment:
+      STACKY_STACKS_DIR: /opt/stacks
+      # Optional: seed the admin account instead of using the first-run setup page.
+      # STACKY_ADMIN_USER: admin
+      # STACKY_ADMIN_PASSWORD: change-me
+      # Optional: disable built-in auth when an authenticating reverse proxy sits in front.
+      # STACKY_AUTH_DISABLED: "true"
