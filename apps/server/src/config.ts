@@ -20,6 +20,13 @@ const envSchema = z.object({
   STACKY_CONTAINER_ID: z.string().optional(),
   STACKY_UPDATE_CHECK: z.string().optional(),
   STACKY_UPDATE_INTERVAL: z.coerce.number().min(0).default(6),
+  STACKY_OIDC_ISSUER: z.string().url().optional(),
+  STACKY_OIDC_CLIENT_ID: z.string().optional(),
+  STACKY_OIDC_CLIENT_SECRET: z.string().optional(),
+  STACKY_OIDC_NAME: z.string().default('SSO'),
+  STACKY_OIDC_SCOPES: z.string().default('openid profile email'),
+  STACKY_OIDC_ALLOWED_GROUPS: z.string().optional(),
+  STACKY_OIDC_AUTO_REDIRECT: booleanish,
   STACKY_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 })
 
@@ -43,6 +50,20 @@ export interface Config {
   /** Hours between image update checks; 0 disables scheduled checks. */
   updateIntervalHours: number
   logLevel: 'debug' | 'info' | 'warn' | 'error'
+  oidc: OidcConfig | undefined
+}
+
+export interface OidcConfig {
+  /** Issuer URL; the discovery document is read from `<issuer>/.well-known/openid-configuration`. */
+  issuer: string
+  clientId: string
+  clientSecret: string
+  /** Label on the sign-in button. */
+  name: string
+  scopes: string[]
+  /** When set, only users with one of these groups (from the `groups` claim) may sign in. */
+  allowedGroups: string[]
+  autoRedirect: boolean
 }
 
 export class ConfigError extends Error {}
@@ -54,6 +75,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new ConfigError(`invalid configuration: ${issues}`)
   }
   const e = parsed.data
+
+  const oidcParts = [e.STACKY_OIDC_ISSUER, e.STACKY_OIDC_CLIENT_ID, e.STACKY_OIDC_CLIENT_SECRET]
+  if (oidcParts.some(Boolean) && !oidcParts.every(Boolean)) {
+    throw new ConfigError(
+      'STACKY_OIDC_ISSUER, STACKY_OIDC_CLIENT_ID and STACKY_OIDC_CLIENT_SECRET must be set together',
+    )
+  }
 
   if (Boolean(e.STACKY_ADMIN_USER) !== Boolean(e.STACKY_ADMIN_PASSWORD)) {
     throw new ConfigError('STACKY_ADMIN_USER and STACKY_ADMIN_PASSWORD must be set together')
@@ -79,5 +107,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     updateCheck: !['0', 'false', 'no', 'off'].includes((e.STACKY_UPDATE_CHECK ?? '').toLowerCase()),
     updateIntervalHours: e.STACKY_UPDATE_INTERVAL,
     logLevel: e.STACKY_LOG_LEVEL,
+    oidc: e.STACKY_OIDC_ISSUER
+      ? {
+          issuer: e.STACKY_OIDC_ISSUER.replace(/\/+$/, ''),
+          clientId: e.STACKY_OIDC_CLIENT_ID!,
+          clientSecret: e.STACKY_OIDC_CLIENT_SECRET!,
+          name: e.STACKY_OIDC_NAME,
+          scopes: e.STACKY_OIDC_SCOPES.split(/[\s,]+/).filter(Boolean),
+          allowedGroups: (e.STACKY_OIDC_ALLOWED_GROUPS ?? '')
+            .split(',')
+            .map((g) => g.trim())
+            .filter(Boolean),
+          autoRedirect: e.STACKY_OIDC_AUTO_REDIRECT,
+        }
+      : undefined,
   }
 }

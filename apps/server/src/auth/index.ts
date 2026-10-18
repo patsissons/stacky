@@ -4,7 +4,8 @@ import path from 'node:path'
 import type BetterSqlite3 from 'better-sqlite3'
 import { betterAuth } from 'better-auth'
 import { getMigrations } from 'better-auth/db/migration'
-import { username } from 'better-auth/plugins'
+import { genericOAuth, twoFactor, username } from 'better-auth/plugins'
+import type { OidcConfig } from '../config'
 import { AppError, badRequest, conflict } from '../lib/errors'
 import type { Logger } from '../lib/logger'
 
@@ -19,6 +20,23 @@ export interface AuthOptions {
   rateLimit?: boolean
   /** Trust X-Forwarded-For for client IPs (only when a reverse proxy is configured). */
   trustForwardedFor?: boolean
+  oidc?: OidcConfig
+}
+
+export const OIDC_PROVIDER_ID = 'oidc'
+
+/** Rejects OIDC users outside the allowed groups (when STACKY_OIDC_ALLOWED_GROUPS is set). */
+export function checkGroups(profile: Record<string, unknown>, allowed: string[]) {
+  if (allowed.length === 0) return
+  const raw = profile.groups ?? profile.roles
+  const groups = Array.isArray(raw)
+    ? raw.map(String)
+    : typeof raw === 'string'
+      ? raw.split(/[\s,]+/)
+      : []
+  if (!groups.some((g) => allowed.includes(g))) {
+    throw new Error('Your account is not in a group that may use stacky')
+  }
 }
 
 function options({
@@ -28,6 +46,7 @@ function options({
   logger,
   rateLimit = true,
   trustForwardedFor = false,
+  oidc,
 }: AuthOptions) {
   return {
     appName: 'stacky',
@@ -63,7 +82,33 @@ function options({
       }
       return origins
     },
-    plugins: [username({ minUsernameLength: 2, maxUsernameLength: 64 })],
+    plugins: [
+      username({ minUsernameLength: 2, maxUsernameLength: 64 }),
+      twoFactor({ issuer: 'stacky' }),
+      ...(oidc
+        ? [
+            genericOAuth({
+              config: [
+                {
+                  providerId: OIDC_PROVIDER_ID,
+                  name: oidc.name,
+                  discoveryUrl: `${oidc.issuer}/.well-known/openid-configuration`,
+                  clientId: oidc.clientId,
+                  clientSecret: oidc.clientSecret,
+                  scopes: oidc.scopes,
+                  pkce: true,
+                  mapProfileToUser: (profile) => {
+                    checkGroups(profile as Record<string, unknown>, oidc.allowedGroups)
+                    const p = profile as Record<string, unknown>
+                    const name = String(p.preferred_username ?? p.name ?? p.email ?? 'user')
+                    return { name }
+                  },
+                },
+              ],
+            }),
+          ]
+        : []),
+    ],
     telemetry: { enabled: false },
     logger: {
       log: (level: 'debug' | 'info' | 'warn' | 'error', message: string) => {
@@ -85,6 +130,9 @@ export interface AuthUser {
   id: string
   username: string
   name: string
+  twoFactorEnabled?: boolean
+  /** How the request was authenticated. */
+  via?: 'session' | 'token'
 }
 
 /** Wraps better-auth with stacky's single-admin setup flow. */
@@ -143,8 +191,19 @@ export class AuthService {
     try {
       const result = await this.auth.api.getSession({ headers })
       if (!result) return undefined
-      const u = result.user as { id: string; name: string; username?: string | null }
-      return { id: u.id, name: u.name, username: u.username ?? u.name }
+      const u = result.user as {
+        id: string
+        name: string
+        username?: string | null
+        twoFactorEnabled?: boolean | null
+      }
+      return {
+        id: u.id,
+        name: u.name,
+        username: u.username ?? u.name,
+        twoFactorEnabled: !!u.twoFactorEnabled,
+        via: 'session',
+      }
     } catch {
       return undefined
     }

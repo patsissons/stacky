@@ -18,6 +18,8 @@ import { RevisionStore } from './stacks/revisions'
 import { StackService } from './stacks/service'
 import { StackState } from './stacks/state'
 import { SettingsStore } from './db/settings'
+import { AuditLog } from './auth/audit'
+import { ApiTokenStore } from './auth/tokens'
 import { Notifier } from './notify/notifier'
 import { UpdateChecker } from './updates/checker'
 import { loadDockerCredentials, RegistryClient } from './updates/registry'
@@ -50,6 +52,8 @@ export async function createRuntime(
   const state = new StackState(repo, docker, new ContainerLister(docker), logger)
   const stacks = new StackService(repo, state, engine, dockerBin)
   const settings = new SettingsStore(db)
+  const tokens = new ApiTokenStore(db)
+  const audit = new AuditLog(db)
   const updates = new UpdateChecker(
     state,
     docker,
@@ -77,6 +81,7 @@ export async function createRuntime(
       logger,
       rateLimit: authRateLimit,
       trustForwardedFor: config.trustedProxies.length > 0,
+      oidc: config.oidc,
     })
     if (config.admin && auth.needsSetup()) {
       await auth.createAdmin(config.admin.username, config.admin.password)
@@ -197,6 +202,8 @@ export async function createRuntime(
     settings,
     updates,
     notifier,
+    tokens,
+    audit,
     stop() {
       updates.stop()
       state.stop()

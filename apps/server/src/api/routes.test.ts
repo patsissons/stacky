@@ -59,7 +59,7 @@ describe('auth', () => {
 
   it('reports setup state and protects the API', async () => {
     const session = await json(await req('GET', '/api/session'))
-    expect(session).toEqual({ authDisabled: false, needsSetup: true, user: null })
+    expect(session).toEqual({ authDisabled: false, needsSetup: true, user: null, oidc: null })
 
     const res = await req('GET', '/api/stacks')
     expect(res.status).toBe(401)
@@ -175,5 +175,50 @@ describe('stacks', () => {
     expect(res.status).toBe(404)
     expect(await json(res)).toMatchObject({ error: { code: 'not_found' } })
     expect((await req('GET', '/api/nope', { cookie })).status).toBe(404)
+  })
+})
+
+describe('API tokens and audit log', () => {
+  let cookie: string
+  beforeEach(async () => {
+    await boot()
+    cookie = await setupAdmin()
+  })
+
+  it('authenticates scripts with a bearer token that can be revoked', async () => {
+    const created = await json(await req('POST', '/api/tokens', { cookie, body: { name: 'ci' } }))
+    expect(created.token).toMatch(/^stk_/)
+    const withToken = (method: string, url: string, body?: unknown) =>
+      app.request(url, {
+        method,
+        headers: {
+          authorization: `Bearer ${created.token}`,
+          ...(body ? { 'content-type': 'application/json' } : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      })
+
+    expect((await withToken('GET', '/api/stacks')).status).toBe(200)
+    // tokens cannot mint more tokens
+    expect((await withToken('POST', '/api/tokens', { name: 'x' })).status).toBe(403)
+
+    await req('DELETE', `/api/tokens/${created.info.id}`, { cookie })
+    const revoked = await withToken('GET', '/api/stacks')
+    expect(revoked.status).toBe(401)
+    expect(await json(revoked)).toMatchObject({ error: { code: 'invalid_token' } })
+  })
+
+  it('records who changed what, including failures', async () => {
+    await req('PUT', '/api/global-env', { cookie, body: { content: 'TZ=UTC\n' } })
+    await req('POST', '/api/stacks', { cookie, body: { name: '../bad', compose: '' } })
+    const log = await json(await req('GET', '/api/audit', { cookie }))
+    expect(log.slice(0, 2).map((e: any) => [e.actor, e.method, e.path, e.status])).toEqual([
+      ['admin', 'POST', '/api/stacks', 400],
+      ['admin', 'PUT', '/api/global-env', 200],
+    ])
+  })
+
+  it('reports OIDC as not configured by default', async () => {
+    expect((await json(await req('GET', '/api/session', { cookie }))).oidc).toBeNull()
   })
 })

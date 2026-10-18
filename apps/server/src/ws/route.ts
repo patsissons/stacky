@@ -14,8 +14,11 @@ export function websocketRoute(runtime: Runtime, upgradeWebSocket: UpgradeWebSoc
       if (!allowed.has(new URL(origin).host)) return c.text('forbidden origin', 403)
     }
     if (!runtime.config.authDisabled && runtime.auth) {
-      const user = await runtime.auth.session(c.req.raw.headers)
-      if (!user) return c.text('unauthenticated', 401)
+      const bearer = /^Bearer (.+)$/i.exec(c.req.header('authorization') ?? '')?.[1]
+      const ok = bearer
+        ? !!runtime.tokens.verify(bearer)
+        : !!(await runtime.auth.session(c.req.raw.headers))
+      if (!ok) return c.text('unauthenticated', 401)
     }
     return next()
   }

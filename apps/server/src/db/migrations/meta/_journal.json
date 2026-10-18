@@ -22,6 +22,13 @@
       "when": 1792363790670,
       "tag": "0002_stack_revisions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792364302417,
+      "tag": "0003_tokens_audit",
+      "breakpoints": true
     }
   ]
 }

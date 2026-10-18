@@ -28,3 +28,31 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ STACKY_PORT: 'nope' })).toThrow(ConfigError)
   })
 })
+
+describe('OIDC config', () => {
+  it('parses provider settings', () => {
+    const config = loadConfig({
+      STACKY_OIDC_ISSUER: 'https://auth.example.com/application/o/stacky/',
+      STACKY_OIDC_CLIENT_ID: 'id',
+      STACKY_OIDC_CLIENT_SECRET: 'secret',
+      STACKY_OIDC_ALLOWED_GROUPS: 'admins, homelab',
+      STACKY_OIDC_AUTO_REDIRECT: 'true',
+    })
+    expect(config.oidc).toEqual({
+      issuer: 'https://auth.example.com/application/o/stacky',
+      clientId: 'id',
+      clientSecret: 'secret',
+      name: 'SSO',
+      scopes: ['openid', 'profile', 'email'],
+      allowedGroups: ['admins', 'homelab'],
+      autoRedirect: true,
+    })
+    expect(loadConfig({}).oidc).toBeUndefined()
+  })
+
+  it('requires the issuer, client id and secret together', () => {
+    expect(() => loadConfig({ STACKY_OIDC_ISSUER: 'https://auth.example.com' })).toThrow(
+      ConfigError,
+    )
+  })
+})

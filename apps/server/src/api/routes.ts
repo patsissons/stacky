@@ -12,7 +12,9 @@ import {
   type ContainerSummary,
   type SystemInfo,
 } from '@stacky/shared'
-import type { AuthService, AuthUser } from '../auth'
+import { OIDC_PROVIDER_ID, type AuthService, type AuthUser } from '../auth'
+import type { AuditLog } from '../auth/audit'
+import type { ApiTokenStore } from '../auth/tokens'
 import type { Config } from '../config'
 import { AppError, badRequest, notFound } from '../lib/errors'
 import type { Logger } from '../lib/logger'
@@ -41,6 +43,8 @@ export interface ApiContext {
   updates: UpdateChecker
   settings: SettingsStore
   notifier: Notifier
+  tokens: ApiTokenStore
+  audit: AuditLog
   system: () => Promise<SystemInfo>
 }
 
@@ -88,15 +92,25 @@ export function errorResponse(c: Context, err: unknown, logger: Logger) {
 
 export function apiRoutes(ctx: ApiContext) {
   const api = new Hono<Env>()
+  // handle errors here (not only at the root) so middleware like the audit log sees the status
+  api.onError((err, c) => errorResponse(c, err, ctx.logger))
   const { auth, config } = ctx
 
   // ---- public: session state, first-run setup and better-auth endpoints ----
+  const oidc = config.oidc
+    ? {
+        providerId: OIDC_PROVIDER_ID,
+        name: config.oidc.name,
+        autoRedirect: config.oidc.autoRedirect,
+      }
+    : null
+
   api.get('/session', async (c) => {
     if (config.authDisabled || !auth) {
-      return c.json({ authDisabled: true, needsSetup: false, user: null })
+      return c.json({ authDisabled: true, needsSetup: false, user: null, oidc: null })
     }
     const user = await auth.session(c.req.raw.headers)
-    return c.json({ authDisabled: false, needsSetup: auth.needsSetup(), user: user ?? null })
+    return c.json({ authDisabled: false, needsSetup: auth.needsSetup(), user: user ?? null, oidc })
   })
 
   api.post('/setup', async (c) => {
@@ -134,8 +148,56 @@ export function apiRoutes(ctx: ApiContext) {
   // ---- everything below requires a session (unless auth is disabled) ----
   api.use('*', async (c, next) => {
     if (config.authDisabled || !auth) return next()
-    c.set('user', await auth.requireSession(c.req.raw.headers))
+    const bearer = /^Bearer (.+)$/i.exec(c.req.header('authorization') ?? '')?.[1]
+    const token = bearer ? ctx.tokens.verify(bearer) : undefined
+    if (bearer && !token)
+      throw new AppError(401, 'invalid_token', 'The API token is invalid or was revoked')
+    c.set(
+      'user',
+      token
+        ? {
+            id: `token:${token.id}`,
+            username: `token:${token.name}`,
+            name: token.name,
+            via: 'token',
+          }
+        : await auth.requireSession(c.req.raw.headers),
+    )
     return next()
+  })
+
+  // every change is recorded: who, what, and whether it worked
+  api.use('*', async (c, next) => {
+    await next()
+    if (c.req.method === 'GET' || c.req.method === 'HEAD') return
+    ctx.audit.record({
+      actor: c.get('user')?.username ?? (config.authDisabled ? 'auth disabled' : 'anonymous'),
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+    })
+  })
+
+  api.get('/audit', (c) =>
+    c.json(ctx.audit.list(Math.min(Number(c.req.query('limit') ?? 200) || 200, 1000))),
+  )
+
+  // ---- API tokens (managed from a signed-in session only) ----
+  const requireSessionUser = (c: Context<Env>) => {
+    if (c.get('user')?.via === 'token') {
+      throw new AppError(403, 'forbidden', 'API tokens cannot manage API tokens')
+    }
+  }
+  api.get('/tokens', (c) => c.json(ctx.tokens.list()))
+  api.post('/tokens', async (c) => {
+    requireSessionUser(c)
+    const input = await body(c, z.object({ name: z.string().trim().min(1).max(64) }))
+    return c.json(ctx.tokens.create(input.name), 201)
+  })
+  api.delete('/tokens/:id', (c) => {
+    requireSessionUser(c)
+    if (!ctx.tokens.revoke(c.req.param('id'))) throw notFound('token')
+    return c.json({ ok: true })
   })
 
   api.get('/system', async (c) => c.json(await ctx.system()))

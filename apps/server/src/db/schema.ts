@@ -50,3 +50,28 @@ export const stackRevisions = sqliteTable(
   },
   (t) => [index('stack_revisions_stack_idx').on(t.stack, t.createdAt)],
 )
+
+/** Long-lived bearer tokens for scripts and automation (only a hash is stored). */
+export const apiTokens = sqliteTable('api_tokens', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  /** First characters of the token, shown so users can tell tokens apart. */
+  prefix: text('prefix').notNull(),
+  hash: text('hash').notNull().unique(),
+  createdAt: integer('created_at').notNull(),
+  lastUsedAt: integer('last_used_at'),
+})
+
+/** Who changed what: every mutating API request. */
+export const auditLog = sqliteTable(
+  'audit_log',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    ts: integer('ts').notNull(),
+    actor: text('actor').notNull(),
+    method: text('method').notNull(),
+    path: text('path').notNull(),
+    status: integer('status').notNull(),
+  },
+  (t) => [index('audit_log_ts_idx').on(t.ts)],
+)
