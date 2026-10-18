@@ -30,6 +30,8 @@ export type SelfAction = 'update' | 'deploy' | 'restart'
  */
 export class SelfUpdater {
   readonly jobs: JobStore
+  /** Called once a job reaches a final outcome (for notifications). */
+  onJobFinal: ((job: SelfUpdateJob) => void) | undefined
 
   constructor(
     private readonly docker: Docker,
@@ -291,12 +293,17 @@ export class SelfUpdater {
   private async confirmJobs() {
     for (const job of (await this.jobs.list()).slice(0, 5)) {
       if (job.state === 'applied') {
-        await this.jobs.write({
+        const done = {
           ...job,
-          state: 'succeeded',
+          state: 'succeeded' as const,
           finishedAt: job.finishedAt ?? Date.now(),
-        })
+        }
+        await this.jobs.write(done)
         this.logger.info('self-update succeeded', { job: job.id, version: this.version })
+        this.onJobFinal?.(done)
+      } else if (job.state === 'rolled_back' || job.state === 'failed') {
+        // the notifier remembers which jobs it already reported
+        this.onJobFinal?.(job)
       } else if (job.state === 'pending' && Date.now() - job.createdAt > STALE_MS) {
         await this.jobs.write({ ...job, state: 'stale', finishedAt: Date.now() })
       }

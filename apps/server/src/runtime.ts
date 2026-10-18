@@ -18,6 +18,7 @@ import { RevisionStore } from './stacks/revisions'
 import { StackService } from './stacks/service'
 import { StackState } from './stacks/state'
 import { SettingsStore } from './db/settings'
+import { Notifier } from './notify/notifier'
 import { UpdateChecker } from './updates/checker'
 import { loadDockerCredentials, RegistryClient } from './updates/registry'
 import { VERSION } from './version'
@@ -60,6 +61,11 @@ export async function createRuntime(
   )
   stacks.updates = updates
   stacks.revisions = new RevisionStore(db)
+  const notifier = new Notifier(settings, logger)
+  engine.on('update', (op) => notifier.onOperation(op))
+  updates.on('change', (summary) => notifier.onUpdates(summary))
+  state.on('change', (list) => notifier.onStacks(list))
+  setInterval(() => notifier.tick(), 15_000).unref()
   const hub = new Hub(state, engine, docker, logger, updates)
 
   let auth: AuthService | undefined
@@ -99,6 +105,7 @@ export async function createRuntime(
     logger,
     dockerBin,
   )
+  selfUpdater.onJobFinal = (job) => notifier.onSelfJob(job, VERSION)
   stacks.selfUpdate = (_stack, action, options) => {
     if (action === 'update-to')
       return selfUpdater.run('update', { targetVersion: options.services?.[0] })
@@ -189,6 +196,7 @@ export async function createRuntime(
     system,
     settings,
     updates,
+    notifier,
     stop() {
       updates.stop()
       state.stop()

@@ -6,6 +6,8 @@ import {
   serviceActions,
   stackActions,
   stackNameSchema,
+  channelTypes,
+  notifyEvents,
   type ApiErrorBody,
   type ContainerSummary,
   type SystemInfo,
@@ -24,6 +26,7 @@ import type { SelfUpdater } from '../self/updater'
 import type { SettingsStore } from '../db/settings'
 import { WUD_KEY, type UpdateChecker } from '../updates/checker'
 import { WudClient, type WudSettings } from '../updates/wud'
+import type { Notifier } from '../notify/notifier'
 
 export interface ApiContext {
   config: Config
@@ -37,6 +40,7 @@ export interface ApiContext {
   selfUpdater: SelfUpdater
   updates: UpdateChecker
   settings: SettingsStore
+  notifier: Notifier
   system: () => Promise<SystemInfo>
 }
 
@@ -191,6 +195,38 @@ export function apiRoutes(ctx: ApiContext) {
     } catch (err) {
       throw new AppError(502, 'wud_unreachable', err instanceof Error ? err.message : String(err))
     }
+  })
+
+  // ---- notifications ----
+  const channelInput = z.object({
+    id: z.string().optional(),
+    name: z.string().min(1).max(64),
+    type: z.enum(channelTypes),
+    url: z.string().url(),
+    token: z.string().max(1024).nullable().optional(),
+    events: z.array(z.enum(notifyEvents)),
+    enabled: z.boolean(),
+  })
+
+  api.get('/settings/notifications', (c) => c.json(ctx.notifier.list()))
+
+  api.put('/settings/notifications', async (c) => {
+    const input = await body(c, z.object({ channels: z.array(channelInput).max(20) }))
+    return c.json(ctx.notifier.save(input.channels))
+  })
+
+  api.post('/settings/notifications/test', async (c) => {
+    const input = await body(c, z.object({ channel: channelInput }))
+    try {
+      await ctx.notifier.test(input.channel)
+    } catch (err) {
+      throw new AppError(
+        502,
+        'notification_failed',
+        err instanceof Error ? err.message : String(err),
+      )
+    }
+    return c.json({ ok: true })
   })
 
   // ---- stacky itself ----

@@ -87,3 +87,25 @@ export interface StackRevision {
   env?: string
   createdAt: number
 }
+
+export const notifyEvents = [
+  'operation_failed',
+  'update_available',
+  'container_unhealthy',
+  'self_update',
+] as const
+export type NotifyEvent = (typeof notifyEvents)[number]
+
+export const channelTypes = ['ntfy', 'gotify', 'discord', 'webhook', 'apprise'] as const
+export type ChannelType = (typeof channelTypes)[number]
+
+/** A notification channel as the API returns it (secrets are never sent back). */
+export interface NotificationChannel {
+  id: string
+  name: string
+  type: ChannelType
+  url: string
+  hasToken: boolean
+  events: NotifyEvent[]
+  enabled: boolean
+}
