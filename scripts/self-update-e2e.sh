@@ -31,7 +31,10 @@ cleanup() {
   docker ps -aq --filter label=dev.stacky.updater | xargs -r docker rm -f >/dev/null 2>&1 || true
   docker rm -f stacky-e2e-registry >/dev/null 2>&1 || true
   # files written by the container are root-owned; remove them from a container
-  docker run --rm --entrypoint sh -v "$WORK:$WORK" "$REG:new" -c "rm -rf '$WORK'/*" >/dev/null 2>&1 || true
+  # (only if the dir exists: a bind mount of a missing path would create it as root)
+  if [ -d "$WORK" ]; then
+    docker run --rm --entrypoint sh -v "$WORK:$WORK" "$REG:new" -c "rm -rf '$WORK'/*" >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
 
@@ -49,6 +52,7 @@ wait_for() { # wait_for <description> <timeout-seconds> <command...>
 healthy_version() { curl -fsS "$BASE/healthz" | json v.version | grep -qx "$1"; }
 job_finished() { curl -fsS "$BASE/api/self" | json 'v.lastJob?.state' | grep -qE '^(succeeded|rolled_back|failed)$'; }
 
+mkdir -p "$WORK"
 log "local registry on :$REGISTRY_PORT"
 docker rm -f stacky-e2e-registry >/dev/null 2>&1 || true
 docker run -d --name stacky-e2e-registry --network host -e "REGISTRY_HTTP_ADDR=:$REGISTRY_PORT" \
