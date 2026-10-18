@@ -16,4 +16,5 @@ description: Environment variables that configure stacky.
 | `STACKY_BASE_URL`        | (none)        | Public URL of stacky, used for links and OIDC callbacks                                           |
 | `STACKY_CONTAINER_ID`    | autodetected  | Override detection of stacky's own container (used by self-update)                                |
 | `STACKY_UPDATE_CHECK`    | `true`        | Check GitHub for newer stacky releases and show an update banner                                  |
+| `STACKY_UPDATE_INTERVAL` | `6`           | Hours between image update checks; `0` disables scheduled checks                                  |
 | `STACKY_LOG_LEVEL`       | `info`        | `debug`, `info`, `warn` or `error`                                                                |

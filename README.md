@@ -46,6 +46,7 @@ Open `http://<host>:5005` and create the admin account. From then on, stacky app
 | `STACKY_TRUSTED_PROXIES`                      | (none)        | Comma-separated proxy addresses/CIDRs whose `X-Forwarded-*` is trusted |
 | `STACKY_ADMIN_USER` / `STACKY_ADMIN_PASSWORD` | (none)        | Seed the admin account instead of using the setup page                 |
 | `STACKY_UPDATE_CHECK`                         | `true`        | Check GitHub for newer stacky releases                                 |
+| `STACKY_UPDATE_INTERVAL`                      | `6`           | Hours between image update checks (`0` = only on demand)               |
 | `STACKY_BASE_URL`                             | (none)        | Public URL, used for links and OIDC callbacks                          |
 
 ## Development
