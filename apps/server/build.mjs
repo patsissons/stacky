@@ -1,5 +1,6 @@
 // Bundles the server into dist/ with esbuild. Native and optional-native
 // dependencies stay external and are installed in the image via `pnpm deploy`.
+import fs from 'node:fs'
 import { build } from 'esbuild'
 
 await build({
@@ -17,3 +18,7 @@ await build({
   },
   logLevel: 'info',
 })
+
+// Drizzle reads SQL migrations from disk at startup.
+fs.rmSync('dist/migrations', { recursive: true, force: true })
+fs.cpSync('src/db/migrations', 'dist/migrations', { recursive: true })
