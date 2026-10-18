@@ -8,6 +8,13 @@
       "when": 1792359462017,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792363471083,
+      "tag": "0001_image_updates",
+      "breakpoints": true
     }
   ]
 }

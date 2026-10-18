@@ -16,6 +16,9 @@ import { SelfUpdater } from './self/updater'
 import { StackRepository } from './stacks/repository'
 import { StackService } from './stacks/service'
 import { StackState } from './stacks/state'
+import { SettingsStore } from './db/settings'
+import { UpdateChecker } from './updates/checker'
+import { loadDockerCredentials, RegistryClient } from './updates/registry'
 import { VERSION } from './version'
 import { Hub } from './ws/hub'
 
@@ -44,7 +47,18 @@ export async function createRuntime(
   const engine = new OperationEngine(db, logger, dockerBin)
   const state = new StackState(repo, docker, new ContainerLister(docker), logger)
   const stacks = new StackService(repo, state, engine, dockerBin)
-  const hub = new Hub(state, engine, docker, logger)
+  const settings = new SettingsStore(db)
+  const updates = new UpdateChecker(
+    state,
+    docker,
+    new RegistryClient(loadDockerCredentials()),
+    db,
+    settings,
+    logger,
+    config.updateIntervalHours * 60 * 60 * 1000,
+  )
+  stacks.updates = updates
+  const hub = new Hub(state, engine, docker, logger, updates)
 
   let auth: AuthService | undefined
   if (!config.authDisabled) {
@@ -83,7 +97,9 @@ export async function createRuntime(
     logger,
     dockerBin,
   )
-  stacks.selfUpdate = (_stack, action) => {
+  stacks.selfUpdate = (_stack, action, options) => {
+    if (action === 'update-to')
+      return selfUpdater.run('update', { targetVersion: options.services?.[0] })
     if (action === 'deploy' || action === 'update') return selfUpdater.run(action)
     if (action === 'start' || action === 'restart' || action === 'recreate')
       return selfUpdater.run('restart')
@@ -149,6 +165,7 @@ export async function createRuntime(
   }
 
   await state.start()
+  updates.start()
   const info = await system()
   for (const check of info.preflight.filter((c) => !c.ok)) {
     logger.warn(`preflight: ${check.message}`, { hint: check.hint })
@@ -168,7 +185,10 @@ export async function createRuntime(
     self,
     selfUpdater,
     system,
+    settings,
+    updates,
     stop() {
+      updates.stop()
       state.stop()
       sqlite.close()
     },

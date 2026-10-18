@@ -1,10 +1,12 @@
 import type { OperationSummary } from './operations'
 import type { StackSummary } from './stacks'
+import type { UpdatesSummary } from './updates'
 
 /**
  * One multiplexed WebSocket per browser tab. Topics:
  *
  * - `stacks`                     → full stack list snapshot on every change
+ * - `updates`                    → image update check results
  * - `op:<id>`                    → operation output (replayed from the start) and state changes
  * - `logs:<stack>[:<service>]`   → container log lines
  * - `stats:<stack>`              → per-container CPU/memory samples
@@ -19,6 +21,7 @@ export type ClientMessage =
 
 export type ServerMessage =
   | { type: 'stacks'; stacks: StackSummary[] }
+  | { type: 'updates'; topic: 'updates'; summary: UpdatesSummary }
   | { type: 'op'; topic: string; operation: OperationSummary }
   | { type: 'output'; topic: string; data: string }
   | { type: 'log'; topic: string; lines: LogLine[] }

@@ -21,6 +21,9 @@ import type { StackRepository } from '../stacks/repository'
 import type { StackService } from '../stacks/service'
 import type { StackState } from '../stacks/state'
 import type { SelfUpdater } from '../self/updater'
+import type { SettingsStore } from '../db/settings'
+import { WUD_KEY, type UpdateChecker } from '../updates/checker'
+import { WudClient, type WudSettings } from '../updates/wud'
 
 export interface ApiContext {
   config: Config
@@ -32,6 +35,8 @@ export interface ApiContext {
   auth?: AuthService
   logger: Logger
   selfUpdater: SelfUpdater
+  updates: UpdateChecker
+  settings: SettingsStore
   system: () => Promise<SystemInfo>
 }
 
@@ -130,6 +135,63 @@ export function apiRoutes(ctx: ApiContext) {
   })
 
   api.get('/system', async (c) => c.json(await ctx.system()))
+
+  // ---- image updates ----
+  api.get('/updates', (c) => c.json(ctx.updates.summary()))
+
+  api.post('/updates/check', async (c) => {
+    const raw = await c.req.text()
+    const input = z
+      .object({ refs: z.array(z.string()).optional() })
+      .parse(raw ? JSON.parse(raw) : {})
+    void ctx.updates.checkAll(input.refs)
+    return c.json({ ...ctx.updates.summary(), checking: true }, 202)
+  })
+
+  api.post('/updates/ignore', async (c) => {
+    const input = await body(c, z.object({ ref: z.string().min(1), value: z.string().optional() }))
+    ctx.updates.ignore(input.ref, input.value)
+    return c.json(ctx.updates.summary())
+  })
+
+  api.post('/stacks/:name/services/:service/image', async (c) => {
+    const name = assertStackName(c.req.param('name'))
+    const input = await body(c, z.object({ tag: z.string().min(1).max(128) }))
+    return c.json(await ctx.stacks.bumpImage(name, c.req.param('service'), input.tag), 202)
+  })
+
+  // ---- integrations ----
+  const wudInput = z.object({
+    enabled: z.boolean(),
+    url: z.string().url().or(z.literal('')),
+    token: z.string().max(512).optional(),
+  })
+
+  api.get('/settings/wud', (c) => {
+    const s = ctx.settings.get<WudSettings & { enabled?: boolean }>(WUD_KEY)
+    return c.json({ enabled: !!s?.enabled, url: s?.url ?? '', hasToken: !!s?.token })
+  })
+
+  api.put('/settings/wud', async (c) => {
+    const input = await body(c, wudInput)
+    const current = ctx.settings.get<WudSettings & { enabled?: boolean }>(WUD_KEY)
+    // an omitted token keeps the stored one (the UI never receives it back)
+    const token = input.token === undefined ? current?.token : input.token || undefined
+    ctx.settings.set(WUD_KEY, { enabled: input.enabled, url: input.url, token })
+    return c.json({ enabled: input.enabled, url: input.url, hasToken: !!token })
+  })
+
+  api.post('/settings/wud/test', async (c) => {
+    const input = await body(c, wudInput)
+    const stored = ctx.settings.get<WudSettings>(WUD_KEY)
+    const client = new WudClient({ url: input.url, token: input.token ?? stored?.token })
+    try {
+      const containers = await client.containers()
+      return c.json({ ok: true, containers: containers.length })
+    } catch (err) {
+      throw new AppError(502, 'wud_unreachable', err instanceof Error ? err.message : String(err))
+    }
+  })
 
   // ---- stacky itself ----
   api.get('/self', async (c) => c.json(await ctx.selfUpdater.info()))

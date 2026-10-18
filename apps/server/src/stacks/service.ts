@@ -9,12 +9,17 @@ import type {
   StackSummary,
   ValidationResult,
 } from '@stacky/shared'
-import { AppError, notFound } from '../lib/errors'
+import { AppError, badRequest, notFound } from '../lib/errors'
 import type { ComposeTarget, Step } from '../ops/compose'
 import { planServiceAction, planStackAction } from '../ops/compose'
 import type { OperationEngine } from '../ops/engine'
 import { GLOBAL_ENV_FILE, type StackRepository } from './repository'
 import type { StackState } from './state'
+import type { UpdateChecker } from '../updates/checker'
+import { setServiceImage } from '../self/compose-edit'
+import { withTag } from '../self/image-ref'
+import { parseDocument } from 'yaml'
+import { composeTags } from './compose-file'
 import { validateCompose } from './validate'
 
 const UP_STATES: ReadonlySet<string> = new Set([
@@ -44,8 +49,12 @@ export interface SelfUpdateHook {
 }
 
 /** Application logic for stacks: ties files on disk, live state and operations together. */
+const REFRESHES_IMAGES = /^(deploy|update|pull)( |$)/
+
 export class StackService {
   selfUpdate: SelfUpdateHook | undefined
+  /** When set, images are re-checked after operations that may have changed them. */
+  updates: UpdateChecker | undefined
 
   constructor(
     private readonly repo: StackRepository,
@@ -60,6 +69,10 @@ export class StackService {
       if (active) state.setActiveOperation(op.stack, op.id)
       else state.clearActiveOperation(op.stack, op.id, engine.active(op.stack)?.id)
       if (!active) state.schedule(0)
+      if (op.state === 'succeeded' && REFRESHES_IMAGES.test(op.action) && this.updates) {
+        const refs = this.imageRefs(op.stack)
+        setTimeout(() => void this.updates?.checkAll(refs), 2000).unref()
+      }
     })
     engine.enrichError = (error) => this.enrichError(error)
   }
@@ -179,6 +192,46 @@ export class StackService {
       cwd: target.dir,
       steps: planServiceAction(target, action, [service]),
     })
+  }
+
+  private imageRefs(name: string): string[] {
+    const stack = this.state.get(name)
+    return [
+      ...new Set(
+        stack?.services
+          .flatMap((s) => [s.image, ...s.containers.map((c) => c.image)])
+          .filter((x): x is string => !!x) ?? [],
+      ),
+    ]
+  }
+
+  /**
+   * Moves a service to another tag of its image with a targeted edit of the
+   * `image:` line (comments and formatting stay), then pulls and recreates it.
+   */
+  async bumpImage(name: string, service: string, tag: string): Promise<OperationSummary> {
+    if (!/^[\w][\w.-]{0,127}$/.test(tag)) throw badRequest(`invalid tag "${tag}"`)
+    const stack = this.requireManaged(name)
+    if (stack.isSelf && this.selfUpdate) {
+      // stacky's own image goes through the self-update flow
+      return this.selfUpdate(stack, 'update-to', { services: [tag] })
+    }
+    const files = await this.repo.read(name)
+    const doc = parseDocument(files.compose, { customTags: composeTags })
+    const current = doc.getIn(['services', service, 'image'])
+    if (typeof current !== 'string') throw notFound(`image for service "${service}"`)
+    if (current.includes('$')) {
+      throw new AppError(
+        409,
+        'image_uses_variable',
+        `The image of "${service}" is set from a variable (${current})`,
+        'Change the variable in the .env file instead.',
+      )
+    }
+    await this.save(name, {
+      compose: setServiceImage(files.compose, service, withTag(current, tag)),
+    })
+    return this.serviceAction(name, service, 'update')
   }
 
   private routeSelf(stack: StackSummary, action: string, options: ActionOptions) {

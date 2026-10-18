@@ -29,3 +29,9 @@ export const settings = sqliteTable('settings', {
   value: text('value', { mode: 'json' }).$type<unknown>().notNull(),
   updatedAt: integer('updated_at').notNull(),
 })
+
+export const imageUpdates = sqliteTable('image_updates', {
+  ref: text('ref').primaryKey(),
+  data: text('data', { mode: 'json' }).$type<import('@stacky/shared').ImageUpdate>().notNull(),
+  checkedAt: integer('checked_at').notNull(),
+})

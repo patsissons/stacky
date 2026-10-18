@@ -6,6 +6,7 @@ import { streamStats } from '../docker/stats'
 import type { Logger } from '../lib/logger'
 import type { OperationEngine } from '../ops/engine'
 import type { StackState } from '../stacks/state'
+import type { UpdateChecker } from '../updates/checker'
 
 export interface Peer {
   send(message: ServerMessage): void
@@ -33,6 +34,7 @@ export class Hub {
     private readonly engine: OperationEngine,
     private readonly docker: Docker,
     private readonly logger: Logger,
+    private readonly updates?: UpdateChecker,
   ) {}
 
   connect(peer: Peer) {
@@ -84,6 +86,7 @@ export class Hub {
 
     try {
       if (kind === 'stacks') dispose = this.subStacks(send)
+      else if (kind === 'updates') dispose = this.subUpdates(send)
       else if (kind === 'op' && rest[0]) dispose = this.subOperation(topic, rest[0], send)
       else if (kind === 'logs' && rest[0])
         dispose = this.subLogs(topic, rest[0], rest[1], params, send)
@@ -102,6 +105,16 @@ export class Hub {
     const onChange = (stacks: StackSummary[]) => send({ type: 'stacks', stacks })
     this.state.on('change', onChange)
     return () => this.state.off('change', onChange)
+  }
+
+  private subUpdates(send: (m: ServerMessage) => void): Dispose {
+    const updates = this.updates
+    if (!updates) return () => {}
+    send({ type: 'updates', topic: 'updates', summary: updates.summary() })
+    const onChange = (summary: ReturnType<UpdateChecker['summary']>) =>
+      send({ type: 'updates', topic: 'updates', summary })
+    updates.on('change', onChange)
+    return () => updates.off('change', onChange)
   }
 
   private subOperation(topic: string, id: string, send: (m: ServerMessage) => void): Dispose {

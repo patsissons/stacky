@@ -19,6 +19,7 @@ const envSchema = z.object({
   STACKY_ADMIN_PASSWORD: z.string().optional(),
   STACKY_CONTAINER_ID: z.string().optional(),
   STACKY_UPDATE_CHECK: z.string().optional(),
+  STACKY_UPDATE_INTERVAL: z.coerce.number().min(0).default(6),
   STACKY_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 })
 
@@ -39,6 +40,8 @@ export interface Config {
   containerId: string | undefined
   /** Check GitHub for newer stacky releases. */
   updateCheck: boolean
+  /** Hours between image update checks; 0 disables scheduled checks. */
+  updateIntervalHours: number
   logLevel: 'debug' | 'info' | 'warn' | 'error'
 }
 
@@ -74,6 +77,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         : undefined,
     containerId: e.STACKY_CONTAINER_ID,
     updateCheck: !['0', 'false', 'no', 'off'].includes((e.STACKY_UPDATE_CHECK ?? '').toLowerCase()),
+    updateIntervalHours: e.STACKY_UPDATE_INTERVAL,
     logLevel: e.STACKY_LOG_LEVEL,
   }
 }
