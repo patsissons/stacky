@@ -26,15 +26,19 @@ fail() {
   exit 1
 }
 
-cleanup() {
+reset_stack() {
   (cd "$STACKS/stacky" 2>/dev/null && docker compose down --remove-orphans >/dev/null 2>&1) || true
   docker ps -aq --filter label=dev.stacky.updater | xargs -r docker rm -f >/dev/null 2>&1 || true
-  docker rm -f stacky-e2e-registry >/dev/null 2>&1 || true
   # files written by the container are root-owned; remove them from a container
   # (only if the dir exists: a bind mount of a missing path would create it as root)
   if [ -d "$WORK" ]; then
     docker run --rm --entrypoint sh -v "$WORK:$WORK" "$REG:new" -c "rm -rf '$WORK'/*" >/dev/null 2>&1 || true
   fi
+}
+
+cleanup() {
+  reset_stack
+  docker rm -f stacky-e2e-registry >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -71,7 +75,7 @@ MODE="${SELF_E2E_MODE:-$([ "$(uname -s)" = Linux ] && echo registry || echo loca
 log "mode: $MODE"
 
 log "run stacky (old) from its own compose file in $STACKS/stacky"
-cleanup
+reset_stack
 mkdir -p "$STACKS/stacky"
 cat > "$STACKS/stacky/compose.yaml" <<YAML
 # stacky manages itself
