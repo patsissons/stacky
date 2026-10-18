@@ -55,10 +55,10 @@ export class StackService {
   ) {
     engine.on('update', (op) => {
       const active = op.state === 'queued' || op.state === 'running'
+      // Uses the state's own marker, not the (possibly not yet refreshed) snapshot,
+      // so an operation that finishes very quickly can't leave the stack marked busy.
       if (active) state.setActiveOperation(op.stack, op.id)
-      else if (state.get(op.stack)?.activeOperationId === op.id) {
-        state.setActiveOperation(op.stack, engine.active(op.stack)?.id)
-      }
+      else state.clearActiveOperation(op.stack, op.id, engine.active(op.stack)?.id)
       if (!active) state.schedule(0)
     })
     engine.enrichError = (error) => this.enrichError(error)

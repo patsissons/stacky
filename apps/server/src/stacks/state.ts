@@ -78,10 +78,21 @@ export class StackState extends EventEmitter<StackStateEvents> {
     return this.containers
   }
 
-  setActiveOperation(stack: string, operationId: string | undefined) {
-    if (operationId) this.activeOperations.set(stack, operationId)
+  setActiveOperation(stack: string, operationId: string) {
+    this.activeOperations.set(stack, operationId)
+    this.schedule(0)
+  }
+
+  /** Clears the marker only if it still belongs to this operation (another may have started). */
+  clearActiveOperation(stack: string, operationId: string, next?: string) {
+    if (this.activeOperations.get(stack) !== operationId) return
+    if (next) this.activeOperations.set(stack, next)
     else this.activeOperations.delete(stack)
     this.schedule(0)
+  }
+
+  activeOperation(stack: string): string | undefined {
+    return this.activeOperations.get(stack)
   }
 
   /** Request a refresh soon (coalesces bursts of events). */
