@@ -1,0 +1,35 @@
+{
+  "name": "stacky-monorepo",
+  "private": true,
+  "description": "Stacky — a modern, compose-first Docker stack manager",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @stacky/server --filter @stacky/web dev",
+    "build": "pnpm --filter @stacky/shared --filter @stacky/web --filter @stacky/server build",
+    "test": "vitest run",
+    "test:e2e": "pnpm --filter @stacky/web test:e2e",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "validate:quick": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
+    "validate": "pnpm validate:quick && pnpm test:e2e",
+    "format-and-validate": "pnpm format && pnpm validate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.5",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+dist/
+.astro/
+.wrangler/
+coverage/
+playwright-report/
+test-results/
+apps/server/src/db/migrations/
+packages/shared/src/compose-spec.json
+CHANGELOG.md
