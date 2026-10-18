@@ -17,6 +17,7 @@ export interface ContainerRow {
   tag: string
   ports: PortMapping[]
   createdAt: number
+  icon?: string
 }
 
 export type StatusFilter = 'all' | 'running' | 'problems' | 'stopped' | 'updates'
@@ -56,6 +57,7 @@ export function buildRows(stacks: StackSummary[]): ContainerRow[] {
           tag,
           ports: c.ports,
           createdAt: c.createdAt,
+          icon: c.icon,
         })
       }
     }

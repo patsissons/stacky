@@ -18,7 +18,7 @@ import type { ImageUpdate, ServiceAction, ServiceSummary, StackSummary } from '@
 import { UpdateBadge } from '@/features/updates/update-badge'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
 import { useUpdates } from '@/hooks/use-updates'
-import { AppAvatar } from '@/components/icons'
+import { AppIcon } from '@/components/icons'
 import { Sparkline } from '@/components/sparkline'
 import { ServiceStateBadge } from '@/components/status'
 import { Button } from '@/components/ui/button'
@@ -133,7 +133,7 @@ function ServiceCard({
   return (
     <div className="bg-card rounded-xl border p-4" data-testid={`service-${service.name}`}>
       <div className="flex items-start gap-3">
-        <AppAvatar name={service.name} className="size-9 text-xs" />
+        <AppIcon icon={first?.icon} name={service.name} className="size-9 text-xs" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">{service.name}</span>

@@ -35,7 +35,7 @@ import { UpdateBadge } from '@/features/updates/update-badge'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
 import { checkForUpdates, isActionable, useUpdates } from '@/hooks/use-updates'
 import { formatRelative } from '@/lib/format'
-import { AppAvatar, RegistryIcon, registryLabel } from '@/components/icons'
+import { AppIcon, RegistryIcon, registryLabel } from '@/components/icons'
 import { ServiceStateBadge, StackStatusBadge } from '@/components/status'
 import { Button } from '@/components/ui/button'
 import {
@@ -107,7 +107,7 @@ function makeColumns(
       header: 'Container',
       cell: ({ row }) => (
         <div className="flex min-w-0 items-center gap-2.5">
-          <AppAvatar name={row.original.service} />
+          <AppIcon icon={row.original.icon} name={row.original.service} />
           <div className="min-w-0">
             <div className="truncate font-medium">{row.original.name}</div>
             <div className="text-muted-foreground truncate text-xs">
@@ -545,7 +545,7 @@ export function ContainersPage() {
       <div className="space-y-2 md:hidden" data-testid="container-cards">
         {table.getRowModel().rows.map(({ original: r }) => (
           <div key={r.id} className="bg-card flex items-center gap-3 rounded-lg border p-3">
-            <AppAvatar name={r.service} className="size-8" />
+            <AppIcon icon={r.icon} name={r.service} className="size-8" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="truncate font-medium">{r.name}</span>

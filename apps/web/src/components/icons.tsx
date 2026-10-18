@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
 /** Small brand-neutral registry glyphs (no external icon fetches). */
@@ -60,6 +61,29 @@ const PALETTE = [
   '#ec4899',
   '#14b8a6',
 ]
+
+/** The app's icon (served and cached by stacky), falling back to a letter avatar. */
+export function AppIcon({
+  icon,
+  name,
+  className,
+}: {
+  icon?: string
+  name: string
+  className?: string
+}) {
+  const [failed, setFailed] = useState<string>()
+  if (!icon || failed === icon) return <AppAvatar name={name} className={className} />
+  return (
+    <img
+      src={`/api/icons/${icon}`}
+      alt=""
+      loading="lazy"
+      onError={() => setFailed(icon)}
+      className={cn('size-6 shrink-0 rounded-md object-contain', className)}
+    />
+  )
+}
 
 /** Letter avatar used when a container has no icon. */
 export function AppAvatar({ name, className }: { name: string; className?: string }) {
