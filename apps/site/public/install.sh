@@ -74,7 +74,7 @@ main() {
 
   run_fs mkdir -p "$DIR"
 
-  existing=$(find "$STACKS_DIR" -mindepth 2 -maxdepth 2 \( -name compose.yaml -o -name docker-compose.yaml -o -name docker-compose.yml -o -name compose.yml \) 2>/dev/null | grep -v "^$DIR/" | wc -l | tr -d ' ')
+  existing=$(find "$STACKS_DIR" -mindepth 2 -maxdepth 2 \( -name compose.yaml -o -name docker-compose.yaml -o -name docker-compose.yml -o -name compose.yml \) 2>/dev/null | grep -vc "^$DIR/" || true)
   if [ "${existing:-0}" -gt 0 ]; then
     note "found $existing existing stack(s) in $STACKS_DIR; stacky will show them as they are (Dockge layout is supported)"
   fi
