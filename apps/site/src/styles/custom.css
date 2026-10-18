@@ -18,6 +18,8 @@
 }
 
 .flow > div {
+  /* Starlight's content styles add a top margin to every sibling after the first. */
+  margin: 0;
   border: 1px solid var(--sl-color-gray-5);
   border-radius: 0.5rem;
   padding: 0.75rem;
