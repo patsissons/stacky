@@ -1,0 +1,124 @@
+name: release
+
+# Every push to main is validated, then publishes the `edge` image. When
+# release-please cuts a release, the same run publishes semver + `latest`.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  release-please:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+      version: ${{ steps.rp.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  image:
+    needs: [ci, release-please]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      RELEASE: ${{ needs.release-please.outputs.release_created == 'true' }}
+      TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+      HAS_DOCKERHUB: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve image names and version
+        id: names
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          images="ghcr.io/${owner}/stacky"
+          if [ "$HAS_DOCKERHUB" = "true" ]; then
+            images="${images}"$'\n'"docker.io/${{ secrets.DOCKERHUB_USERNAME }}/stacky"
+          fi
+          {
+            echo "images<<EOF"
+            echo "$images"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          if [ "$RELEASE" = "true" ]; then
+            echo "version=${TAG_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=edge-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/login-action@v4
+        if: env.HAS_DOCKERHUB == 'true'
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ${{ steps.names.outputs.images }}
+          flavor: |
+            latest=false
+          tags: |
+            type=edge,branch=main,enable=${{ env.RELEASE != 'true' }}
+            type=sha,format=short
+            type=semver,pattern={{version}},value=${{ env.TAG_NAME }},enable=${{ env.RELEASE == 'true' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG_NAME }},enable=${{ env.RELEASE == 'true' }}
+            type=semver,pattern={{major}},value=${{ env.TAG_NAME }},enable=${{ env.RELEASE == 'true' && !startsWith(env.TAG_NAME, 'v0.') }}
+            type=raw,value=latest,enable=${{ env.RELEASE == 'true' }}
+
+      - uses: docker/build-push-action@v7
+        id: build
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            STACKY_VERSION=${{ steps.names.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      - uses: peter-evans/dockerhub-description@v5
+        if: env.HAS_DOCKERHUB == 'true' && env.RELEASE == 'true'
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/stacky
+          short-description: A modern, compose-first Docker stack manager
+          readme-filepath: ./README.md
