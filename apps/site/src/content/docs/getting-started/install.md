@@ -59,8 +59,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data:/app/data
       - /opt/stacks:/opt/stacks
-    environment:
-      STACKY_STACKS_DIR: /opt/stacks
 ```
 
 ## 2. Start it once by hand

@@ -12,10 +12,11 @@ services:
       # The stacks directory MUST be mounted at the same path inside the
       # container as on the host (compose resolves relative paths client-side).
       - /opt/stacks:/opt/stacks
-    environment:
-      STACKY_STACKS_DIR: /opt/stacks
-      # Optional: seed the admin account instead of using the first-run setup page.
-      # STACKY_ADMIN_USER: admin
-      # STACKY_ADMIN_PASSWORD: change-me
-      # Optional: disable built-in auth when an authenticating reverse proxy sits in front.
-      # STACKY_AUTH_DISABLED: "true"
+    # Optional settings. STACKY_STACKS_DIR defaults to /opt/stacks, so only set it if you
+    # mount a different path above.
+    # environment:
+    #   # Seed the admin account instead of using the first-run setup page.
+    #   STACKY_ADMIN_USER: admin
+    #   STACKY_ADMIN_PASSWORD: change-me
+    #   # Disable built-in auth when an authenticating reverse proxy sits in front.
+    #   STACKY_AUTH_DISABLED: "true"
