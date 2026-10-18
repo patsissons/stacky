@@ -1,0 +1,95 @@
+---
+title: stacky
+description: A modern, compose-first Docker stack manager for your home lab.
+template: splash
+hero:
+  tagline: Manage your Docker Compose stacks from a fast, modern web UI. Your compose files stay the source of truth, image updates are one click, and stacky can even update itself.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Get started
+      link: /getting-started/install/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/patsissons/stacky
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components'
+
+## Why stacky?
+
+[Dockge](https://github.com/louislam/dockge) proved that a stack manager should keep your compose files on disk, where you and your other tools can still use them. Stacky keeps that idea and builds a modern experience around it.
+
+<CardGrid stagger>
+  <Card title="Compose files are the source of truth" icon="document">
+    Every stack is a plain directory: `compose.yaml`, an optional `.env`, and anything else it
+    needs. Stacky reads Dockge's layout unchanged, so migrating takes no conversion.
+  </Card>
+  <Card title="A real editor" icon="pencil">
+    Compose schema completion and hover docs, validation by `docker compose config`, and a diff of
+    every change before you deploy. Your comments and formatting are never rewritten.
+  </Card>
+  <Card title="Errors you can act on" icon="warning">
+    "Port 8080 is already used by container `x`" instead of a wall of terminal output. Every failure
+    comes with a hint and the full log.
+  </Card>
+  <Card title="Image updates" icon="rocket">
+    Native registry digest checks plus an optional What's Up Docker integration. Update one service,
+    a stack, or everything, and see major, minor and patch updates at a glance.
+  </Card>
+  <Card title="Self-updating" icon="random">
+    Stacky manages its own stack. Updating it uses a short-lived helper container, waits for a
+    healthy start, and rolls back automatically if something goes wrong.
+  </Card>
+  <Card title="Built for the home lab" icon="laptop">
+    One container and multi-arch images (amd64 and arm64). Dark mode, a command palette, and it
+    works on your phone.
+  </Card>
+</CardGrid>
+
+## How it works
+
+<div class="flow">
+  <div>
+    <strong>1. Edit</strong>Change `compose.yaml` or `.env` in the editor
+  </div>
+  <div>
+    <strong>2. Validate</strong>`docker compose config` checks it
+  </div>
+  <div>
+    <strong>3. Review</strong>See a diff of exactly what changes
+  </div>
+  <div>
+    <strong>4. Deploy</strong>`docker compose up -d` streams progress
+  </div>
+  <div>
+    <strong>5. Observe</strong>Live status, logs, stats and shells
+  </div>
+</div>
+
+Read more in [How it works](/how-it-works/overview/).
+
+## Quick start
+
+```yaml title="/opt/stacks/stacky/compose.yaml"
+services:
+  stacky:
+    image: ghcr.io/patsissons/stacky:latest
+    restart: unless-stopped
+    ports:
+      - 5005:5005
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data
+      - /opt/stacks:/opt/stacks
+    environment:
+      STACKY_STACKS_DIR: /opt/stacks
+```
+
+```sh
+cd /opt/stacks/stacky && docker compose up -d
+```
+
+Then open `http://<your-host>:5005`.
