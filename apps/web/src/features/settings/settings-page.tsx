@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { maskEnv } from '@/features/editor/language'
 import { SelfActions } from '@/features/self-update/self-actions'
+import { NotificationsCard } from './notifications-card'
 import { WudCard } from './wud-card'
 import { useSession } from '@/hooks/use-session'
 import { useSystem } from '@/hooks/use-system'
@@ -21,6 +22,7 @@ export function SettingsPage() {
       <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       <SystemCard />
       <GlobalEnvCard />
+      <NotificationsCard />
       <WudCard />
       <PasswordCard />
     </div>

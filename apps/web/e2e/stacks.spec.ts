@@ -39,6 +39,18 @@ test('rejects a wrong password and protects pages', async ({ browser }) => {
   await page.close()
 })
 
+test('adds a notification channel', async () => {
+  await page.goto('/settings')
+  await page.getByRole('button', { name: 'Add channel' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Name').fill('Ops hook')
+  await dialog.getByLabel('URL').fill('http://127.0.0.1:9/nothing-listens-here')
+  await dialog.getByRole('button', { name: 'Send test' }).click()
+  await expect(page.getByText(/fetch failed|HTTP|ECONNREFUSED/i).first()).toBeVisible()
+  await dialog.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByLabel('Notification channels')).toContainText('Ops hook')
+})
+
 test('creates and deploys a stack, then shows it live', async () => {
   await page.goto('/')
   await page.getByRole('link', { name: 'New stack' }).first().click()
