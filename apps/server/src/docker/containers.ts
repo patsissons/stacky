@@ -1,5 +1,6 @@
 import type Docker from 'dockerode'
 import { containerState, type ContainerSummary, type PortMapping } from '@stacky/shared'
+import { iconName } from '../icons/icons'
 import { LABELS } from './client'
 
 export interface ComposeContainer extends ContainerSummary {
@@ -45,6 +46,7 @@ export class ContainerLister {
             exitCode: c.State === 'exited' ? parseExit(c.Status) : undefined,
             createdAt: c.Created * 1000,
             ports: ports(c.Ports ?? []),
+            icon: iconName(c.Image, labels),
             workingDir: labels[LABELS.workingDir],
             configFiles: labels[LABELS.configFiles],
             labels,

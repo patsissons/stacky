@@ -66,6 +66,8 @@ export interface ContainerSummary {
   exitCode?: number
   createdAt: number
   ports: PortMapping[]
+  /** Icon name served by `/api/icons/:name`. */
+  icon?: string
 }
 
 export interface ServiceSummary {

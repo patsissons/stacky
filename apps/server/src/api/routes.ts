@@ -30,6 +30,7 @@ import { WUD_KEY, type UpdateChecker } from '../updates/checker'
 import { WudClient, type WudSettings } from '../updates/wud'
 import type { Notifier } from '../notify/notifier'
 import type { GitSync } from '../git/sync'
+import type { IconCache } from '../icons/icons'
 
 export interface ApiContext {
   config: Config
@@ -46,6 +47,7 @@ export interface ApiContext {
   notifier: Notifier
   tokens: ApiTokenStore
   gitSync: GitSync
+  icons: IconCache
   audit: AuditLog
   system: () => Promise<SystemInfo>
 }
@@ -266,6 +268,15 @@ export function apiRoutes(ctx: ApiContext) {
     } catch (err) {
       throw new AppError(502, 'wud_unreachable', err instanceof Error ? err.message : String(err))
     }
+  })
+
+  api.get('/icons/:name', async (c) => {
+    const icon = await ctx.icons.get(c.req.param('name'))
+    if (!icon) return c.body(null, 404, { 'cache-control': 'private, max-age=3600' })
+    return c.body(new Uint8Array(icon.data), 200, {
+      'content-type': icon.type,
+      'cache-control': 'private, max-age=604800',
+    })
   })
 
   // ---- git ----

@@ -27,6 +27,7 @@ const envSchema = z.object({
   STACKY_OIDC_SCOPES: z.string().default('openid profile email'),
   STACKY_OIDC_ALLOWED_GROUPS: z.string().optional(),
   STACKY_OIDC_AUTO_REDIRECT: booleanish,
+  STACKY_ICON_CDN: z.string().default('https://cdn.jsdelivr.net/gh/selfhst/icons'),
   STACKY_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 })
 
@@ -51,6 +52,8 @@ export interface Config {
   updateIntervalHours: number
   logLevel: 'debug' | 'info' | 'warn' | 'error'
   oidc: OidcConfig | undefined
+  /** Base URL of the selfh.st icon set; empty disables fetching icons. */
+  iconCdn: string | undefined
 }
 
 export interface OidcConfig {
@@ -107,6 +110,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     updateCheck: !['0', 'false', 'no', 'off'].includes((e.STACKY_UPDATE_CHECK ?? '').toLowerCase()),
     updateIntervalHours: e.STACKY_UPDATE_INTERVAL,
     logLevel: e.STACKY_LOG_LEVEL,
+    iconCdn: e.STACKY_ICON_CDN || undefined,
     oidc: e.STACKY_OIDC_ISSUER
       ? {
           issuer: e.STACKY_OIDC_ISSUER.replace(/\/+$/, ''),

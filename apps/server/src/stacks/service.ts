@@ -296,7 +296,7 @@ export class StackService {
         409,
         'external_stack',
         `"${name}" is not in the stacks directory`,
-        'Adopt it into the stacks directory to manage it from stacky.',
+        'Move its folder into the stacks directory (after `docker compose down`) to manage it from stacky.',
       )
     }
     return stack
