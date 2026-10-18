@@ -18,6 +18,7 @@ export default defineConfig({
       sidebar: [
         { label: 'Getting started', items: [{ autogenerate: { directory: 'getting-started' } }] },
         { label: 'How it works', items: [{ autogenerate: { directory: 'how-it-works' } }] },
+        { label: 'Guides', items: [{ autogenerate: { directory: 'guides' } }] },
         { label: 'Reference', items: [{ autogenerate: { directory: 'reference' } }] },
       ],
     }),
