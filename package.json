@@ -23,7 +23,8 @@
     "format-and-validate": "pnpm format && pnpm validate",
     "site:dev": "pnpm --filter @stacky/site dev",
     "site:build": "pnpm --filter @stacky/site build",
-    "site:screenshots": "pnpm --filter @stacky/web exec node scripts/site-screenshots.mjs"
+    "site:screenshots": "pnpm --filter @stacky/web exec node scripts/site-screenshots.mjs",
+    "site:og-image": "pnpm --filter @stacky/web exec node scripts/site-og-image.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
