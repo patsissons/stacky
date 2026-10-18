@@ -5,6 +5,39 @@ sidebar:
   order: 1
 ---
 
+## Quick install
+
+On any Linux host with Docker:
+
+```sh
+curl -fsSL https://stacky.lgtm.page/install.sh | sh
+```
+
+The script:
+
+1. checks that Docker and the compose plugin are available
+2. writes `/opt/stacks/stacky/compose.yaml`
+3. starts stacky and prints the URL to open
+
+Running it again updates stacky. It never overwrites your compose file. [Read the script](https://stacky.lgtm.page/install.sh) before running it if you like.
+
+Options can be set as environment variables or flags:
+
+```sh
+curl -fsSL https://stacky.lgtm.page/install.sh | sh -s -- --port 8080 --stacks-dir /srv/stacks
+```
+
+| Variable / flag                              | Default                            |
+| -------------------------------------------- | ---------------------------------- |
+| `STACKY_STACKS_DIR` / `--stacks-dir`         | `/opt/stacks`                      |
+| `STACKY_PORT` / `--port`                     | `5005`                             |
+| `STACKY_IMAGE` / `--image`                   | `ghcr.io/patsissons/stacky:latest` |
+| `STACKY_ADMIN_USER`, `STACKY_ADMIN_PASSWORD` | create the admin up front          |
+
+If your user can't use Docker or write to the stacks directory, the script uses `sudo` for those steps. You can also pipe it to `sudo sh`.
+
+## Manual install
+
 Stacky runs as a single container next to your other stacks. It needs:
 
 - access to the Docker socket, so it can run `docker compose` and watch containers

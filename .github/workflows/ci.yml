@@ -49,3 +49,28 @@ jobs:
         run: SELF_E2E_MODE=registry scripts/self-update-e2e.sh
       - name: Self-update by redeploying an edited compose file
         run: SELF_E2E_MODE=local scripts/self-update-e2e.sh
+
+  installer:
+    # the one-line installer served at https://stacky.lgtm.page/install.sh
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint
+        run: shellcheck -s sh apps/site/public/install.sh
+      - name: Build the image
+        run: docker build -q -f docker/Dockerfile --build-arg STACKY_VERSION=0.0.0-ci -t stacky:ci .
+      - name: Install with dash (as `curl … | sh` does on Debian/Ubuntu)
+        run: |
+          export STACKY_STACKS_DIR="$RUNNER_TEMP/stacks" STACKY_PORT=5105 STACKY_IMAGE=stacky:ci
+          dash apps/site/public/install.sh
+          curl -fsS localhost:5105/healthz | grep -q '"0.0.0-ci"'
+      - name: Running it again updates in place
+        run: |
+          STACKY_STACKS_DIR="$RUNNER_TEMP/stacks" dash apps/site/public/install.sh
+          curl -fsS localhost:5105/healthz
+      - name: Rejects a port that is in use
+        run: |
+          if STACKY_STACKS_DIR="$RUNNER_TEMP/other" STACKY_PORT=5105 dash apps/site/public/install.sh; then
+            echo "expected a port conflict error" && exit 1
+          fi

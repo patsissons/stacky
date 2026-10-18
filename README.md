@@ -12,7 +12,11 @@ Docs: **https://stacky.lgtm.page**
 
 ## Install
 
-Create `/opt/stacks/stacky/compose.yaml` (see [`docker/compose.example.yaml`](docker/compose.example.yaml)):
+```sh
+curl -fsSL https://stacky.lgtm.page/install.sh | sh
+```
+
+Or do it by hand: create `/opt/stacks/stacky/compose.yaml` (see [`docker/compose.example.yaml`](docker/compose.example.yaml)):
 
 ```yaml
 services:
