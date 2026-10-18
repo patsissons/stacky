@@ -63,6 +63,8 @@ test('lists the container in the containers table with URL-backed filters', asyn
   await page.goto('/')
   const table = page.locator('table')
   await expect(table.getByText('e2e-app-app-1')).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'Update' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Check for updates|Checking/ })).toBeVisible()
   await page.getByRole('switch', { name: 'Group by stack' }).click()
   await expect(page).toHaveURL(/group=true/)
   await expect(table.getByRole('link', { name: 'e2e-app' }).first()).toBeVisible()

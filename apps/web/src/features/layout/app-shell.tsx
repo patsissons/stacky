@@ -18,6 +18,7 @@ import {
 } from '@/features/command-palette/command-palette'
 import { useSession } from '@/hooks/use-session'
 import { useLiveStacksBridge } from '@/hooks/use-stacks'
+import { useLiveUpdatesBridge } from '@/hooks/use-updates'
 import { useSystem } from '@/hooks/use-system'
 import { api } from '@/lib/api'
 import { UpdateBanner } from '@/features/self-update/self-actions'
@@ -26,6 +27,7 @@ import { ThemeToggle } from './theme-toggle'
 
 export function AppShell() {
   useLiveStacksBridge()
+  useLiveUpdatesBridge()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useCommandPaletteShortcut()
 

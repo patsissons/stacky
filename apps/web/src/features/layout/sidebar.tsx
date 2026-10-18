@@ -1,5 +1,6 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Boxes, Layers, Loader2, Plus, Search, Settings } from 'lucide-react'
+import { ArrowUpCircle, Boxes, Layers, Loader2, Plus, Search, Settings } from 'lucide-react'
+import { isActionable, useUpdates } from '@/hooks/use-updates'
 import { useMemo, useState } from 'react'
 import type { StackSummary } from '@stacky/shared'
 import { Logo } from '@/components/logo'
@@ -141,6 +142,10 @@ function StackLink({
   onClick?: () => void
 }) {
   const meta = stackStatusMeta(stack.status)
+  const { byRef } = useUpdates()
+  const hasUpdate = stack.services.some((s) =>
+    s.containers.some((c) => isActionable(byRef.get(c.image))),
+  )
   const active = pathname === `/stacks/${stack.name}`
   const running = stack.services.filter((s) =>
     ['running', 'healthy', 'completed'].includes(s.state),
@@ -166,6 +171,9 @@ function StackLink({
       <span className={cn('flex-1 truncate', !stack.managed && 'text-muted-foreground')}>
         {stack.name}
       </span>
+      {hasUpdate && (
+        <ArrowUpCircle className="text-primary size-3.5" aria-label="update available" />
+      )}
       {stack.isSelf && (
         <span className="bg-primary/10 text-primary rounded px-1 text-[10px] font-semibold">
           SELF

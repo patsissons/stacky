@@ -73,7 +73,7 @@ const containersRoute = createRoute({
   validateSearch: (s: Record<string, unknown>): ContainersSearch => ({
     q: str(s.q),
     stack: str(s.stack),
-    status: ['running', 'problems', 'stopped'].includes(s.status as string)
+    status: ['running', 'problems', 'stopped', 'updates'].includes(s.status as string)
       ? (s.status as ContainersSearch['status'])
       : undefined,
     group: s.group === true || s.group === 'true' ? true : undefined,

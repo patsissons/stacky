@@ -19,13 +19,13 @@ export interface ContainerRow {
   createdAt: number
 }
 
-export type StatusFilter = 'all' | 'running' | 'problems' | 'stopped'
+export type StatusFilter = 'all' | 'running' | 'problems' | 'stopped' | 'updates'
 
 const PROBLEMS: ReadonlySet<ContainerState> = new Set(['unhealthy', 'error', 'restarting'])
 const RUNNING: ReadonlySet<ContainerState> = new Set(['running', 'healthy', 'starting', 'paused'])
 
 export function matchesStatus(state: ContainerState, filter: StatusFilter): boolean {
-  if (filter === 'all') return true
+  if (filter === 'all' || filter === 'updates') return true
   if (filter === 'problems') return PROBLEMS.has(state)
   if (filter === 'running') return RUNNING.has(state) || state === 'unhealthy'
   return !RUNNING.has(state) && !PROBLEMS.has(state)

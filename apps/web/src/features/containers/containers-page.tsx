@@ -12,6 +12,8 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  ArrowUpCircle,
+  RefreshCw,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -26,9 +28,13 @@ import {
   Square,
   SquareTerminal,
 } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import type { StackSummary } from '@stacky/shared'
+import type { ImageUpdate, StackSummary } from '@stacky/shared'
+import { UpdateBadge } from '@/features/updates/update-badge'
+import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
+import { checkForUpdates, isActionable, useUpdates } from '@/hooks/use-updates'
+import { formatRelative } from '@/lib/format'
 import { AppAvatar, RegistryIcon, registryLabel } from '@/components/icons'
 import { ServiceStateBadge, StackStatusBadge } from '@/components/status'
 import { Button } from '@/components/ui/button'
@@ -81,97 +87,119 @@ function serviceAction(row: ContainerRow, action: 'start' | 'stop' | 'restart') 
   )
 }
 
-const columns: ColumnDef<ContainerRow>[] = [
-  {
-    id: 'status',
-    accessorKey: 'state',
-    header: 'Status',
-    cell: ({ row }) => <ServiceStateBadge state={row.original.state} />,
-    sortingFn: (a, b) => a.original.state.localeCompare(b.original.state),
-  },
-  {
-    id: 'container',
-    accessorKey: 'name',
-    header: 'Container',
-    cell: ({ row }) => (
-      <div className="flex min-w-0 items-center gap-2.5">
-        <AppAvatar name={row.original.service} />
-        <div className="min-w-0">
-          <div className="truncate font-medium">{row.original.name}</div>
-          <div className="text-muted-foreground truncate text-xs">
-            {row.original.service}
-            {row.original.number > 1 ? ` #${row.original.number}` : ''}
+type OpenUpdate = (row: ContainerRow, update: ImageUpdate) => void
+
+function makeColumns(
+  byRef: Map<string, ImageUpdate>,
+  openUpdate: OpenUpdate,
+): ColumnDef<ContainerRow>[] {
+  return [
+    {
+      id: 'status',
+      accessorKey: 'state',
+      header: 'Status',
+      cell: ({ row }) => <ServiceStateBadge state={row.original.state} />,
+      sortingFn: (a, b) => a.original.state.localeCompare(b.original.state),
+    },
+    {
+      id: 'container',
+      accessorKey: 'name',
+      header: 'Container',
+      cell: ({ row }) => (
+        <div className="flex min-w-0 items-center gap-2.5">
+          <AppAvatar name={row.original.service} />
+          <div className="min-w-0">
+            <div className="truncate font-medium">{row.original.name}</div>
+            <div className="text-muted-foreground truncate text-xs">
+              {row.original.service}
+              {row.original.number > 1 ? ` #${row.original.number}` : ''}
+            </div>
           </div>
         </div>
-      </div>
-    ),
-  },
-  {
-    id: 'stack',
-    accessorKey: 'stack',
-    header: 'Stack',
-    cell: ({ row }) =>
-      row.original.managed ? (
-        <Link
-          to="/stacks/$name"
-          params={{ name: row.original.stack }}
-          className="bg-accent text-accent-foreground hover:bg-accent/70 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
-        >
-          <Layers className="size-3" />
-          {row.original.stack}
-        </Link>
-      ) : (
-        <span
-          className="text-muted-foreground inline-flex items-center gap-1 rounded-md border border-dashed px-2 py-0.5 text-xs"
-          title="Compose project outside the stacks directory"
-        >
-          {row.original.stack}
-          <span className="text-[10px] uppercase">external</span>
+      ),
+    },
+    {
+      id: 'stack',
+      accessorKey: 'stack',
+      header: 'Stack',
+      cell: ({ row }) =>
+        row.original.managed ? (
+          <Link
+            to="/stacks/$name"
+            params={{ name: row.original.stack }}
+            className="bg-accent text-accent-foreground hover:bg-accent/70 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
+          >
+            <Layers className="size-3" />
+            {row.original.stack}
+          </Link>
+        ) : (
+          <span
+            className="text-muted-foreground inline-flex items-center gap-1 rounded-md border border-dashed px-2 py-0.5 text-xs"
+            title="Compose project outside the stacks directory"
+          >
+            {row.original.stack}
+            <span className="text-[10px] uppercase">external</span>
+          </span>
+        ),
+    },
+    {
+      id: 'registry',
+      accessorKey: 'registry',
+      header: 'Registry',
+      cell: ({ row }) => (
+        <span className="inline-flex items-center gap-1.5 text-sm" title={row.original.registry}>
+          <RegistryIcon registry={row.original.registry} />
+          {registryLabel(row.original.registry)}
         </span>
       ),
-  },
-  {
-    id: 'registry',
-    accessorKey: 'registry',
-    header: 'Registry',
-    cell: ({ row }) => (
-      <span className="inline-flex items-center gap-1.5 text-sm" title={row.original.registry}>
-        <RegistryIcon registry={row.original.registry} />
-        {registryLabel(row.original.registry)}
-      </span>
-    ),
-  },
-  {
-    id: 'image',
-    accessorKey: 'repository',
-    header: 'Image',
-    cell: ({ row }) => (
-      <span className="text-muted-foreground font-mono text-xs" title={row.original.image}>
-        {row.original.repository.replace(/^library\//, '')}
-      </span>
-    ),
-  },
-  {
-    id: 'version',
-    accessorKey: 'tag',
-    header: 'Version',
-    cell: ({ row }) => (
-      <span className="bg-muted rounded-md px-2 py-0.5 font-mono text-xs">{row.original.tag}</span>
-    ),
-  },
-  {
-    id: 'ports',
-    header: 'Ports',
-    enableSorting: false,
-    cell: ({ row }) => <Ports row={row.original} />,
-  },
-  {
-    id: 'actions',
-    header: () => <span className="sr-only">Actions</span>,
-    enableSorting: false,
-    cell: ({ row }) => <RowActions row={row.original} />,
-  },
-]
+    },
+    {
+      id: 'image',
+      accessorKey: 'repository',
+      header: 'Image',
+      cell: ({ row }) => (
+        <span className="text-muted-foreground font-mono text-xs" title={row.original.image}>
+          {row.original.repository.replace(/^library\//, '')}
+        </span>
+      ),
+    },
+    {
+      id: 'version',
+      accessorKey: 'tag',
+      header: 'Version',
+      cell: ({ row }) => (
+        <span className="bg-muted rounded-md px-2 py-0.5 font-mono text-xs">
+          {row.original.tag}
+        </span>
+      ),
+    },
+    {
+      id: 'update',
+      header: 'Update',
+      accessorFn: (r) => (isActionable(byRef.get(r.image)) ? 1 : 0),
+      cell: ({ row }) => {
+        const update = byRef.get(row.original.image)
+        return (
+          <UpdateBadge update={update} onClick={() => update && openUpdate(row.original, update)} />
+        )
+      },
+    },
+    {
+      id: 'ports',
+      header: 'Ports',
+      enableSorting: false,
+      cell: ({ row }) => <Ports row={row.original} />,
+    },
+    {
+      id: 'actions',
+      header: () => <span className="sr-only">Actions</span>,
+      enableSorting: false,
+      cell: ({ row }) => <RowActions row={row.original} />,
+    },
+  ]
+}
+
+const COLUMN_COUNT = 10
 
 function Ports({ row }: { row: ContainerRow }) {
   const published = row.ports.filter((p) => p.hostPort)
@@ -275,7 +303,17 @@ export function ContainersPage() {
       replace: true,
     })
 
+  const { byRef, data: updates } = useUpdates()
+  const [updateTarget, setUpdateTarget] = useState<UpdateTarget>()
+  const columns = useMemo(
+    () =>
+      makeColumns(byRef, (row, update) =>
+        setUpdateTarget({ update, stack: row.stack, service: row.service, managed: row.managed }),
+      ),
+    [byRef],
+  )
   const allRows = useMemo(() => buildRows(stacks ?? []), [stacks])
+  const updateCount = allRows.filter((r) => isActionable(byRef.get(r.image))).length
   const status = search.status ?? 'all'
   const q = (search.q ?? '').trim().toLowerCase()
   const rows = useMemo(
@@ -283,10 +321,12 @@ export function ContainersPage() {
       allRows.filter(
         (r) =>
           (!search.stack || r.stack === search.stack) &&
-          matchesStatus(r.state, status) &&
+          (status === 'updates'
+            ? isActionable(byRef.get(r.image))
+            : matchesStatus(r.state, status)) &&
           (!q || [r.name, r.service, r.stack, r.image].some((v) => v.toLowerCase().includes(q))),
       ),
-    [allRows, search.stack, status, q],
+    [allRows, search.stack, status, q, byRef],
   )
 
   const sorting: SortingState = search.sort
@@ -342,9 +382,17 @@ export function ContainersPage() {
             {plural(allRows.length, 'container')} across {plural(stackNames.length, 'stack')}
           </p>
         </div>
-        <Button asChild>
-          <Link to="/new">New stack</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <CheckUpdatesButton
+            checking={!!updates?.checking}
+            lastCheckAt={updates?.lastCheckAt}
+            count={updateCount}
+            onShow={() => setSearch({ status: 'updates', page: undefined })}
+          />
+          <Button asChild>
+            <Link to="/new">New stack</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -390,6 +438,7 @@ export function ContainersPage() {
             <SelectItem value="running">Running</SelectItem>
             <SelectItem value="problems">Problems</SelectItem>
             <SelectItem value="stopped">Stopped</SelectItem>
+            <SelectItem value="updates">Updates available</SelectItem>
           </SelectContent>
         </Select>
         <div className="ml-auto flex items-center gap-2">
@@ -437,7 +486,7 @@ export function ContainersPage() {
             {isLoading &&
               Array.from({ length: 4 }, (_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={columns.length}>
+                  <TableCell colSpan={COLUMN_COUNT}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
@@ -445,7 +494,7 @@ export function ContainersPage() {
             {!isLoading && rows.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={COLUMN_COUNT}
                   className="text-muted-foreground h-24 text-center"
                 >
                   {allRows.length === 0
@@ -490,6 +539,8 @@ export function ContainersPage() {
         </Table>
       </div>
 
+      <UpdateDialog target={updateTarget} onClose={() => setUpdateTarget(undefined)} />
+
       {/* mobile cards */}
       <div className="space-y-2 md:hidden" data-testid="container-cards">
         {table.getRowModel().rows.map(({ original: r }) => (
@@ -506,7 +557,22 @@ export function ContainersPage() {
                 <span className="font-mono">{r.tag}</span>
               </div>
             </div>
-            <ServiceStateBadge state={r.state} />
+            <div className="flex flex-col items-end gap-1">
+              <ServiceStateBadge state={r.state} />
+              <UpdateBadge
+                update={byRef.get(r.image)}
+                onClick={() => {
+                  const update = byRef.get(r.image)
+                  if (update)
+                    setUpdateTarget({
+                      update,
+                      stack: r.stack,
+                      service: r.service,
+                      managed: r.managed,
+                    })
+                }}
+              />
+            </div>
             <RowActions row={r} />
           </div>
         ))}
@@ -576,6 +642,39 @@ export function ContainersPage() {
   )
 }
 
+function CheckUpdatesButton({
+  checking,
+  lastCheckAt,
+  count,
+  onShow,
+}: {
+  checking: boolean
+  lastCheckAt?: number
+  count: number
+  onShow: () => void
+}) {
+  const check = () => checkForUpdates().catch((err: Error) => toast.error(err.message))
+  return (
+    <div className="flex items-center gap-2">
+      {count > 0 && (
+        <Button variant="secondary" size="sm" onClick={onShow}>
+          <ArrowUpCircle className="text-primary" /> {count} update{count === 1 ? '' : 's'}
+        </Button>
+      )}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={check}
+        disabled={checking}
+        title={lastCheckAt ? `Last checked ${formatRelative(lastCheckAt)}` : 'Not checked yet'}
+      >
+        <RefreshCw className={cn(checking && 'animate-spin')} />
+        {checking ? 'Checking…' : 'Check for updates'}
+      </Button>
+    </div>
+  )
+}
+
 function GroupRows({
   stack,
   name,
@@ -590,7 +689,7 @@ function GroupRows({
   return (
     <>
       <TableRow className="bg-muted/40 hover:bg-muted/40">
-        <TableCell colSpan={columns.length} className="py-2">
+        <TableCell colSpan={COLUMN_COUNT} className="py-2">
           <div className="flex items-center gap-3">
             {stack?.managed ? (
               <Link to="/stacks/$name" params={{ name }} className="font-semibold hover:underline">

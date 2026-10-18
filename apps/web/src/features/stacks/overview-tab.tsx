@@ -13,7 +13,11 @@ import {
   SquareTerminal,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { ServiceAction, ServiceSummary, StackSummary } from '@stacky/shared'
+import { useState } from 'react'
+import type { ImageUpdate, ServiceAction, ServiceSummary, StackSummary } from '@stacky/shared'
+import { UpdateBadge } from '@/features/updates/update-badge'
+import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
+import { useUpdates } from '@/hooks/use-updates'
 import { AppAvatar } from '@/components/icons'
 import { Sparkline } from '@/components/sparkline'
 import { ServiceStateBadge } from '@/components/status'
@@ -34,6 +38,8 @@ import { formatBytes } from '@/lib/format'
 const UP = new Set(['running', 'healthy', 'unhealthy', 'starting', 'restarting', 'paused'])
 
 export function OverviewTab({ stack }: { stack: StackSummary }) {
+  const { byRef } = useUpdates()
+  const [updateTarget, setUpdateTarget] = useState<UpdateTarget>()
   const runningIds = stack.services.flatMap((s) =>
     s.containers.filter((c) => UP.has(c.state)).map((c) => c.id),
   )
@@ -70,9 +76,28 @@ export function OverviewTab({ stack }: { stack: StackSummary }) {
       )}
       <div className="grid gap-3 lg:grid-cols-2">
         {stack.services.map((service) => (
-          <ServiceCard key={service.name} stack={stack} service={service} stats={stats} />
+          <ServiceCard
+            key={service.name}
+            stack={stack}
+            service={service}
+            stats={stats}
+            update={byRef.get(
+              service.containers[0]?.image.startsWith('sha256:')
+                ? (service.image ?? '')
+                : (service.containers[0]?.image ?? service.image ?? ''),
+            )}
+            onUpdate={(update) =>
+              setUpdateTarget({
+                update,
+                stack: stack.name,
+                service: service.name,
+                managed: stack.managed,
+              })
+            }
+          />
         ))}
       </div>
+      <UpdateDialog target={updateTarget} onClose={() => setUpdateTarget(undefined)} />
     </div>
   )
 }
@@ -81,10 +106,14 @@ function ServiceCard({
   stack,
   service,
   stats,
+  update,
+  onUpdate,
 }: {
   stack: StackSummary
   service: ServiceSummary
   stats: ReturnType<typeof useStackStats>
+  update?: ImageUpdate
+  onUpdate: (update: ImageUpdate) => void
 }) {
   const navigate = useNavigate()
   const up = service.containers.some((c) => UP.has(c.state))
@@ -109,6 +138,7 @@ function ServiceCard({
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">{service.name}</span>
             <ServiceStateBadge state={service.state} />
+            <UpdateBadge update={update} onClick={() => update && onUpdate(update)} />
             {service.containers.length > 1 && (
               <span className="text-muted-foreground text-xs">
                 {service.containers.length} replicas
