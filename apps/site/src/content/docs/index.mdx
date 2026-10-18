@@ -17,6 +17,17 @@ hero:
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components'
+import { Image } from 'astro:assets'
+import containers from '../../assets/screenshots/containers.png'
+import stack from '../../assets/screenshots/stack.png'
+import editor from '../../assets/screenshots/editor.png'
+import logs from '../../assets/screenshots/logs.png'
+
+<Image
+  src={containers}
+  alt="The stacky containers page: every container with its stack, registry, version and available update"
+  class="screenshot"
+/>
 
 ## Why stacky?
 
@@ -48,6 +59,26 @@ import { Card, CardGrid } from '@astrojs/starlight/components'
     works on your phone.
   </Card>
 </CardGrid>
+
+## A closer look
+
+<div class="screens">
+  <figure>
+    <Image
+      src={stack}
+      alt="A stack page with service cards, live CPU and memory, and update badges"
+    />
+    <figcaption>Stack pages: services, health, live stats and one-click actions</figcaption>
+  </figure>
+  <figure>
+    <Image src={editor} alt="The compose editor with schema-aware validation" />
+    <figcaption>A real editor: completion, validation and a diff before every deploy</figcaption>
+  </figure>
+  <figure>
+    <Image src={logs} alt="Live, searchable logs" />
+    <figcaption>Live logs with search, filters and download</figcaption>
+  </figure>
+</div>
 
 ## How it works
 
