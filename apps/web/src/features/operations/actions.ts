@@ -1,5 +1,6 @@
 import type { ActionOptions, OperationSummary, ServiceAction, StackAction } from '@stacky/shared'
 import { api } from '@/lib/api'
+import { isSelfOperation, selfUpdateStore } from '@/features/self-update/store'
 import { operationStore } from './store'
 
 /** Starts a stack action, opens its output drawer and watches it for a result toast. */
@@ -14,8 +15,23 @@ export async function runStackAction(
     options,
     ...files,
   })
+  if (isSelfOperation(op.action)) {
+    // stacky is about to restart itself: the overlay follows it instead of the drawer
+    selfUpdateStore.begin(op.id)
+    return op
+  }
   operationStore.watch(op.id)
   if (openDrawer) operationStore.open(op.id)
+  return op
+}
+
+/** Updates, redeploys or restarts stacky itself. */
+export async function runSelfAction(
+  action: 'update' | 'deploy' | 'restart',
+  targetVersion?: string,
+): Promise<OperationSummary> {
+  const op = await api.post<OperationSummary>(`/api/self/${action}`, { targetVersion })
+  selfUpdateStore.begin(op.id)
   return op
 }
 
@@ -27,6 +43,10 @@ export async function runServiceAction(
   const op = await api.post<OperationSummary>(
     `/api/stacks/${stack}/services/${encodeURIComponent(service)}/${action}`,
   )
+  if (isSelfOperation(op.action)) {
+    selfUpdateStore.begin(op.id)
+    return op
+  }
   operationStore.watch(op.id)
   return op
 }

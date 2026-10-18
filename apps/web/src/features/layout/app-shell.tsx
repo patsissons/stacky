@@ -20,6 +20,7 @@ import { useSession } from '@/hooks/use-session'
 import { useLiveStacksBridge } from '@/hooks/use-stacks'
 import { useSystem } from '@/hooks/use-system'
 import { api } from '@/lib/api'
+import { UpdateBanner } from '@/features/self-update/self-actions'
 import { Sidebar } from './sidebar'
 import { ThemeToggle } from './theme-toggle'
 
@@ -151,6 +152,7 @@ function Banners() {
   const problems = system?.preflight.filter((c) => !c.ok && c.severity === 'error') ?? []
   return (
     <>
+      <UpdateBanner />
       {session?.authDisabled && (
         <div className="bg-status-warning/12 text-foreground flex items-center gap-2 border-b px-4 py-1.5 text-xs">
           <ShieldOff className="text-status-warning size-3.5" />

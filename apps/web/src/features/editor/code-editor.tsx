@@ -118,6 +118,9 @@ export function CodeDiff({
         renderSideBySide: typeof window !== 'undefined' && window.innerWidth > 900,
         originalEditable: false,
       }}
+      // let the widget dispose its own models; avoids "TextModel got disposed" on unmount
+      keepCurrentOriginalModel
+      keepCurrentModifiedModel
     />
   )
 }

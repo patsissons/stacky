@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { maskEnv } from '@/features/editor/language'
+import { SelfActions } from '@/features/self-update/self-actions'
 import { useSession } from '@/hooks/use-session'
 import { useSystem } from '@/hooks/use-system'
 import { api } from '@/lib/api'
@@ -68,6 +69,11 @@ function SystemCard() {
                   : 'not running in a container'}
               </Row>
             </div>
+            {system.self && (
+              <div className="flex justify-end">
+                <SelfActions />
+              </div>
+            )}
             <ul className="space-y-2" aria-label="Preflight checks">
               {system.preflight.map((c) => (
                 <li key={c.id} className="flex items-start gap-2 text-sm">

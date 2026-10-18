@@ -9,6 +9,7 @@ import { ShellTab } from '@/features/terminal/shell-tab'
 import { useStack } from '@/hooks/use-stacks'
 import { HistoryTab } from './history-tab'
 import { OverviewTab } from './overview-tab'
+import { SelfActions } from '@/features/self-update/self-actions'
 import { StackActions } from './stack-actions'
 
 const StackEditor = lazy(() =>
@@ -75,6 +76,7 @@ export function StackPage() {
           )}
         </div>
         {stack.managed && !stack.isSelf && <StackActions stack={stack} />}
+        {stack.isSelf && <SelfActions />}
       </div>
 
       {!stack.managed && (
@@ -91,8 +93,9 @@ export function StackPage() {
         <div className="bg-primary/5 flex items-start gap-2 rounded-lg border p-3 text-sm">
           <Info className="text-primary mt-0.5 size-4 shrink-0" />
           <p>
-            This stack runs stacky itself. Stopping or redeploying it from here would cut off the
-            UI, so those actions run through the self-update flow.
+            This stack runs stacky itself. Updates, redeploys and restarts hand over to a
+            short-lived updater container that replaces stacky and rolls back automatically if the
+            new version does not start. Stopping or removing stacky has to be done on the host.
           </p>
         </div>
       )}

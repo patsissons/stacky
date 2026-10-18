@@ -10,6 +10,7 @@ import { LoginPage, SetupPage } from '@/features/auth/auth-pages'
 import { ContainersPage, type ContainersSearch } from '@/features/containers/containers-page'
 import { AppShell } from '@/features/layout/app-shell'
 import { OperationDrawer, OperationWatcher } from '@/features/operations/operation-drawer'
+import { SelfUpdateOverlay } from '@/features/self-update/self-update-overlay'
 import { SettingsPage } from '@/features/settings/settings-page'
 import { NewStackPage } from '@/features/stacks/new-stack-page'
 import { StackPage, type StackSearch } from '@/features/stacks/stack-page'
@@ -57,6 +58,7 @@ const appRoute = createRoute({
       <AppShell />
       <OperationDrawer />
       <OperationWatcher />
+      <SelfUpdateOverlay />
     </>
   ),
 })
