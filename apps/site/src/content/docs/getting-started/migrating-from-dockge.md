@@ -19,4 +19,8 @@ Stacky reads Dockge's stack layout unchanged, so there is nothing to convert:
 3. Deploy a non-critical stack from stacky to confirm everything works.
 4. Stop Dockge from stacky and remove its stack when you're ready.
 
-Stacks that Dockge listed as "not managed by Dockge" (compose projects outside the stacks directory) appear in stacky as **external** projects. You can view them, and use **Adopt** to move them into the stacks directory.
+Compose projects outside the stacks directory (Dockge called them "not managed by Dockge") appear in stacky as **external** projects. Stacky shows their status, logs and shells, but doesn't edit or deploy them. To manage one from stacky:
+
+1. Stop it where it lives: `docker compose down` in its directory.
+2. Move its directory into the stacks directory, e.g. `mv ~/apps/media /opt/stacks/media`. Fix any absolute paths in the compose file.
+3. Deploy it from stacky.
