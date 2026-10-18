@@ -5,7 +5,7 @@ import type { Config } from './config'
 import { createLogger } from './lib/logger'
 import type { Runtime } from './runtime'
 import { mountWebUi } from './static'
-import { VERSION } from './version'
+import { BOOT_ID, VERSION } from './version'
 import { websocketRoute } from './ws/route'
 
 export interface AppDeps {
@@ -20,7 +20,7 @@ export function createApp({ config, runtime, upgradeWebSocket }: AppDeps) {
 
   app.onError((err, c) => errorResponse(c, err, logger))
 
-  app.get('/healthz', (c) => c.json({ status: 'ok', version: VERSION }))
+  app.get('/healthz', (c) => c.json({ status: 'ok', version: VERSION, bootId: BOOT_ID }))
 
   if (runtime) {
     app.route('/api', apiRoutes({ ...runtime, stacks: runtime.stacks }))

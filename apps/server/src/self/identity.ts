@@ -13,7 +13,8 @@ export interface SelfIdentity {
   workingDir?: string
   configFiles?: string[]
   envFiles?: string[]
-  mounts: { type: string; source: string; destination: string; rw: boolean }[]
+  mounts: { type: string; source: string; destination: string; rw: boolean; name?: string }[]
+  securityOpt: string[]
 }
 
 const ID_RE = /([0-9a-f]{64})/
@@ -79,7 +80,9 @@ export async function detectSelf(
           source: m.Source,
           destination: m.Destination,
           rw: m.RW,
+          name: (m as { Name?: string }).Name,
         })),
+        securityOpt: info.HostConfig?.SecurityOpt ?? [],
       }
     } catch {
       // not a container we can see (e.g. running on the host in dev)

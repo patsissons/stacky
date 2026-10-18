@@ -43,7 +43,13 @@ export interface PlanContext {
 
 /** A step is either `docker <args>` or an in-process action (e.g. deleting files). */
 export type Step =
-  { kind: 'docker'; args: string[] } | { kind: 'task'; label: string; run: () => Promise<void> }
+  | { kind: 'docker'; args: string[] }
+  | { kind: 'task'; label: string; run: (ctx: TaskContext) => Promise<void> }
+
+export interface TaskContext {
+  /** Appends a line to the operation output. */
+  write(text: string): void
+}
 
 function upArgs(options: ActionOptions): string[] {
   const args = ['up', '-d', '--remove-orphans']

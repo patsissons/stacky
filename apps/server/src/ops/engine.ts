@@ -163,7 +163,7 @@ export class OperationEngine extends EventEmitter<EngineEvents> {
       this.write(live, `\x1b[2m$ ${displayCommand(step)}\x1b[0m\r\n`)
       if (step.kind === 'task') {
         try {
-          await step.run()
+          await step.run({ write: (text) => this.write(live, `${text}\r\n`) })
         } catch (err) {
           this.write(live, `\x1b[31m${String(err)}\x1b[0m\r\n`)
           s.error = {

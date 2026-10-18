@@ -5,11 +5,14 @@ import type { Config } from './config'
 import { openDatabase } from './db'
 import { createDockerClient } from './docker/client'
 import { ContainerLister } from './docker/containers'
+import { AppError } from './lib/errors'
 import { createLogger, type Logger } from './lib/logger'
 import { runCapture } from './lib/run'
 import { OperationEngine } from './ops/engine'
 import { detectSelf, type SelfIdentity } from './self/identity'
 import { runPreflight } from './self/preflight'
+import { ReleaseChecker } from './self/release'
+import { SelfUpdater } from './self/updater'
 import { StackRepository } from './stacks/repository'
 import { StackService } from './stacks/service'
 import { StackState } from './stacks/state'
@@ -68,6 +71,32 @@ export async function createRuntime(
     self = undefined
   }
   state.selfContainerId = self?.containerId
+
+  const releases = new ReleaseChecker(config.updateCheck && /^\d/.test(VERSION))
+  const selfUpdater = new SelfUpdater(
+    docker,
+    engine,
+    config,
+    self,
+    VERSION,
+    releases,
+    logger,
+    dockerBin,
+  )
+  stacks.selfUpdate = (_stack, action) => {
+    if (action === 'deploy' || action === 'update') return selfUpdater.run(action)
+    if (action === 'start' || action === 'restart' || action === 'recreate')
+      return selfUpdater.run('restart')
+    throw new AppError(
+      409,
+      'self_stack',
+      `"${action}" would stop stacky itself`,
+      'Stop or remove stacky from the host with docker compose instead.',
+    )
+  }
+  await selfUpdater
+    .reconcile()
+    .catch((err) => logger.warn('self-update reconcile failed', { err: String(err) }))
   if (self)
     logger.info('running in container', {
       id: self.containerId.slice(0, 12),
@@ -137,6 +166,7 @@ export async function createRuntime(
     hub,
     auth,
     self,
+    selfUpdater,
     system,
     stop() {
       state.stop()

@@ -49,3 +49,30 @@ export interface SystemInfo {
   }
   preflight: PreflightCheck[]
 }
+
+export type SelfJobState = 'pending' | 'applied' | 'rolled_back' | 'failed' | 'succeeded' | 'stale'
+
+/** `GET /api/self`: stacky's own deployment and its last self-update. */
+export interface SelfInfo {
+  available: boolean
+  reason?: string
+  version: string
+  image?: string
+  imageId?: string
+  project?: string
+  service?: string
+  /** The image tag follows releases (latest, edge, 1) rather than pinning one. */
+  movingTag?: boolean
+  latestRelease?: { version: string; url: string }
+  lastJob?: {
+    id: string
+    operationId: string
+    action: string
+    state: SelfJobState
+    from: { ref: string; imageId: string; version: string }
+    to: { ref: string; imageId?: string }
+    createdAt: number
+    finishedAt?: number
+    error?: string
+  }
+}

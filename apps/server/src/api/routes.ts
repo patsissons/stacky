@@ -20,6 +20,7 @@ import { dockerRunToCompose } from '../stacks/convert'
 import type { StackRepository } from '../stacks/repository'
 import type { StackService } from '../stacks/service'
 import type { StackState } from '../stacks/state'
+import type { SelfUpdater } from '../self/updater'
 
 export interface ApiContext {
   config: Config
@@ -30,6 +31,7 @@ export interface ApiContext {
   docker: Docker
   auth?: AuthService
   logger: Logger
+  selfUpdater: SelfUpdater
   system: () => Promise<SystemInfo>
 }
 
@@ -128,6 +130,19 @@ export function apiRoutes(ctx: ApiContext) {
   })
 
   api.get('/system', async (c) => c.json(await ctx.system()))
+
+  // ---- stacky itself ----
+  api.get('/self', async (c) => c.json(await ctx.selfUpdater.info()))
+
+  api.post('/self/:action', async (c) => {
+    const action = z.enum(['update', 'deploy', 'restart']).safeParse(c.req.param('action'))
+    if (!action.success) throw badRequest(`unknown action "${c.req.param('action')}"`)
+    const raw = await c.req.text()
+    const input = z
+      .object({ targetVersion: z.string().max(128).optional() })
+      .parse(raw ? JSON.parse(raw) : {})
+    return c.json(await ctx.selfUpdater.run(action.data, input), 202)
+  })
 
   // ---- stacks ----
   api.get('/stacks', (c) => c.json(ctx.state.list()))

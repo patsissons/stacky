@@ -18,6 +18,7 @@ const envSchema = z.object({
   STACKY_ADMIN_USER: z.string().optional(),
   STACKY_ADMIN_PASSWORD: z.string().optional(),
   STACKY_CONTAINER_ID: z.string().optional(),
+  STACKY_UPDATE_CHECK: z.string().optional(),
   STACKY_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 })
 
@@ -36,6 +37,8 @@ export interface Config {
   trustedProxies: string[]
   admin: { username: string; password: string } | undefined
   containerId: string | undefined
+  /** Check GitHub for newer stacky releases. */
+  updateCheck: boolean
   logLevel: 'debug' | 'info' | 'warn' | 'error'
 }
 
@@ -70,6 +73,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         ? { username: e.STACKY_ADMIN_USER, password: e.STACKY_ADMIN_PASSWORD }
         : undefined,
     containerId: e.STACKY_CONTAINER_ID,
+    updateCheck: !['0', 'false', 'no', 'off'].includes((e.STACKY_UPDATE_CHECK ?? '').toLowerCase()),
     logLevel: e.STACKY_LOG_LEVEL,
   }
 }

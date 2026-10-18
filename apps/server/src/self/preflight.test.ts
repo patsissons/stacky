@@ -14,6 +14,7 @@ function self(mounts: SelfIdentity['mounts'], compose = true): SelfIdentity {
     service: compose ? 'stacky' : undefined,
     workingDir: compose ? '/opt/stacks/stacky' : undefined,
     mounts,
+    securityOpt: [],
   }
 }
 

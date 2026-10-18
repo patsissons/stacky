@@ -71,7 +71,7 @@ ENV NODE_ENV=production \
 VOLUME /app/data
 EXPOSE 5005
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=2s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.STACKY_PORT||5005)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 
 ENTRYPOINT ["/sbin/tini", "--"]
