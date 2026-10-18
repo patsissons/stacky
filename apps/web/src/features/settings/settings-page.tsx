@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { maskEnv } from '@/features/editor/language'
 import { SelfActions } from '@/features/self-update/self-actions'
 import { NotificationsCard } from './notifications-card'
+import { ApiTokensCard, AuditCard, TwoFactorCard } from './security-card'
 import { WudCard } from './wud-card'
 import { useSession } from '@/hooks/use-session'
 import { useSystem } from '@/hooks/use-system'
@@ -25,6 +26,9 @@ export function SettingsPage() {
       <NotificationsCard />
       <WudCard />
       <PasswordCard />
+      <TwoFactorCard />
+      <ApiTokensCard />
+      <AuditCard />
     </div>
   )
 }

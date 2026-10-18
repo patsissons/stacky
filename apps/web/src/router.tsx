@@ -23,8 +23,12 @@ const rootRoute = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
-  validateSearch: (s: Record<string, unknown>): { redirect?: string } => ({
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { redirect?: string; error?: string; local?: string } => ({
     redirect: typeof s.redirect === 'string' ? s.redirect : undefined,
+    error: typeof s.error === 'string' ? s.error : undefined,
+    local: typeof s.local === 'string' ? s.local : undefined,
   }),
   beforeLoad: async ({ context }) => {
     const session = await context.queryClient.fetchQuery(sessionQuery)

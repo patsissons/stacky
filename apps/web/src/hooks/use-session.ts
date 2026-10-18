@@ -4,7 +4,9 @@ import { api } from '@/lib/api'
 export interface Session {
   authDisabled: boolean
   needsSetup: boolean
-  user: { id: string; username: string; name: string } | null
+  user: { id: string; username: string; name: string; twoFactorEnabled?: boolean } | null
+  /** Single sign-on, when configured on the server. */
+  oidc: { providerId: string; name: string; autoRedirect: boolean } | null
 }
 
 export const sessionQuery = {

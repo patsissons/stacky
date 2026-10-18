@@ -51,6 +51,21 @@ test('adds a notification channel', async () => {
   await expect(page.getByLabel('Notification channels')).toContainText('Ops hook')
 })
 
+test('creates an API token that works once and can be revoked', async ({ request }) => {
+  await page.goto('/settings')
+  await page.getByLabel('Token name').fill('e2e-script')
+  await page.getByRole('button', { name: 'Create' }).click()
+  const token = (await page.getByTestId('new-token').textContent())!.trim()
+  expect(token).toMatch(/^stk_/)
+  await page.keyboard.press('Escape')
+
+  const headers = { authorization: `Bearer ${token}` }
+  expect((await request.get('/api/stacks', { headers })).status()).toBe(200)
+  await page.getByRole('button', { name: 'Revoke e2e-script' }).click()
+  await expect(page.getByLabel('API tokens')).toHaveCount(0)
+  expect((await request.get('/api/stacks', { headers })).status()).toBe(401)
+})
+
 test('creates and deploys a stack, then shows it live', async () => {
   await page.goto('/')
   await page.getByRole('link', { name: 'New stack' }).first().click()
