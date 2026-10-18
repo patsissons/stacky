@@ -30,13 +30,17 @@ Every action streams its output in a drawer at the bottom of the screen. When it
 
 The tabs:
 
-| Tab      | What it does                                                                                      |
-| -------- | ------------------------------------------------------------------------------------------------- |
-| Overview | Service cards with state, image, ports, live CPU and memory, and per-service actions              |
-| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory                             |
-| Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download |
-| Shell    | An interactive shell in any running container (bash if available, otherwise sh)                   |
-| History  | Every operation run on the stack, with its full output                                            |
+| Tab      | What it does                                                                                          |
+| -------- | ----------------------------------------------------------------------------------------------------- |
+| Overview | Service cards with state, image, ports, live CPU and memory, and per-service actions                  |
+| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory                                 |
+| Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download     |
+| Shell    | An interactive shell in any running container (bash if available, otherwise sh)                       |
+| History  | Every deployed version of the files (compare or restore one) and every operation with its full output |
+
+## Rolling back
+
+Each successful deploy or update saves the compose file and `.env` it used, keeping the last 50 per stack. The **History** tab lists them. **Compare** shows a diff against the files on disk now. **Restore** validates the old files, writes them back and deploys them.
 
 ## The editor
 
