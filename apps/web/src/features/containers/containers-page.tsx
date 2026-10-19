@@ -32,6 +32,7 @@ import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { ImageUpdate, StackSummary } from '@stacky/shared'
 import { UpdateBadge } from '@/features/updates/update-badge'
+import { UpdateAllDialog } from '@/features/updates/update-all-dialog'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
 import { checkForUpdates, isActionable, useUpdates } from '@/hooks/use-updates'
 import { formatRelative } from '@/lib/format'
@@ -67,7 +68,14 @@ import {
 import { runServiceAction } from '@/features/operations/actions'
 import { useStacks } from '@/hooks/use-stacks'
 import { cn } from '@/lib/utils'
-import { buildRows, matchesStatus, portUrl, type ContainerRow, type StatusFilter } from './rows'
+import {
+  buildRows,
+  matchesStatus,
+  planUpdates,
+  portUrl,
+  type ContainerRow,
+  type StatusFilter,
+} from './rows'
 
 export interface ContainersSearch {
   q?: string
@@ -314,6 +322,8 @@ export function ContainersPage() {
   )
   const allRows = useMemo(() => buildRows(stacks ?? []), [stacks])
   const updateCount = allRows.filter((r) => isActionable(byRef.get(r.image))).length
+  const updatePlan = useMemo(() => planUpdates(allRows, byRef), [allRows, byRef])
+  const [updateAllOpen, setUpdateAllOpen] = useState(false)
   const status = search.status ?? 'all'
   const q = (search.q ?? '').trim().toLowerCase()
   const rows = useMemo(
@@ -388,6 +398,8 @@ export function ContainersPage() {
             lastCheckAt={updates?.lastCheckAt}
             count={updateCount}
             onShow={() => setSearch({ status: 'updates', page: undefined })}
+            canUpdateAll={updatePlan.steps.length > 0}
+            onUpdateAll={() => setUpdateAllOpen(true)}
           />
           <Button size="sm" asChild>
             <Link to="/new">New stack</Link>
@@ -540,6 +552,11 @@ export function ContainersPage() {
       </div>
 
       <UpdateDialog target={updateTarget} onClose={() => setUpdateTarget(undefined)} />
+      <UpdateAllDialog
+        plan={updatePlan}
+        open={updateAllOpen}
+        onClose={() => setUpdateAllOpen(false)}
+      />
 
       {/* mobile cards */}
       <div className="space-y-2 md:hidden" data-testid="container-cards">
@@ -647,11 +664,15 @@ function CheckUpdatesButton({
   lastCheckAt,
   count,
   onShow,
+  canUpdateAll,
+  onUpdateAll,
 }: {
   checking: boolean
   lastCheckAt?: number
   count: number
   onShow: () => void
+  canUpdateAll: boolean
+  onUpdateAll: () => void
 }) {
   const check = () => checkForUpdates().catch((err: Error) => toast.error(err.message))
   return (
@@ -659,6 +680,11 @@ function CheckUpdatesButton({
       {count > 0 && (
         <Button variant="secondary" size="sm" onClick={onShow}>
           <ArrowUpCircle className="text-primary" /> {count} update{count === 1 ? '' : 's'}
+        </Button>
+      )}
+      {canUpdateAll && (
+        <Button variant="outline" size="sm" onClick={onUpdateAll}>
+          <ArrowUpCircle /> Update all
         </Button>
       )}
       <Button

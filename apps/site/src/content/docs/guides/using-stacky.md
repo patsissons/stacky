@@ -15,6 +15,8 @@ The home page lists every container from every compose project on the host, much
 - **Ports:** published ports as links that open the service
 - **Actions:** logs, a shell, restart, stop or start
 
+**Check for updates** looks for newer images now, and **Update all** applies every available update after you confirm (see [Image updates](/guides/image-updates/)).
+
 Icons come from the [selfh.st icon set](https://selfh.st/icons/), matched by image name. Stacky downloads each icon once and serves it from its own cache. To pick a different icon, add a `dev.stacky.icon: jellyfin` label (WUD's `wud.display.icon: selfhst:jellyfin` works too).
 
 Search, the stack and status filters, sorting, **Group by stack** and pagination are all stored in the URL, so you can bookmark a view. On a phone the table turns into cards.

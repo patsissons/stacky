@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { StackSummary } from '@stacky/shared'
-import { buildRows, matchesStatus, portUrl } from './rows'
+import type { ImageUpdate, StackSummary } from '@stacky/shared'
+import { buildRows, matchesStatus, planUpdates, portUrl, type ContainerRow } from './rows'
 
 const stack = (over: Partial<StackSummary>): StackSummary => ({
   name: 'app',
@@ -101,5 +101,78 @@ describe('portUrl', () => {
       'https://nas:8443',
     )
     expect(portUrl({ containerPort: 80, protocol: 'tcp' }, 'nas')).toBeUndefined()
+  })
+})
+
+describe('planUpdates', () => {
+  const row = (over: Partial<ContainerRow>): ContainerRow => ({
+    id: `${over.stack ?? 'app'}-${over.service ?? 'web'}-${over.number ?? 1}`,
+    name: 'c',
+    service: 'web',
+    number: 1,
+    stack: 'app',
+    managed: true,
+    isSelf: false,
+    state: 'running',
+    statusText: 'Up',
+    image: 'nginx:1.27',
+    registry: 'docker.io',
+    repository: 'library/nginx',
+    tag: '1.27',
+    ports: [],
+    createdAt: 1,
+    ...over,
+  })
+  const update = (ref: string, over: Partial<ImageUpdate>): [string, ImageUpdate] => [
+    ref,
+    {
+      ref,
+      registry: 'docker.io',
+      repository: 'library/x',
+      tag: ref.split(':')[1] ?? 'latest',
+      status: 'update_available',
+      checkedAt: 0,
+      source: 'native',
+      ...over,
+    },
+  ]
+
+  it('bumps newer tags, re-pulls changed digests and does each service once', () => {
+    const byRef = new Map([
+      update('nginx:1.27', { newerTag: '1.28', digestChanged: true }),
+      update('redis:7', { digestChanged: true }),
+      update('pg:16', { status: 'up_to_date' }),
+    ])
+    const plan = planUpdates(
+      [
+        row({ service: 'web', number: 1 }),
+        row({ service: 'web', number: 2 }),
+        row({ service: 'cache', image: 'redis:7', tag: '7' }),
+        row({ service: 'db', image: 'pg:16', tag: '16' }),
+      ],
+      byRef,
+    )
+    expect(plan.steps).toEqual([
+      { stack: 'app', service: 'web', kind: 'bump', tag: '1.27', newerTag: '1.28' },
+      { stack: 'app', service: 'cache', kind: 'pull', tag: '7' },
+    ])
+    expect(plan.skipped).toEqual([])
+  })
+
+  it('skips ignored updates, external stacks and stacky itself', () => {
+    const byRef = new Map([
+      update('nginx:1.27', { newerTag: '1.28' }),
+      update('redis:7', { digestChanged: true, ignored: true }),
+    ])
+    const plan = planUpdates(
+      [
+        row({ stack: 'ext', managed: false }),
+        row({ stack: 'stacky', isSelf: true }),
+        row({ service: 'cache', image: 'redis:7' }),
+      ],
+      byRef,
+    )
+    expect(plan.steps).toEqual([])
+    expect(plan.skipped.map((s) => s.stack)).toEqual(['ext', 'stacky'])
   })
 })

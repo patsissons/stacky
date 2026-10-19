@@ -30,6 +30,8 @@ Click a badge to see the details:
 
 Use **Updates available** in the status filter, or the **N updates** button, to list everything with an update.
 
+**Update all** on the containers page applies every update at once, after a confirmation that lists each change. A service with a newer version gets **Update to &lt;version&gt;**, and one with only a new digest gets **Pull &lt;tag&gt;**. Services are handled one after another, so several services in the same stack never edit its compose file at the same time. Ignored updates, external stacks and stacky itself are left out; update stacky from its own stack page.
+
 ## When checks run
 
 Checks run a minute after stacky starts, then every 6 hours (with some random jitter), whenever you click **Check for updates**, and after you deploy or update a stack. Set `STACKY_UPDATE_INTERVAL` (in hours) to change the schedule; `0` turns off scheduled checks.
