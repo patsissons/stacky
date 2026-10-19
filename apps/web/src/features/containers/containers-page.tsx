@@ -389,7 +389,7 @@ export function ContainersPage() {
             count={updateCount}
             onShow={() => setSearch({ status: 'updates', page: undefined })}
           />
-          <Button asChild>
+          <Button size="sm" asChild>
             <Link to="/new">New stack</Link>
           </Button>
         </div>

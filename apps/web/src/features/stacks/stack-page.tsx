@@ -107,7 +107,7 @@ export function StackPage() {
         }
         className="flex min-h-0 flex-1 flex-col"
       >
-        <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
+        <TabsList className="w-full shrink-0 justify-start overflow-x-auto overflow-y-hidden sm:w-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {stack.managed && <TabsTrigger value="editor">Editor</TabsTrigger>}
           <TabsTrigger value="logs">Logs</TabsTrigger>
