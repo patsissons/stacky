@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/patsissons/stacky/compare/v0.3.0...v0.4.0) (2026-10-19)
+
+
+### Features
+
+* **web:** UX sweep — editor fixes, un-ignore updates, phone and tablet layouts ([#6](https://github.com/patsissons/stacky/issues/6)) ([09d07d1](https://github.com/patsissons/stacky/commit/09d07d143330d2267404c5082eb38d073bdde803))
+
 ## [0.3.0](https://github.com/patsissons/stacky/compare/v0.2.0...v0.3.0) (2026-10-19)
 
 
