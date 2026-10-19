@@ -20,3 +20,6 @@ services:
     #   STACKY_ADMIN_PASSWORD: change-me
     #   # Disable built-in auth when an authenticating reverse proxy sits in front.
     #   STACKY_AUTH_DISABLED: "true"
+    #   # Host for published-port links when stacky is served on another hostname
+    #   # (e.g. https://stacky.docker.lan while the ports live on docker.lan).
+    #   STACKY_DOCKER_HOST: docker.lan

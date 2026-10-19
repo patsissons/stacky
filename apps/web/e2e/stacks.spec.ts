@@ -93,7 +93,7 @@ test('creates and deploys a stack, then shows it live', async () => {
   await page.getByLabel('Name').fill('Bad Name')
   await expect(page.getByText('Use lowercase letters')).toBeVisible()
   await page.getByLabel('Name').fill('e2e-app')
-  await setEditorText(page, compose('hello-from-e2e'))
+  await setEditorText(page, compose('hello-from-e2e', { publish: true }))
   await expect(page.getByText('Valid', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Create & deploy' }).click()
 
@@ -111,6 +111,11 @@ test('lists the container in the containers table with URL-backed filters', asyn
   await page.goto('/')
   const table = page.locator('table')
   await expect(table.getByText('e2e-app-app-1')).toBeVisible()
+  // published ports link to STACKY_DOCKER_HOST rather than the host the UI is served from
+  await expect(table.getByRole('link', { name: /^\d+$/ }).first()).toHaveAttribute(
+    'href',
+    /^http:\/\/docker\.e2e\.test:\d+$/,
+  )
   await expect(page.getByRole('columnheader', { name: 'Update' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Check for updates|Checking/ })).toBeVisible()
   // grouped by default, with a heading row per stack; the switch turns it off in the URL

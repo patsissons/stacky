@@ -29,6 +29,32 @@ describe('loadConfig', () => {
   })
 })
 
+describe('STACKY_DOCKER_HOST', () => {
+  it('defaults to the host stacky is served from', () => {
+    expect(loadConfig({}).dockerHost).toBeUndefined()
+    expect(loadConfig({ STACKY_DOCKER_HOST: '  ' }).dockerHost).toBeUndefined()
+  })
+
+  it('accepts a hostname or IP address', () => {
+    expect(loadConfig({ STACKY_DOCKER_HOST: ' op.teambison.io ' }).dockerHost).toBe(
+      'op.teambison.io',
+    )
+    expect(loadConfig({ STACKY_DOCKER_HOST: '192.168.1.10' }).dockerHost).toBe('192.168.1.10')
+  })
+
+  it('brackets IPv6 addresses for use in URLs', () => {
+    expect(loadConfig({ STACKY_DOCKER_HOST: 'fd00::10' }).dockerHost).toBe('[fd00::10]')
+    expect(loadConfig({ STACKY_DOCKER_HOST: '[fd00::10]' }).dockerHost).toBe('[fd00::10]')
+  })
+
+  it('rejects URLs and socket addresses', () => {
+    expect(() => loadConfig({ STACKY_DOCKER_HOST: 'tcp://docker:2375' })).toThrow(ConfigError)
+    expect(() => loadConfig({ STACKY_DOCKER_HOST: 'https://op.teambison.io/' })).toThrow(
+      ConfigError,
+    )
+  })
+})
+
 describe('OIDC config', () => {
   it('parses provider settings', () => {
     const config = loadConfig({

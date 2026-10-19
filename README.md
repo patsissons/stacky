@@ -41,17 +41,18 @@ Open `http://<host>:5005` and create the admin account. From then on, stacky app
 
 ### Configuration
 
-| Variable                                      | Default       | Description                                                            |
-| --------------------------------------------- | ------------- | ---------------------------------------------------------------------- |
-| `STACKY_PORT`                                 | `5005`        | HTTP port                                                              |
-| `STACKY_STACKS_DIR`                           | `/opt/stacks` | Directory containing one sub-directory per stack                       |
-| `STACKY_DATA_DIR`                             | `/app/data`   | Stacky's database and state                                            |
-| `STACKY_AUTH_DISABLED`                        | `false`       | Disable built-in auth (only behind an authenticating reverse proxy)    |
-| `STACKY_TRUSTED_PROXIES`                      | (none)        | Comma-separated proxy addresses/CIDRs whose `X-Forwarded-*` is trusted |
-| `STACKY_ADMIN_USER` / `STACKY_ADMIN_PASSWORD` | (none)        | Seed the admin account instead of using the setup page                 |
-| `STACKY_UPDATE_CHECK`                         | `true`        | Check GitHub for newer stacky releases                                 |
-| `STACKY_UPDATE_INTERVAL`                      | `6`           | Hours between image update checks (`0` = only on demand)               |
-| `STACKY_BASE_URL`                             | (none)        | Public URL, used for links and OIDC callbacks                          |
+| Variable                                      | Default        | Description                                                               |
+| --------------------------------------------- | -------------- | ------------------------------------------------------------------------- |
+| `STACKY_PORT`                                 | `5005`         | HTTP port                                                                 |
+| `STACKY_STACKS_DIR`                           | `/opt/stacks`  | Directory containing one sub-directory per stack                          |
+| `STACKY_DATA_DIR`                             | `/app/data`    | Stacky's database and state                                               |
+| `STACKY_AUTH_DISABLED`                        | `false`        | Disable built-in auth (only behind an authenticating reverse proxy)       |
+| `STACKY_TRUSTED_PROXIES`                      | (none)         | Comma-separated proxy addresses/CIDRs whose `X-Forwarded-*` is trusted    |
+| `STACKY_ADMIN_USER` / `STACKY_ADMIN_PASSWORD` | (none)         | Seed the admin account instead of using the setup page                    |
+| `STACKY_UPDATE_CHECK`                         | `true`         | Check GitHub for newer stacky releases                                    |
+| `STACKY_UPDATE_INTERVAL`                      | `6`            | Hours between image update checks (`0` = only on demand)                  |
+| `STACKY_BASE_URL`                             | (none)         | Public URL, used for links and OIDC callbacks                             |
+| `STACKY_DOCKER_HOST`                          | host of the UI | Host (name or IP) that port links point at, when it differs from stacky's |
 
 ## Integrations
 

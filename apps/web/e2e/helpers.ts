@@ -37,11 +37,12 @@ export async function setEditorText(page: Page, text: string) {
   }).toPass({ timeout: 15_000 })
 }
 
-export function compose(message: string) {
+/** A one-service stack; `publish` maps container port 80 to a random loopback port. */
+export function compose(message: string, { publish = false } = {}) {
   return `services:
   app:
     image: ${IMAGE}
     command: ["sh", "-c", "echo ${message}; exec sleep 3600"]
     init: true
-`
+${publish ? '    ports: ["127.0.0.1::80"]\n' : ''}`
 }
