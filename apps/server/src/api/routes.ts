@@ -30,6 +30,7 @@ import { WUD_KEY, type UpdateChecker } from '../updates/checker'
 import { WudClient, type WudSettings } from '../updates/wud'
 import type { Notifier } from '../notify/notifier'
 import type { GitSync } from '../git/sync'
+import type { FileBrowser } from '../files/browser'
 import { untrustedImageHeaders, type Icon, type IconCache } from '../icons/icons'
 
 export interface ApiContext {
@@ -48,6 +49,7 @@ export interface ApiContext {
   tokens: ApiTokenStore
   gitSync: GitSync
   icons: IconCache
+  files: FileBrowser
   audit: AuditLog
   system: () => Promise<SystemInfo>
 }
@@ -534,6 +536,22 @@ export function apiRoutes(ctx: ApiContext) {
   api.post('/convert/docker-run', async (c) => {
     const input = await body(c, z.object({ command: z.string().min(1).max(20_000) }))
     return c.json({ compose: dockerRunToCompose(input.command) })
+  })
+
+  // ---- read-only file browser (stacks dir and data dir) ----
+  api.get('/files/roots', (c) => c.json(ctx.files.rootInfo()))
+  api.get('/files', async (c) =>
+    c.json(await ctx.files.list(c.req.query('root') ?? '', c.req.query('path') ?? '')),
+  )
+  api.get('/files/preview', async (c) =>
+    c.json(await ctx.files.preview(c.req.query('root') ?? '', c.req.query('path') ?? '')),
+  )
+  api.get('/files/raw', async (c) => {
+    const image = await ctx.files.image(c.req.query('root') ?? '', c.req.query('path') ?? '')
+    return c.body(new Uint8Array(image.data), 200, {
+      ...untrustedImageHeaders(image.type),
+      'cache-control': 'private, no-cache',
+    })
   })
 
   // ---- global.env ----

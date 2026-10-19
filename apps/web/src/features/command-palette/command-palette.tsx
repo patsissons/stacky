@@ -9,6 +9,7 @@ import {
   RotateCw,
   Settings,
   Square,
+  FolderTree,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -73,6 +74,9 @@ export function CommandPalette({
           </CommandItem>
           <CommandItem onSelect={() => go(() => void navigate({ to: '/new' }))}>
             <Plus /> New stack
+          </CommandItem>
+          <CommandItem onSelect={() => go(() => void navigate({ to: '/files' }))}>
+            <FolderTree /> Files
           </CommandItem>
           <CommandItem onSelect={() => go(() => void navigate({ to: '/settings' }))}>
             <Settings /> Settings

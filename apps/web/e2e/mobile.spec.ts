@@ -64,3 +64,16 @@ test('reaches a stack from its card and keeps the stack page within the screen',
       .toMatch(/succeeded|failed|cancelled/)
   }
 })
+
+test('browses files on a phone, one pane at a time', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/files?root=data')
+  const tree = page.getByRole('complementary', { name: 'Files' })
+  await tree.getByRole('button', { name: 'stacky.db', exact: true }).click()
+  await expect(page.getByText(/^Binary data \(/)).toBeVisible()
+  await expect(tree).toBeHidden()
+  await expectNoSidewaysScroll(page)
+  await page.getByRole('button', { name: 'Back to files' }).click()
+  await expect(tree).toBeVisible()
+  await expectNoSidewaysScroll(page)
+})

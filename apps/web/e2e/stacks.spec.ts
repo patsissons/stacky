@@ -285,6 +285,25 @@ test('creates, saves and deletes an extra file', async () => {
   await expect(files.getByRole('button', { name: /app\.conf/ })).toHaveCount(0)
 })
 
+test('browses the stacks and data directories read-only', async () => {
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Files' }).click()
+  await expect(page).toHaveURL(/\/files/)
+  const tree = page.getByRole('complementary', { name: 'Files' })
+  await tree.getByRole('button', { name: 'e2e-app' }).click()
+  await tree.getByRole('button', { name: 'compose.yaml' }).click()
+  await expect(page).toHaveURL(/path=e2e-app%2Fcompose\.yaml|path=e2e-app\/compose\.yaml/)
+  const viewer = page.getByRole('region', { name: 'File contents' })
+  await expect(viewer.locator('.monaco-editor')).toContainText('hello-from-e2e')
+  // a viewer, not an editor
+  await expect(page.getByRole('button', { name: /^(Save|Deploy)/ })).toHaveCount(0)
+
+  await page.getByRole('tab', { name: 'Data directory' }).click()
+  await expect(tree.getByRole('button', { name: 'auth-secret' })).toHaveCount(0)
+  await tree.getByRole('button', { name: 'stacky.db', exact: true }).click()
+  await expect(viewer.getByText(/^Binary data \(/)).toBeVisible()
+})
+
 test('clears the stack history after confirming', async () => {
   await page.goto('/stacks/e2e-app?tab=history')
   await expect(page.getByLabel('Deployed versions')).toBeVisible()
@@ -306,8 +325,11 @@ test('deletes the stack after typed confirmation', async () => {
   const confirm = page.getByRole('alertdialog')
   await expect(confirm.getByRole('button', { name: 'Delete stack' })).toBeDisabled()
   // the name field is focused, and Enter confirms once the name matches
-  await expect(confirm.getByLabel(/Type/)).toBeFocused()
-  await page.keyboard.type('e2e-app')
+  const typed = confirm.getByLabel(/Type/)
+  await expect(typed).toBeFocused()
+  // fill() rather than typing: a keystroke landing mid-render could drop a character
+  await typed.fill('e2e-app')
+  await expect(confirm.getByRole('button', { name: 'Delete stack' })).toBeEnabled()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByText('Deleted e2e-app').last()).toBeVisible({ timeout: 60_000 })

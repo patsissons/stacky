@@ -1,5 +1,14 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { ArrowUpCircle, Boxes, Layers, Loader2, Plus, Search, Settings } from 'lucide-react'
+import {
+  ArrowUpCircle,
+  Boxes,
+  FolderTree,
+  Layers,
+  Loader2,
+  Plus,
+  Search,
+  Settings,
+} from 'lucide-react'
 import { isActionable, useUpdates } from '@/hooks/use-updates'
 import { useMemo, useState } from 'react'
 import type { StackSummary } from '@stacky/shared'
@@ -81,6 +90,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="border-sidebar-border space-y-0.5 border-t p-2">
+        <NavLink
+          to="/files"
+          active={pathname.startsWith('/files')}
+          icon={FolderTree}
+          onClick={onNavigate}
+        >
+          Files
+        </NavLink>
         <NavLink
           to="/settings"
           active={pathname.startsWith('/settings')}

@@ -78,6 +78,18 @@ Each successful deploy or update saves the compose file and `.env` it used, keep
 - **Secrets are masked:** values in `.env` whose names look secret (`PASSWORD`, `TOKEN`, `KEY`, ...) are hidden until you click **Reveal**.
 - **Shortcuts:** <kbd>⌘/Ctrl</kbd>+<kbd>S</kbd> saves; <kbd>⌘/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> deploys from inside the editor.
 
+## File browser
+
+**Files** in the sidebar (or the command palette) is a read-only view of two directories. The **Stacks directory** tab shows `STACKY_STACKS_DIR`, with every stack's folder. The **Data directory** tab shows stacky's own data (`/app/data` in the container), such as the database and the icon cache.
+
+Folders open as you expand them, and choosing a file shows it on the right:
+
+- **Text files** open in a read-only editor with syntax highlighting. Secret-looking values in `.env` files are masked until you click **Reveal**.
+- **Images** (PNG, JPEG, GIF, WebP, AVIF, SVG, ICO, BMP) are shown as pictures.
+- **Other files** show their size, for example _Binary data (176 KB)_. Text files over 1 MB are not shown either.
+
+Nothing can be changed from here; use a stack's **Editor** tab to edit its files. Git internals (`.git`) and the session signing secret (`auth-secret`) are never shown, and paths cannot leave the two directories, symlinks included.
+
 ## Creating stacks
 
 **New stack** starts from a template, or converts a `docker run` command into a compose file. **Create & deploy** validates the file, creates the directory and starts it in one step.

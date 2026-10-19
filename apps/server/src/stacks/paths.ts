@@ -27,29 +27,46 @@ export function stackDir(stacksDir: string, name: string): string {
  * Resolves a file path relative to a stack directory and guarantees it stays
  * inside it, both lexically and after following symlinks of existing parents.
  */
-export async function resolveStackFile(dir: string, relative: string): Promise<string> {
+export function resolveStackFile(dir: string, relative: string): Promise<string> {
+  return resolveInside(dir, relative, { code: 'path_outside_stack', what: 'the stack directory' })
+}
+
+export interface ResolveOptions {
+  /** Accept an empty path (or ".") meaning the root itself. */
+  allowRoot?: boolean
+  /** Error code and description of the root used in the 403. */
+  code?: string
+  what?: string
+}
+
+/**
+ * Resolves a path relative to a root directory and guarantees it stays inside it, both
+ * lexically and after following symlinks of existing parents.
+ */
+export async function resolveInside(
+  root: string,
+  relative: string,
+  { allowRoot = false, code = 'path_outside_root', what = 'the directory' }: ResolveOptions = {},
+): Promise<string> {
+  if (allowRoot && (relative === '' || relative === '.')) return path.resolve(root)
   if (!relative || relative.includes('\0') || path.isAbsolute(relative)) {
     throw badRequest(`invalid file path "${relative}"`)
   }
-  const resolved = path.resolve(dir, relative)
-  if (!isInside(dir, resolved) || resolved === dir) {
-    throw new AppError(403, 'path_outside_stack', `"${relative}" is outside the stack directory`)
+  const resolved = path.resolve(root, relative)
+  if (!isInside(root, resolved) || (resolved === path.resolve(root) && !allowRoot)) {
+    throw new AppError(403, code, `"${relative}" is outside ${what}`)
   }
 
   // Follow symlinks on the deepest existing ancestor to stop link escapes.
-  const realDir = await fs.realpath(dir)
+  const realRoot = await fs.realpath(root)
   let probe = resolved
   for (;;) {
     try {
       const real = await fs.realpath(probe)
       const rest = path.relative(probe, resolved)
       const finalPath = path.join(real, rest)
-      if (!isInside(realDir, finalPath)) {
-        throw new AppError(
-          403,
-          'path_outside_stack',
-          `"${relative}" resolves outside the stack directory`,
-        )
+      if (!isInside(realRoot, finalPath)) {
+        throw new AppError(403, code, `"${relative}" resolves outside ${what}`)
       }
       return resolved
     } catch (err) {

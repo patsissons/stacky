@@ -18,6 +18,7 @@ import { RevisionStore } from './stacks/revisions'
 import { StackService } from './stacks/service'
 import { StackState } from './stacks/state'
 import { SettingsStore } from './db/settings'
+import { FileBrowser } from './files/browser'
 import { IconCache } from './icons/icons'
 import { AuditLog } from './auth/audit'
 import { ApiTokenStore } from './auth/tokens'
@@ -55,6 +56,7 @@ export async function createRuntime(
   const stacks = new StackService(repo, state, engine, dockerBin)
   const settings = new SettingsStore(db)
   const icons = new IconCache(path.join(config.dataDir, 'icons'), config.iconCdn)
+  const files = new FileBrowser({ stacks: config.stacksDir, data: config.dataDir })
   const tokens = new ApiTokenStore(db)
   const audit = new AuditLog(db)
   const updates = new UpdateChecker(
@@ -214,6 +216,7 @@ export async function createRuntime(
     audit,
     gitSync,
     icons,
+    files,
     stop() {
       gitSync.stop()
       updates.stop()
