@@ -177,6 +177,12 @@ describe('stacks', () => {
     expect((await req('GET', '/api/nope', { cookie })).status).toBe(404)
   })
 
+  it('serves icons only from known sets and registered URLs', async () => {
+    const unknown = await req('GET', `/api/icons/url/${'0'.repeat(24)}`, { cookie })
+    expect(unknown.status).toBe(404)
+    expect((await req('GET', '/api/icons/evil/nginx', { cookie })).status).toBe(404)
+  })
+
   it('clears a stack history', async () => {
     await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
     runtime.stacks.revisions?.record('app', {

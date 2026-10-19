@@ -92,6 +92,26 @@ describe('buildStackSummaries', () => {
     expect(s).toMatchObject({ isSelf: true, activeOperationId: 'op1' })
   })
 
+  it("shows stacky's own icon for its container unless a label picks another", () => {
+    const self = (labels: Record<string, string>) =>
+      buildStackSummaries(
+        [managed('stacky', ['stacky'])],
+        [
+          container({
+            id: 'abcdef123456',
+            project: 'stacky',
+            service: 'stacky',
+            image: 'stacky:local',
+            icon: 'sh:stacky',
+            labels,
+          }),
+        ],
+        { selfContainerId: 'abcdef' },
+      )[0]!.services[0]!.containers[0]!.icon
+    expect(self({})).toBe('stacky')
+    expect(self({ 'stacky.display.icon': 'mdi:docker' })).toBe('sh:stacky')
+  })
+
   it('does not leak internal container fields', () => {
     const [s] = buildStackSummaries(
       [managed('app', ['web'])],

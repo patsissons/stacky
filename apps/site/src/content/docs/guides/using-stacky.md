@@ -17,7 +17,28 @@ The home page lists every container from every compose project on the host, much
 
 **Check for updates** looks for newer images now, and **Update all** applies every available update after you confirm. Its arrow menu has **Pull all updates**, which only downloads the newer images (see [Image updates](/guides/image-updates/)).
 
-Icons come from the [selfh.st icon set](https://selfh.st/icons/), matched by image name. Stacky downloads each icon once and serves it from its own cache. To pick a different icon, add a `dev.stacky.icon: jellyfin` label (WUD's `wud.display.icon: selfhst:jellyfin` works too).
+Icons come from the [selfh.st icon set](https://selfh.st/icons/), matched by image name. Stacky shows its own logo for its container without any label. Stacky downloads each icon once and serves it from its own cache, so your browser never calls a CDN.
+
+To pick a different icon, add a `stacky.display.icon` label to the service. It takes the same values as What's Up Docker's `wud.display.icon`, which stacky also reads:
+
+| Value                                     | Icon                                                                           |
+| ----------------------------------------- | ------------------------------------------------------------------------------ |
+| `jellyfin` or `sh:jellyfin`               | [selfh.st](https://selfh.st/icons/) (`selfhst:` works too)                     |
+| `hl:jellyfin`                             | [homarr-labs dashboard icons](https://dashboardicons.com)                      |
+| `si:jellyfin`                             | [Simple Icons](https://simpleicons.org)                                        |
+| `mdi:docker`                              | [Material Design Icons](https://pictogrammers.com/library/mdi/)                |
+| `fa:server`, `fas:`, `far:`, `fab:docker` | [Font Awesome](https://fontawesome.com/icons) solid, regular or brands         |
+| `https://example.com/logo.svg`            | Any PNG, SVG, WebP, JPEG, GIF or ICO URL (fetched once by stacky, then cached) |
+
+```yaml
+services:
+  jellyfin:
+    image: jellyfin/jellyfin
+    labels:
+      stacky.display.icon: https://example.com/jellyfin.svg
+```
+
+When several labels are set, `stacky.display.icon` wins over the older `dev.stacky.icon`, which wins over `wud.display.icon`. Single-color sets (Material Design, Font Awesome, Simple Icons) are inverted in dark mode.
 
 Containers are grouped under a heading per stack by default; turn **Group by stack** off for one flat, paginated list. Search, the stack and status filters, sorting, grouping and pagination are all stored in the URL, so you can bookmark a view. On a phone the table turns into cards, grouped the same way.
 

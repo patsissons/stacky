@@ -30,7 +30,7 @@ import { WUD_KEY, type UpdateChecker } from '../updates/checker'
 import { WudClient, type WudSettings } from '../updates/wud'
 import type { Notifier } from '../notify/notifier'
 import type { GitSync } from '../git/sync'
-import type { IconCache } from '../icons/icons'
+import { untrustedImageHeaders, type Icon, type IconCache } from '../icons/icons'
 
 export interface ApiContext {
   config: Config
@@ -270,13 +270,18 @@ export function apiRoutes(ctx: ApiContext) {
     }
   })
 
-  api.get('/icons/:name', async (c) => {
-    const icon = await ctx.icons.get(c.req.param('name'))
-    if (!icon) return c.body(null, 404, { 'cache-control': 'private, max-age=3600' })
-    return c.body(new Uint8Array(icon.data), 200, {
-      'content-type': icon.type,
-      'cache-control': 'private, max-age=604800',
-    })
+  const sendIcon = (c: Context, icon: Icon | undefined) =>
+    icon
+      ? c.body(new Uint8Array(icon.data), 200, {
+          ...untrustedImageHeaders(icon.type),
+          'cache-control': 'private, max-age=604800',
+        })
+      : c.body(null, 404, { 'cache-control': 'private, max-age=3600' })
+  // a bare name is a selfh.st icon (the original form of this route)
+  api.get('/icons/:name', async (c) => sendIcon(c, await ctx.icons.get('sh', c.req.param('name'))))
+  api.get('/icons/:set/:name', async (c) => {
+    const { set, name } = c.req.param()
+    return sendIcon(c, await (set === 'url' ? ctx.icons.getUrl(name) : ctx.icons.get(set, name)))
   })
 
   // ---- git ----
