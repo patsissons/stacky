@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.0](https://github.com/patsissons/stacky/compare/v0.1.0...v0.2.0) (2026-10-19)
+
+
+### Features
+
+* **web:** add "Update all" to the containers page ([a679775](https://github.com/patsissons/stacky/commit/a679775c67b064bcaab5fb27b8ca5492b27bb981))
+* **web:** add a help modal that explains every operation ([2eef80c](https://github.com/patsissons/stacky/commit/2eef80c7560d7af3799407855d91bb9d078b87b5))
+* **web:** let the auth-disabled banner be dismissed ([32ec034](https://github.com/patsissons/stacky/commit/32ec0348e1be4e8a540acadfce86865c1c2213b4))
+
+
+### Bug Fixes
+
+* **web:** disable "Update stacky" when there is nothing newer ([2862e08](https://github.com/patsissons/stacky/commit/2862e0882a0c61fec66e99de0bc145525191458b))
+* **web:** tidy layout glitches in the shell, tabs and buttons ([414bc84](https://github.com/patsissons/stacky/commit/414bc84497a1f963f07d5ba8296cb244082703f7))
+
 ## 0.1.0 (2026-10-18)
 
 
