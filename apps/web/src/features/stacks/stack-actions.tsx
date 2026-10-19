@@ -39,9 +39,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buildRows, planUpdates } from '@/features/containers/rows'
+import { useDirtyEditor } from '@/features/editor/store'
 import { helpStore } from '@/features/help/help-dialog'
 import { runStackAction } from '@/features/operations/actions'
 import { operationStore } from '@/features/operations/store'
+import { UpdateAllDialog, type UpdateAllMode } from '@/features/updates/update-all-dialog'
 import { useUpdates } from '@/hooks/use-updates'
 import { ApiError } from '@/lib/api'
 
@@ -65,21 +67,32 @@ export function useRunAction(stack: string) {
   return { run, pending }
 }
 
-/** The sticky action bar on a stack page. Destructive actions confirm first. */
+/**
+ * The sticky action bar on a stack page. Destructive actions confirm first. While the editor
+ * holds unsaved edits, Deploy goes through its review dialog instead of deploying the files on
+ * disk. Update applies the newer versions found by the update check (after a confirmation that
+ * lists them); when none are known it pulls the current tags again.
+ */
 export function StackActions({ stack }: { stack: StackSummary }) {
   const navigate = useNavigate()
   const { run, pending } = useRunAction(stack.name)
   const [confirm, setConfirm] = useState<'down' | 'delete'>()
   const [removeVolumes, setRemoveVolumes] = useState(false)
   const [typed, setTyped] = useState('')
+  const [updateMode, setUpdateMode] = useState<UpdateAllMode>()
   const confirmInput = useRef<HTMLInputElement>(null)
+  const editor = useDirtyEditor(stack.name)
   const busy = !!stack.activeOperationId || !!pending
   const up = stack.status !== 'inactive' && stack.status !== 'stopped' && stack.status !== 'error'
   const { byRef } = useUpdates()
-  const updates = useMemo(() => planUpdates(buildRows([stack]), byRef).steps.length, [stack, byRef])
+  const plan = useMemo(() => planUpdates(buildRows([stack]), byRef), [stack, byRef])
+  const updates = plan.steps.length
   const updating =
     pending === 'update' || pending === 'pull-updates' || pending === 'deploy-updates'
-  const updatesLabel = `${updates} update${updates === 1 ? '' : 's'}`
+  const updatesLabel = updates === 0 ? 'none found' : `${updates} found`
+
+  const deploy = (options: ActionOptions = {}) =>
+    editor ? editor.deploy(options) : void run('deploy', options)
 
   const spinner = (action: string) =>
     pending === action ? <Loader2 className="animate-spin" /> : undefined
@@ -103,8 +116,8 @@ export function StackActions({ stack }: { stack: StackSummary }) {
         </Button>
       )}
       <div className="flex">
-        <Button size="sm" className="rounded-r-none" disabled={busy} onClick={() => run('deploy')}>
-          {spinner('deploy') ?? <Rocket />} Deploy
+        <Button size="sm" className="rounded-r-none" disabled={busy} onClick={() => deploy()}>
+          {spinner('deploy') ?? <Rocket />} {editor ? 'Review & deploy' : 'Deploy'}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -119,13 +132,13 @@ export function StackActions({ stack }: { stack: StackSummary }) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Deploy with options</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => run('deploy', { pull: 'always' })}>
+            <DropdownMenuItem onSelect={() => deploy({ pull: 'always' })}>
               <ArrowDownToLine className="size-4" /> Pull images, then deploy
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => run('deploy', { build: true })}>
+            <DropdownMenuItem onSelect={() => deploy({ build: true })}>
               <RefreshCw className="size-4" /> Rebuild images, then deploy
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => run('deploy', { forceRecreate: true })}>
+            <DropdownMenuItem onSelect={() => deploy({ forceRecreate: true })}>
               <RotateCw className="size-4" /> Recreate all containers
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -137,9 +150,16 @@ export function StackActions({ stack }: { stack: StackSummary }) {
           variant="outline"
           className="rounded-r-none"
           disabled={busy}
-          onClick={() => run('update', { prune: true })}
+          onClick={() =>
+            updates > 0 ? setUpdateMode('deploy') : void run('update', { prune: true })
+          }
         >
           {updating ? <Loader2 className="animate-spin" /> : <RefreshCw />} Update
+          {updates > 0 && (
+            <span className="bg-primary/15 text-primary rounded px-1 text-xs tabular-nums">
+              {updates}
+            </span>
+          )}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -158,14 +178,15 @@ export function StackActions({ stack }: { stack: StackSummary }) {
               Newer versions{' '}
               <span className="text-muted-foreground font-normal">({updatesLabel})</span>
             </DropdownMenuLabel>
-            <DropdownMenuItem disabled={updates === 0} onSelect={() => run('pull-updates')}>
-              <ArrowDownToLine className="size-4" /> Pull updates
+            <DropdownMenuItem disabled={updates === 0} onSelect={() => setUpdateMode('deploy')}>
+              <ArrowUpCircle className="size-4" /> Apply updates
             </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={updates === 0}
-              onSelect={() => run('deploy-updates', { prune: true })}
-            >
-              <ArrowUpCircle className="size-4" /> Pull updates &amp; deploy
+            <DropdownMenuItem disabled={updates === 0} onSelect={() => run('pull-updates')}>
+              <ArrowDownToLine className="size-4" /> Pull updates only
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => run('update', { prune: true })}>
+              <RefreshCw className="size-4" /> Re-pull current tags
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -212,6 +233,13 @@ export function StackActions({ stack }: { stack: StackSummary }) {
       >
         <CircleHelp />
       </Button>
+
+      <UpdateAllDialog
+        plan={plan}
+        mode={updateMode}
+        stack={stack.name}
+        onClose={() => setUpdateMode(undefined)}
+      />
 
       <AlertDialog
         open={!!confirm}

@@ -15,9 +15,15 @@ import {
   Undo2,
   X,
 } from 'lucide-react'
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import type { StackFiles, StackSummary, ValidationIssue, ValidationResult } from '@stacky/shared'
+import type {
+  ActionOptions,
+  StackFiles,
+  StackSummary,
+  ValidationIssue,
+  ValidationResult,
+} from '@stacky/shared'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +56,7 @@ import { runStackAction } from '@/features/operations/actions'
 import { api, ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { hasSecrets, languageFor, maskEnv } from './language'
+import { editorStore } from './store'
 
 const CodeEditor = lazy(() => import('./code-editor'))
 const CodeDiff = lazy(() => import('./code-editor').then((m) => ({ default: m.CodeDiff })))
@@ -99,6 +106,8 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
   const [masked, setMasked] = useState(true)
   const [saving, setSaving] = useState(false)
   const [diffOpen, setDiffOpen] = useState(false)
+  // deploy options chosen before the review dialog opened (e.g. pull images first)
+  const [deployOptions, setDeployOptions] = useState<ActionOptions>({})
   const [deploying, setDeploying] = useState(false)
   const [newFile, setNewFile] = useState<string>()
   const [deleting, setDeleting] = useState<string>()
@@ -178,13 +187,13 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
     }
   }, [active, extra, name, dirty, dirtyCompose, dirtyEnv, compose, env, base, qc, errors.length])
 
-  const deploy = async () => {
+  const deploy = async (options: ActionOptions = {}) => {
     setDeploying(true)
     try {
       await runStackAction(
         name,
         'deploy',
-        {},
+        options,
         dirty
           ? { compose: dirtyCompose ? compose : undefined, env: dirtyEnv ? env : undefined }
           : undefined,
@@ -206,7 +215,21 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
     }
   }
 
-  const requestDeploy = () => (dirty ? setDiffOpen(true) : void deploy())
+  const requestDeploy = (options: ActionOptions = {}) => {
+    if (!dirty) return void deploy(options)
+    setDeployOptions(options)
+    setDiffOpen(true)
+  }
+
+  // Let the stack's action bar deploy through the review dialog instead of the files on disk.
+  const requestDeployRef = useRef(requestDeploy)
+  useEffect(() => {
+    requestDeployRef.current = requestDeploy
+  })
+  useEffect(() => {
+    editorStore.register({ stack: name, dirty, deploy: (o) => requestDeployRef.current(o) })
+    return () => editorStore.unregister(name)
+  }, [name, dirty])
 
   const discard = () => {
     if (!base) return
@@ -399,7 +422,7 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
           </Button>
           <Button
             size="sm"
-            onClick={requestDeploy}
+            onClick={() => requestDeploy()}
             disabled={deploying || !!stack.activeOperationId}
           >
             {deploying ? <Loader2 className="animate-spin" /> : <Rocket />}
@@ -536,7 +559,7 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
                 onChange={setCompose}
                 issues={issues}
                 onSave={() => void save()}
-                onDeploy={requestDeploy}
+                onDeploy={() => requestDeploy()}
               />
             )}
             {active === ENV &&
@@ -554,7 +577,7 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
                   value={env}
                   onChange={editEnv}
                   onSave={() => void save()}
-                  onDeploy={requestDeploy}
+                  onDeploy={() => requestDeploy()}
                 />
               ))}
             {extraFile && (
@@ -611,7 +634,10 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
             <Button variant="outline" onClick={() => setDiffOpen(false)}>
               Keep editing
             </Button>
-            <Button onClick={() => void deploy()} disabled={deploying || errors.length > 0}>
+            <Button
+              onClick={() => void deploy(deployOptions)}
+              disabled={deploying || errors.length > 0}
+            >
               {deploying ? <Loader2 className="animate-spin" /> : <Rocket />} Save &amp; deploy
             </Button>
           </DialogFooter>

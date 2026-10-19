@@ -1,5 +1,15 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Boxes, CircleHelp, Play, Plus, RefreshCw, RotateCw, Settings, Square } from 'lucide-react'
+import {
+  Boxes,
+  CircleHelp,
+  Play,
+  Plus,
+  RefreshCw,
+  Rocket,
+  RotateCw,
+  Settings,
+  Square,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { stackStatusMeta, StatusDot } from '@/components/status'
@@ -47,7 +57,7 @@ export function CommandPalette({
     fn()
   }
 
-  const action = (name: string, act: 'start' | 'restart' | 'stop' | 'update') =>
+  const action = (name: string, act: 'deploy' | 'start' | 'restart' | 'stop' | 'update') =>
     go(() => {
       runStackAction(name, act).catch((err: Error) => toast.error(err.message))
     })
@@ -93,6 +103,13 @@ export function CommandPalette({
         <CommandSeparator />
         <CommandGroup heading="Actions">
           {managed.flatMap((s) => [
+            <CommandItem
+              key={`d-${s.name}`}
+              value={`deploy ${s.name}`}
+              onSelect={() => action(s.name, 'deploy')}
+            >
+              <Rocket /> Deploy {s.name}
+            </CommandItem>,
             <CommandItem
               key={`u-${s.name}`}
               value={`update ${s.name}`}

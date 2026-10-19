@@ -61,18 +61,18 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       },
       {
         name: 'Update',
-        what: 'Pulls the tags already in the compose file again, which only helps for tags like latest. If the stack is running, recreates the containers whose image changed and removes dangling images. A stopped stack stays stopped.',
+        what: 'Applies the newer versions found by Check for updates, after you confirm the list: newer tags are written into the compose file (only the image: lines), then those services are pulled and recreated and dangling images are removed. When no update is known, it pulls the tags already in the compose file again (which only moves tags like latest) and recreates the containers whose image changed. A stopped stack stays stopped.',
         command: 'docker compose pull → up -d → docker image prune',
       },
       {
-        name: 'Update → Pull updates',
+        name: 'Update → Pull updates only',
         what: 'Downloads the newer versions found by Check for updates, ahead of time. The compose file and the running containers are left alone.',
         command: 'docker pull <image>:<new tag> · docker compose pull <rebuilt services>',
       },
       {
-        name: 'Update → Pull updates & deploy',
-        what: 'Writes the newer version tags into the compose file (only the image: lines), then pulls and recreates the services that have an update. Works for pinned versions like nginx:1.27.3.',
-        command: 'docker compose pull <services> → up -d <services> → docker image prune',
+        name: 'Update → Re-pull current tags',
+        what: 'Pulls the tags already in the compose file again and recreates the containers whose image changed, even when the stack has newer versions you have not applied.',
+        command: 'docker compose pull → up -d → docker image prune',
       },
       {
         name: 'Restart',
@@ -86,7 +86,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       },
       {
         name: 'More → Pull images only',
-        what: 'Pulls the tags already in the compose file again, without touching the running containers. They switch over on the next deploy. For pinned versions use Update → Pull updates.',
+        what: 'Pulls the tags already in the compose file again, without touching the running containers. They switch over on the next deploy. For newer versions use Update → Pull updates only.',
         command: 'docker compose pull',
       },
       {
@@ -109,6 +109,16 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
         command: 'docker compose up -d --no-deps <service> · stop · restart',
       },
       {
+        name: 'Recreate (one service)',
+        what: 'Replaces that service’s container with a fresh one from the same image, without touching the rest of the stack.',
+        command: 'docker compose up -d --no-deps --force-recreate <service>',
+      },
+      {
+        name: 'Pull & recreate (one service)',
+        what: 'Pulls that service’s tag again and recreates it if the image changed. The same as Pull <tag> in the update dialog.',
+        command: 'docker compose pull <service> → up -d --no-deps <service>',
+      },
+      {
         name: 'Check for updates',
         what: 'Asks each image’s registry whether a newer version or a new build of the same tag exists. Nothing is changed.',
       },
@@ -123,11 +133,11 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       },
       {
         name: 'Update all',
-        what: 'Applies every available update above after you confirm the list: one Pull updates & deploy per stack.',
+        what: 'Applies every available update above after you confirm the list: one Update per stack.',
       },
       {
         name: 'Update all → Pull all updates',
-        what: 'Downloads every available update without applying it: one Pull updates per stack.',
+        what: 'Downloads every available update without applying it: one Pull updates only per stack.',
       },
       {
         name: 'Ignore this update',
