@@ -67,4 +67,4 @@ A token can do everything the admin can, except create or revoke tokens.
 
 ## Running behind an authenticating proxy
 
-If a proxy such as Authelia or Authentik already handles authentication, you can set `STACKY_AUTH_DISABLED=true` to turn off stacky's own login. Only do this if nothing can reach stacky without going through the proxy. Stacky shows a permanent banner while auth is disabled.
+If a proxy such as Authelia or Authentik already handles authentication, you can set `STACKY_AUTH_DISABLED=true` to turn off stacky's own login. Only do this if nothing can reach stacky without going through the proxy. Stacky shows a warning banner while auth is disabled; you can dismiss it, and it stays hidden in that browser.

@@ -1,6 +1,6 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronRight, LogOut, Menu, Search, ShieldOff, User } from 'lucide-react'
+import { AlertTriangle, ChevronRight, LogOut, Menu, Search, ShieldOff, User, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,6 +16,7 @@ import {
   CommandPalette,
   useCommandPaletteShortcut,
 } from '@/features/command-palette/command-palette'
+import { useDismissed } from '@/hooks/use-dismissed'
 import { useSession } from '@/hooks/use-session'
 import { useLiveStacksBridge } from '@/hooks/use-stacks'
 import { useLiveUpdatesBridge } from '@/hooks/use-updates'
@@ -153,15 +154,27 @@ function UserMenu() {
 function Banners() {
   const { data: session } = useSession()
   const { data: system } = useSystem()
+  const [authNoticeDismissed, dismissAuthNotice] = useDismissed('stacky:auth-banner-dismissed')
   const problems = system?.preflight.filter((c) => !c.ok && c.severity === 'error') ?? []
   return (
     <>
       <UpdateBanner />
-      {session?.authDisabled && (
-        <div className="bg-status-warning/12 text-foreground flex items-center gap-2 border-b px-4 py-1.5 text-xs">
-          <ShieldOff className="text-status-warning size-3.5" />
-          Authentication is disabled (STACKY_AUTH_DISABLED). Only run stacky like this behind a
-          proxy that authenticates users.
+      {session?.authDisabled && !authNoticeDismissed && (
+        <div className="bg-status-warning/12 text-foreground flex items-center gap-2 border-b py-1 pr-1 pl-4 text-xs">
+          <ShieldOff className="text-status-warning size-3.5 shrink-0" />
+          <span className="flex-1">
+            Authentication is disabled (STACKY_AUTH_DISABLED). Only run stacky like this behind a
+            proxy that authenticates users.
+          </span>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={dismissAuthNotice}
+            aria-label="Dismiss"
+            title="Don't show this again in this browser"
+          >
+            <X />
+          </Button>
         </div>
       )}
       {problems.map((p) => (
