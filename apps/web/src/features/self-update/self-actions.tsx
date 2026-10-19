@@ -1,16 +1,22 @@
 import { ArrowUpCircle, Loader2, RefreshCw, RotateCw, Rocket } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import type { SelfInfo } from '@stacky/shared'
+import type { ImageUpdate, SelfInfo } from '@stacky/shared'
 import { Button } from '@/components/ui/button'
 import { runSelfAction } from '@/features/operations/actions'
 import { useSelf } from '@/hooks/use-self'
+import { isActionable, useUpdates } from '@/hooks/use-updates'
 import { ApiError } from '@/lib/api'
 
 /** The release to move to: pinned tags move to the new version, moving tags just pull. */
 export function updateTarget(info: SelfInfo | undefined): string | undefined {
   if (!info?.latestRelease || info.movingTag) return undefined
   return info.latestRelease.version
+}
+
+/** Whether there is anything to update to: a newer release, or a new image behind the same tag. */
+export function canUpdate(info: SelfInfo, imageUpdate: ImageUpdate | undefined): boolean {
+  return !!info.latestRelease || isActionable(imageUpdate)
 }
 
 function useSelfAction() {
@@ -34,15 +40,22 @@ function useSelfAction() {
 export function SelfActions() {
   const { data: info } = useSelf()
   const { run, pending } = useSelfAction()
+  const { byRef } = useUpdates()
   if (!info) return null
   if (!info.available) {
     return <p className="text-muted-foreground max-w-sm text-right text-xs">{info.reason}</p>
   }
+  const updatable = canUpdate(info, info.image ? byRef.get(info.image) : undefined)
   const spin = (a: string, icon: React.ReactNode) =>
     pending === a ? <Loader2 className="animate-spin" /> : icon
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" disabled={!!pending} onClick={() => run('update', updateTarget(info))}>
+      <Button
+        size="sm"
+        disabled={!!pending || !updatable}
+        title={updatable ? undefined : 'stacky is up to date'}
+        onClick={() => run('update', updateTarget(info))}
+      >
         {spin('update', <RefreshCw />)}
         {info.latestRelease ? `Update to ${info.latestRelease.version}` : 'Update stacky'}
       </Button>
