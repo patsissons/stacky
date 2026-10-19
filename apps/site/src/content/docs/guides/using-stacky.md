@@ -30,6 +30,8 @@ Each stack page has an action bar:
 - **Restart**, **Stop** / **Start**
 - **More:** pull only, **Down** (remove containers, optionally named volumes), and **Delete** (removes the stack directory; you type the name to confirm)
 
+Not sure what an action does? The **?** button at the end of the action bar (also in the top bar, and **Help** in the command palette) opens a short explanation of every operation and the `docker compose` command behind it, with links back to these docs.
+
 Every action streams its output in a drawer at the bottom of the screen. When it finishes, a notification tells you whether it worked. If it failed, you get a plain explanation and a suggested fix (see [Errors](/how-it-works/errors/)).
 
 The tabs:
@@ -62,3 +64,5 @@ Each successful deploy or update saves the compose file and `.env` it used, keep
 ## Command palette
 
 Press <kbd>⌘/Ctrl</kbd>+<kbd>K</kbd> anywhere to jump to a stack, or to update, restart, start or stop one.
+
+The stacky logo in the top left always takes you back to the containers page.

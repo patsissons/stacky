@@ -1,8 +1,9 @@
-import { ArrowUpCircle, Loader2, RefreshCw, RotateCw, Rocket } from 'lucide-react'
+import { ArrowUpCircle, CircleHelp, Loader2, RefreshCw, RotateCw, Rocket } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { ImageUpdate, SelfInfo } from '@stacky/shared'
 import { Button } from '@/components/ui/button'
+import { helpStore } from '@/features/help/help-dialog'
 import { runSelfAction } from '@/features/operations/actions'
 import { useSelf } from '@/hooks/use-self'
 import { isActionable, useUpdates } from '@/hooks/use-updates'
@@ -64,6 +65,15 @@ export function SelfActions() {
       </Button>
       <Button size="sm" variant="outline" disabled={!!pending} onClick={() => run('restart')}>
         {spin('restart', <RotateCw />)} Restart
+      </Button>
+      <Button
+        size="icon-sm"
+        variant="ghost"
+        onClick={helpStore.open}
+        aria-label="What these actions do"
+        title="What these actions do"
+      >
+        <CircleHelp />
       </Button>
     </div>
   )

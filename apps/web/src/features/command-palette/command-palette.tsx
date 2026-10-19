@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Boxes, Play, Plus, RefreshCw, RotateCw, Settings, Square } from 'lucide-react'
+import { Boxes, CircleHelp, Play, Plus, RefreshCw, RotateCw, Settings, Square } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { stackStatusMeta, StatusDot } from '@/components/status'
@@ -13,6 +13,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import { useStacks } from '@/hooks/use-stacks'
+import { helpStore } from '@/features/help/help-dialog'
 import { runStackAction } from '@/features/operations/actions'
 
 export function useCommandPaletteShortcut() {
@@ -65,6 +66,9 @@ export function CommandPalette({
           </CommandItem>
           <CommandItem onSelect={() => go(() => void navigate({ to: '/settings' }))}>
             <Settings /> Settings
+          </CommandItem>
+          <CommandItem onSelect={() => go(helpStore.open)}>
+            <CircleHelp /> Help: what the operations do
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />

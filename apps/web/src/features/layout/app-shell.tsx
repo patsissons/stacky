@@ -1,6 +1,16 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronRight, LogOut, Menu, Search, ShieldOff, User, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  ChevronRight,
+  CircleHelp,
+  LogOut,
+  Menu,
+  Search,
+  ShieldOff,
+  User,
+  X,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,6 +26,7 @@ import {
   CommandPalette,
   useCommandPaletteShortcut,
 } from '@/features/command-palette/command-palette'
+import { HelpDialog, helpStore } from '@/features/help/help-dialog'
 import { useDismissed } from '@/hooks/use-dismissed'
 import { useSession } from '@/hooks/use-session'
 import { useLiveStacksBridge } from '@/hooks/use-stacks'
@@ -76,6 +87,15 @@ export function AppShell() {
             >
               <Search className="size-4" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={helpStore.open}
+              aria-label="Help"
+              title="What the operations do"
+            >
+              <CircleHelp className="size-4" />
+            </Button>
             <ThemeToggle />
             <UserMenu />
           </div>
@@ -88,6 +108,7 @@ export function AppShell() {
         </main>
       </div>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <HelpDialog />
     </div>
   )
 }
