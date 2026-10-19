@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/patsissons/stacky/compare/v0.7.0...v0.8.0) (2026-10-19)
+
+
+### Features
+
+* STACKY_DOCKER_HOST for published-port links ([#17](https://github.com/patsissons/stacky/issues/17)) ([30e32bb](https://github.com/patsissons/stacky/commit/30e32bbe7b020a85ac418e5301c107553f5d7956))
+
 ## [0.7.0](https://github.com/patsissons/stacky/compare/v0.6.0...v0.7.0) (2026-10-19)
 
 
