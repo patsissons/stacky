@@ -177,6 +177,23 @@ describe('stacks', () => {
     expect((await req('GET', '/api/nope', { cookie })).status).toBe(404)
   })
 
+  it('clears a stack history', async () => {
+    await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
+    runtime.stacks.revisions?.record('app', {
+      name: 'app',
+      composeFile: 'compose.yaml',
+      compose: 'services: {}\n',
+      env: '',
+      hasEnv: false,
+    })
+    expect(await json(await req('GET', '/api/stacks/app/revisions', { cookie }))).toHaveLength(1)
+    const res = await req('DELETE', '/api/stacks/app/history', { cookie })
+    expect(res.status).toBe(200)
+    expect(await json(res)).toEqual({ revisions: 1, operations: 0 })
+    expect(await json(await req('GET', '/api/stacks/app/revisions', { cookie }))).toEqual([])
+    expect((await req('DELETE', '/api/stacks/..%2Fx/history', { cookie })).status).toBe(400)
+  })
+
   it('accepts the update actions and explains when there is nothing to update', async () => {
     await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
     for (const action of ['pull-updates', 'deploy-updates']) {

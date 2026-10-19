@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { GitCompare, History, Loader2, RotateCcw } from 'lucide-react'
+import { GitCompare, History, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { lazy, Suspense, useState } from 'react'
 import { toast } from 'sonner'
 import type { OperationSummary, StackFiles, StackRevision } from '@stacky/shared'
@@ -32,6 +32,16 @@ const CodeDiff = lazy(() =>
   import('@/features/editor/code-editor').then((m) => ({ default: m.CodeDiff })),
 )
 
+const revisionsQuery = (stack: string, activeOperationId?: string) => ({
+  queryKey: ['revisions', stack, activeOperationId],
+  queryFn: () => api.get<StackRevision[]>(`/api/stacks/${stack}/revisions`),
+})
+
+const operationsQuery = (stack: string, activeOperationId?: string) => ({
+  queryKey: ['operations', stack, activeOperationId],
+  queryFn: () => api.get<OperationSummary[]>(`/api/operations?stack=${stack}&limit=100`),
+})
+
 /** Deployed versions (with diff and rollback) and every operation run on the stack. */
 export function HistoryTab({
   stack,
@@ -42,18 +52,76 @@ export function HistoryTab({
 }) {
   return (
     <div className="space-y-6">
+      <ClearHistory stack={stack} activeOperationId={activeOperationId} />
       <Revisions stack={stack} activeOperationId={activeOperationId} />
       <Operations stack={stack} activeOperationId={activeOperationId} />
     </div>
   )
 }
 
+/** Wipes the stack's deployed versions and finished activity after a confirmation. */
+function ClearHistory({ stack, activeOperationId }: { stack: string; activeOperationId?: string }) {
+  const qc = useQueryClient()
+  const { data: revisions } = useQuery(revisionsQuery(stack, activeOperationId))
+  const { data: ops } = useQuery(operationsQuery(stack, activeOperationId))
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const empty = !revisions?.length && !ops?.some((o) => o.id !== activeOperationId)
+
+  const clear = async () => {
+    setBusy(true)
+    try {
+      await api.delete(`/api/stacks/${stack}/history`)
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['revisions', stack] }),
+        qc.invalidateQueries({ queryKey: ['operations', stack] }),
+      ])
+      setOpen(false)
+      toast.success(`Cleared the history of ${stack}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex justify-end">
+      <Button size="sm" variant="outline" disabled={empty} onClick={() => setOpen(true)}>
+        <Trash2 /> Clear history
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear the history of {stack}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Removes every saved deployed version (so they can no longer be compared or restored)
+              and the activity log with its output. An operation that is still running is kept. The
+              files on disk and the containers are not touched. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-white"
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault()
+                void clear()
+              }}
+            >
+              {busy && <Loader2 className="animate-spin" />} Clear history
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
 function Revisions({ stack, activeOperationId }: { stack: string; activeOperationId?: string }) {
   const qc = useQueryClient()
-  const { data: revisions, isLoading } = useQuery({
-    queryKey: ['revisions', stack, activeOperationId],
-    queryFn: () => api.get<StackRevision[]>(`/api/stacks/${stack}/revisions`),
-  })
+  const { data: revisions, isLoading } = useQuery(revisionsQuery(stack, activeOperationId))
   const { data: current } = useQuery({
     queryKey: ['stack-files', stack],
     queryFn: () => api.get<{ files: StackFiles }>(`/api/stacks/${stack}`).then((r) => r.files),
@@ -176,10 +244,7 @@ function Revisions({ stack, activeOperationId }: { stack: string; activeOperatio
 }
 
 function Operations({ stack, activeOperationId }: { stack: string; activeOperationId?: string }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['operations', stack, activeOperationId],
-    queryFn: () => api.get<OperationSummary[]>(`/api/operations?stack=${stack}&limit=100`),
-  })
+  const { data, isLoading } = useQuery(operationsQuery(stack, activeOperationId))
   return (
     <section className="space-y-2">
       <h2 className="text-sm font-semibold">Activity</h2>

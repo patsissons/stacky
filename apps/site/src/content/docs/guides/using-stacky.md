@@ -46,7 +46,7 @@ The tabs:
 
 ## Rolling back
 
-Each successful deploy or update saves the compose file and `.env` it used, keeping the last 50 per stack. The **History** tab lists them. **Compare** shows a diff against the files on disk now. **Restore** validates the old files, writes them back and deploys them.
+Each successful deploy or update saves the compose file and `.env` it used, keeping the last 50 per stack. The **History** tab lists them. **Compare** shows a diff against the files on disk now. **Restore** validates the old files, writes them back and deploys them. **Clear history** removes the saved versions and the activity log of that stack after a confirmation. An operation that is still running is kept, and the files and containers are not touched.
 
 ## The editor
 

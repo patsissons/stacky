@@ -82,6 +82,26 @@ describe('OperationEngine', () => {
     expect(done?.state).toBe('cancelled')
   })
 
+  it('clears finished operations of one stack but keeps a running one', async () => {
+    const done = engine.enqueue({ stack: 'app', action: 'pull', cwd: tmp, steps: [docker('x')] })
+    await engine.wait(done.id)
+    const other = engine.enqueue({ stack: 'b', action: 'pull', cwd: tmp, steps: [docker('x')] })
+    await engine.wait(other.id)
+    const running = engine.enqueue({
+      stack: 'app',
+      action: 'pull',
+      cwd: tmp,
+      steps: [docker('sleep')],
+    })
+    await new Promise((r) => setTimeout(r, 200))
+    expect(engine.clear('app')).toBe(1)
+    expect(engine.list({ stack: 'app' }).map((o) => o.id)).toEqual([running.id])
+    expect(engine.get(done.id)).toBeUndefined()
+    expect(engine.list({ stack: 'b' })).toHaveLength(1)
+    engine.cancel(running.id)
+    await engine.wait(running.id)
+  })
+
   it('runs in-process tasks and reports their failures', async () => {
     const op = engine.enqueue({
       stack: 'app',

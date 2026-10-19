@@ -39,6 +39,11 @@ export class RevisionStore {
     return row ? toRevision(row) : undefined
   }
 
+  /** Deletes every revision of a stack. Returns how many were removed. */
+  clear(stack: string): number {
+    return this.db.delete(stackRevisions).where(eq(stackRevisions.stack, stack)).run().changes
+  }
+
   /** Records the files unless they are identical to the latest revision. */
   record(stack: string, files: StackFiles, operationId?: string): Revision | undefined {
     const latest = this.list(stack, 1)[0]

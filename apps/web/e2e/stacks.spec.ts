@@ -285,6 +285,20 @@ test('creates, saves and deletes an extra file', async () => {
   await expect(files.getByRole('button', { name: /app\.conf/ })).toHaveCount(0)
 })
 
+test('clears the stack history after confirming', async () => {
+  await page.goto('/stacks/e2e-app?tab=history')
+  await expect(page.getByLabel('Deployed versions')).toBeVisible()
+  await expect(page.getByLabel('Activity')).toBeVisible()
+  await page.getByRole('button', { name: 'Clear history' }).click()
+  const confirm = page.getByRole('alertdialog')
+  await expect(confirm).toContainText('cannot be undone')
+  await confirm.getByRole('button', { name: 'Clear history' }).click()
+  await expect(page.getByText('Cleared the history of e2e-app')).toBeVisible()
+  await expect(page.getByText('Every successful deploy saves the files')).toBeVisible()
+  await expect(page.getByText('Nothing has been run on this stack yet.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Clear history' })).toBeDisabled()
+})
+
 test('deletes the stack after typed confirmation', async () => {
   await page.goto('/stacks/e2e-app')
   await page.getByRole('button', { name: 'More actions' }).click()

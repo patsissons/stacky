@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, notInArray } from 'drizzle-orm'
 import type { OperationError, OperationSummary } from '@stacky/shared'
 import type { Db } from '../db'
 import { operations } from '../db/schema'
@@ -121,6 +121,19 @@ export class OperationEngine extends EventEmitter<EngineEvents> {
       .limit(limit)
       .all()
     return rows.map((r) => this.live.get(r.id)?.summary ?? toSummary(r))
+  }
+
+  /** Forgets a stack's finished operations; queued and running ones are kept. Returns how many. */
+  clear(stack: string): number {
+    for (const [id, live] of this.live) {
+      const { state } = live.summary
+      if (live.summary.stack === stack && state !== 'queued' && state !== 'running')
+        this.live.delete(id)
+    }
+    return this.db
+      .delete(operations)
+      .where(and(eq(operations.stack, stack), notInArray(operations.state, ['queued', 'running'])))
+      .run().changes
   }
 
   /** The operation currently queued or running for a stack, if any. */

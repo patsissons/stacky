@@ -490,6 +490,15 @@ export function apiRoutes(ctx: ApiContext) {
     return c.json(await ctx.stacks.restoreRevision(name, id), 202)
   })
 
+  // wipes the stack's deployed versions and finished activity (a running operation stays)
+  api.delete('/stacks/:name/history', (c) => {
+    const name = assertStackName(c.req.param('name'))
+    return c.json({
+      revisions: ctx.stacks.revisions?.clear(name) ?? 0,
+      operations: ctx.engine.clear(name),
+    })
+  })
+
   // ---- arbitrary files inside a stack directory ----
   api.get('/stacks/:name/files', async (c) => {
     const name = assertStackName(c.req.param('name'))
