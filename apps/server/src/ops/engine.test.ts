@@ -82,6 +82,22 @@ describe('OperationEngine', () => {
     expect(done?.state).toBe('cancelled')
   })
 
+  it('waits for an operation up to a timeout', async () => {
+    const quick = engine.enqueue({ stack: 'a', action: 'pull', cwd: tmp, steps: [docker('x')] })
+    expect((await engine.waitFor(quick.id, 5000))?.state).toBe('succeeded')
+    // finished operations come straight back, even without waiting
+    expect((await engine.waitFor(quick.id, 0))?.state).toBe('succeeded')
+
+    const slow = engine.enqueue({ stack: 'b', action: 'pull', cwd: tmp, steps: [docker('sleep')] })
+    const started = Date.now()
+    const snapshot = await engine.waitFor(slow.id, 150)
+    expect(Date.now() - started).toBeLessThan(2000)
+    expect(['queued', 'running']).toContain(snapshot?.state)
+    expect(await engine.waitFor('op_missing', 10)).toBeUndefined()
+    engine.cancel(slow.id)
+    await engine.wait(slow.id)
+  })
+
   it('clears finished operations of one stack but keeps a running one', async () => {
     const done = engine.enqueue({ stack: 'app', action: 'pull', cwd: tmp, steps: [docker('x')] })
     await engine.wait(done.id)

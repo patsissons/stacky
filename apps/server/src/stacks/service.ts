@@ -136,6 +136,32 @@ export class StackService {
     })
   }
 
+  /** Throws a 422 `invalid_compose` (with the issues as details) unless the files validate. */
+  async assertValid(name: string, compose: string, env?: string) {
+    const validation = await this.validate(name, compose, env)
+    if (!validation.ok) {
+      throw new AppError(
+        422,
+        'invalid_compose',
+        'The compose file is invalid',
+        undefined,
+        validation,
+      )
+    }
+  }
+
+  /** Saves edits only if the resulting files validate, so an invalid file never lands on disk. */
+  async saveValidated(name: string, files: { compose?: string; env?: string }) {
+    this.requireManaged(name)
+    const current = await this.repo.read(name)
+    await this.assertValid(
+      name,
+      files.compose ?? current.compose,
+      files.env ?? (current.hasEnv ? current.env : undefined),
+    )
+    await this.save(name, files)
+  }
+
   async create(name: string, compose: string, env = '') {
     await this.repo.ensureStacksDir()
     await this.repo.create(name, compose, env)

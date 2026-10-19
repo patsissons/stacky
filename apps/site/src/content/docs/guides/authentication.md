@@ -59,7 +59,7 @@ curl -H "Authorization: Bearer stk_…" https://stacky.example.com/api/stacks
 curl -X POST -H "Authorization: Bearer stk_…" https://stacky.example.com/api/stacks/media/actions/update
 ```
 
-A token can do everything the admin can, except create or revoke tokens.
+A token can do everything the admin can, except create or revoke tokens. The [REST API reference](/reference/api/) covers the endpoints, the OpenAPI document and how to wait for operations.
 
 ## Activity log
 

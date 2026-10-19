@@ -2,10 +2,8 @@ import { Hono, type Context } from 'hono'
 import type Docker from 'dockerode'
 import { z } from 'zod'
 import {
-  actionOptionsSchema,
   serviceActions,
   stackActions,
-  stackNameSchema,
   channelTypes,
   notifyEvents,
   type ApiErrorBody,
@@ -32,6 +30,20 @@ import type { Notifier } from '../notify/notifier'
 import type { GitSync } from '../git/sync'
 import type { FileBrowser } from '../files/browser'
 import { untrustedImageHeaders, type Icon, type IconCache } from '../icons/icons'
+import { readLogs } from '../docker/logs'
+import { logTargets } from '../stacks/log-targets'
+import { openApiDocument } from './openapi'
+import {
+  bumpImageBody,
+  checkUpdatesBody,
+  createStackBody,
+  ignoreUpdateBody,
+  saveStackBody,
+  stackActionBody,
+  stackFileBody,
+  text,
+  validateBody,
+} from './schemas'
 
 export interface ApiContext {
   config: Config
@@ -56,16 +68,7 @@ export interface ApiContext {
 
 type Env = { Variables: { user?: AuthUser } }
 
-const MAX_TEXT = 1024 * 1024
-const text = z.string().max(MAX_TEXT)
-
-async function body<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer<T>> {
-  let raw: unknown
-  try {
-    raw = await c.req.json()
-  } catch {
-    throw badRequest('request body must be JSON')
-  }
+function parseBody<T extends z.ZodType>(schema: T, raw: unknown): z.infer<T> {
   const parsed = schema.safeParse(raw)
   if (!parsed.success) {
     const first = parsed.error.issues[0]
@@ -76,6 +79,29 @@ async function body<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer
     )
   }
   return parsed.data
+}
+
+async function body<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer<T>> {
+  let raw: unknown
+  try {
+    raw = await c.req.json()
+  } catch {
+    throw badRequest('request body must be JSON')
+  }
+  return parseBody(schema, raw)
+}
+
+/** Like `body`, but an empty request body counts as `{}`. */
+async function optionalBody<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer<T>> {
+  const raw = await c.req.text()
+  if (!raw) return parseBody(schema, {})
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw badRequest('request body must be JSON')
+  }
+  return parseBody(schema, parsed)
 }
 
 export function errorResponse(c: Context, err: unknown, logger: Logger) {
@@ -153,6 +179,9 @@ export function apiRoutes(ctx: ApiContext) {
     return c.json({ ok: true }, 202)
   })
 
+  // machine-readable description of the public API (no secrets in it)
+  api.get('/openapi.json', (c) => c.json(openApiDocument(new URL(c.req.url).origin)))
+
   api.on(['GET', 'POST'], '/auth/*', (c) => {
     if (!auth) throw notFound('auth')
     return auth.auth.handler(c.req.raw)
@@ -219,23 +248,20 @@ export function apiRoutes(ctx: ApiContext) {
   api.get('/updates', (c) => c.json(ctx.updates.summary()))
 
   api.post('/updates/check', async (c) => {
-    const raw = await c.req.text()
-    const input = z
-      .object({ refs: z.array(z.string()).optional() })
-      .parse(raw ? JSON.parse(raw) : {})
+    const input = await optionalBody(c, checkUpdatesBody)
     void ctx.updates.checkAll(input.refs)
     return c.json({ ...ctx.updates.summary(), checking: true }, 202)
   })
 
   api.post('/updates/ignore', async (c) => {
-    const input = await body(c, z.object({ ref: z.string().min(1), value: z.string().optional() }))
+    const input = await body(c, ignoreUpdateBody)
     ctx.updates.ignore(input.ref, input.value)
     return c.json(ctx.updates.summary())
   })
 
   api.post('/stacks/:name/services/:service/image', async (c) => {
     const name = assertStackName(c.req.param('name'))
-    const input = await body(c, z.object({ tag: z.string().min(1).max(128) }))
+    const input = await body(c, bumpImageBody)
     return c.json(await ctx.stacks.bumpImage(name, c.req.param('service'), input.tag), 202)
   })
 
@@ -383,10 +409,7 @@ export function apiRoutes(ctx: ApiContext) {
   api.post('/self/:action', async (c) => {
     const action = z.enum(['update', 'deploy', 'restart']).safeParse(c.req.param('action'))
     if (!action.success) throw badRequest(`unknown action "${c.req.param('action')}"`)
-    const raw = await c.req.text()
-    const input = z
-      .object({ targetVersion: z.string().max(128).optional() })
-      .parse(raw ? JSON.parse(raw) : {})
+    const input = await optionalBody(c, z.object({ targetVersion: z.string().max(128).optional() }))
     return c.json(await ctx.selfUpdater.run(action.data, input), 202)
   })
 
@@ -394,25 +417,8 @@ export function apiRoutes(ctx: ApiContext) {
   api.get('/stacks', (c) => c.json(ctx.state.list()))
 
   api.post('/stacks', async (c) => {
-    const input = await body(
-      c,
-      z.object({
-        name: stackNameSchema,
-        compose: text,
-        env: text.optional(),
-        deploy: z.boolean().optional(),
-      }),
-    )
-    const validation = await ctx.stacks.validate(input.name, input.compose, input.env)
-    if (!validation.ok) {
-      throw new AppError(
-        422,
-        'invalid_compose',
-        'The compose file is invalid',
-        undefined,
-        validation,
-      )
-    }
+    const input = await body(c, createStackBody)
+    await ctx.stacks.assertValid(input.name, input.compose, input.env)
     await ctx.stacks.create(input.name, input.compose, input.env)
     const operation = input.deploy ? await ctx.stacks.stackAction(input.name, 'deploy') : undefined
     return c.json({ stack: ctx.state.get(input.name), operation }, 201)
@@ -428,14 +434,14 @@ export function apiRoutes(ctx: ApiContext) {
 
   api.put('/stacks/:name', async (c) => {
     const name = assertStackName(c.req.param('name'))
-    const input = await body(c, z.object({ compose: text.optional(), env: text.optional() }))
+    const input = await body(c, saveStackBody)
     await ctx.stacks.save(name, input)
     return c.json({ stack: ctx.state.get(name) })
   })
 
   api.post('/stacks/:name/validate', async (c) => {
     const name = assertStackName(c.req.param('name'))
-    const input = await body(c, z.object({ compose: text, env: text.optional() }))
+    const input = await body(c, validateBody)
     return c.json(await ctx.stacks.validate(name, input.compose, input.env))
   })
 
@@ -443,34 +449,12 @@ export function apiRoutes(ctx: ApiContext) {
     const name = assertStackName(c.req.param('name'))
     const action = z.enum(stackActions).safeParse(c.req.param('action'))
     if (!action.success) throw badRequest(`unknown action "${c.req.param('action')}"`)
-    const raw = await c.req.text()
-    const input = z
-      .object({
-        options: actionOptionsSchema.optional(),
-        compose: text.optional(),
-        env: text.optional(),
-      })
-      .parse(raw ? JSON.parse(raw) : {})
+    const input = await optionalBody(c, stackActionBody)
 
     // Deploying unsaved edits: validate first so an invalid file never lands on disk.
     if (input.compose !== undefined || input.env !== undefined) {
       if (action.data !== 'deploy') throw badRequest('only deploy accepts file contents')
-      const current = await ctx.repo.read(name)
-      const validation = await ctx.stacks.validate(
-        name,
-        input.compose ?? current.compose,
-        input.env ?? (current.hasEnv ? current.env : undefined),
-      )
-      if (!validation.ok) {
-        throw new AppError(
-          422,
-          'invalid_compose',
-          'The compose file is invalid',
-          undefined,
-          validation,
-        )
-      }
-      await ctx.stacks.save(name, { compose: input.compose, env: input.env })
+      await ctx.stacks.saveValidated(name, { compose: input.compose, env: input.env })
     }
     const operation = await ctx.stacks.stackAction(name, action.data, input.options ?? {})
     return c.json(operation, 202)
@@ -482,6 +466,22 @@ export function apiRoutes(ctx: ApiContext) {
     if (!action.success) throw badRequest(`unknown action "${c.req.param('action')}"`)
     const operation = await ctx.stacks.serviceAction(name, c.req.param('service'), action.data)
     return c.json(operation, 202)
+  })
+
+  // one-shot log read (the UI streams logs over /ws instead)
+  api.get('/stacks/:name/logs', async (c) => {
+    const name = assertStackName(c.req.param('name'))
+    const stack = ctx.state.get(name)
+    if (!stack) throw notFound(`stack "${name}"`)
+    const service = c.req.query('service')
+    if (service && !stack.services.some((s) => s.name === service)) {
+      throw notFound(`service "${service}" in stack "${name}"`)
+    }
+    const tail = Math.min(Math.max(Number(c.req.query('tail') ?? 200) || 200, 1), 5000)
+    const since = Number(c.req.query('since')) || undefined
+    return c.json({
+      lines: await readLogs(ctx.docker, logTargets(stack, service), { tail, since }),
+    })
   })
 
   // ---- deployed revisions ----
@@ -520,7 +520,7 @@ export function apiRoutes(ctx: ApiContext) {
 
   api.put('/stacks/:name/file', async (c) => {
     const name = assertStackName(c.req.param('name'))
-    const input = await body(c, z.object({ path: z.string().min(1), content: text }))
+    const input = await body(c, stackFileBody)
     await ctx.repo.writeFile(name, input.path, input.content)
     ctx.state.schedule(0)
     return c.json({ ok: true })
@@ -569,8 +569,10 @@ export function apiRoutes(ctx: ApiContext) {
     return c.json(ctx.engine.list({ stack, limit }))
   })
 
-  api.get('/operations/:id', (c) => {
-    const op = ctx.engine.get(c.req.param('id'))
+  // `?wait=<seconds>` long-polls until the operation finishes (or the wait runs out)
+  api.get('/operations/:id', async (c) => {
+    const wait = Math.min(Math.max(Number(c.req.query('wait')) || 0, 0), 300)
+    const op = await ctx.engine.waitFor(c.req.param('id'), wait * 1000)
     if (!op) throw notFound('operation')
     return c.json({ ...op, output: ctx.engine.output(op.id) })
   })

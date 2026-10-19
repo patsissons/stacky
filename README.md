@@ -53,6 +53,10 @@ Open `http://<host>:5005` and create the admin account. From then on, stacky app
 | `STACKY_UPDATE_INTERVAL`                      | `6`           | Hours between image update checks (`0` = only on demand)               |
 | `STACKY_BASE_URL`                             | (none)        | Public URL, used for links and OIDC callbacks                          |
 
+## Integrations
+
+- **REST API.** Scripts and other apps can drive stacky with an API token (**Settings → API tokens**): `curl -H "Authorization: Bearer stk_…" http://<host>:5005/api/stacks`. Each instance serves an OpenAPI 3.1 document at `/api/openapi.json`. See the [REST API reference](https://stacky.lgtm.page/reference/api/).
+
 ## Development
 
 Requirements: Node 24+, pnpm (version pinned in `package.json`), and Docker (OrbStack, Docker Desktop or a local engine).

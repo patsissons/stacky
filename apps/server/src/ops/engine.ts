@@ -149,6 +149,21 @@ export class OperationEngine extends EventEmitter<EngineEvents> {
     return this.live.get(id)?.done ?? this.get(id)
   }
 
+  /** Waits up to `ms` for an operation to finish; returns its state at that point. */
+  async waitFor(id: string, ms: number): Promise<OperationSummary | undefined> {
+    const live = this.live.get(id)
+    if (!live || ms <= 0) return this.get(id)
+    let timer: NodeJS.Timeout | undefined
+    const timeout = new Promise<OperationSummary>((resolve) => {
+      timer = setTimeout(() => resolve(live.summary), ms)
+    })
+    try {
+      return await Promise.race([live.done, timeout])
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
   cancel(id: string): boolean {
     const live = this.live.get(id)
     if (!live || (live.summary.state !== 'queued' && live.summary.state !== 'running')) return false
