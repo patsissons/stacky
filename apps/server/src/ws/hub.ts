@@ -5,6 +5,7 @@ import { streamLogs } from '../docker/logs'
 import { streamStats } from '../docker/stats'
 import type { Logger } from '../lib/logger'
 import type { OperationEngine } from '../ops/engine'
+import { logTargets } from '../stacks/log-targets'
 import type { StackState } from '../stacks/state'
 import type { UpdateChecker } from '../updates/checker'
 
@@ -146,9 +147,7 @@ export class Hub {
   ): Dispose {
     const stack = this.state.get(stackName)
     if (!stack) throw new Error(`stack "${stackName}" not found`)
-    const targets = stack.services
-      .filter((s) => !service || s.name === service)
-      .flatMap((s) => s.containers.map((c) => ({ id: c.id, name: c.name, service: s.name })))
+    const targets = logTargets(stack, service)
     if (targets.length === 0) {
       send({ type: 'exit', topic, reason: 'no containers' })
       return () => {}

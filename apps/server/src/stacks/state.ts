@@ -29,7 +29,8 @@ export class StackState extends EventEmitter<StackStateEvents> {
   private activeOperations = new Map<string, string>()
   private timer: NodeJS.Timeout | undefined
   private refreshing: Promise<void> | undefined
-  private pending = false
+  /** The refresh queued behind the running one; shared by everyone who asked meanwhile. */
+  private queued: Promise<void> | undefined
   private watchers = new Map<string, fs.FSWatcher>()
   private interval: NodeJS.Timeout | undefined
   private eventStream: NodeJS.ReadableStream | undefined
@@ -102,19 +103,20 @@ export class StackState extends EventEmitter<StackStateEvents> {
     this.timer = setTimeout(() => void this.refreshNow(), delay)
   }
 
+  /** Resolves once a refresh that started after this call has finished. */
   async refreshNow(): Promise<void> {
     if (this.refreshing) {
-      this.pending = true
-      return this.refreshing
+      // the running refresh may have read the disk before the caller's change
+      this.queued ??= this.refreshing.then(() => {
+        this.queued = undefined
+        return this.refreshNow()
+      })
+      return this.queued
     }
     this.refreshing = this.doRefresh()
       .catch((err) => this.logger.warn('stack refresh failed', { err: String(err) }))
       .finally(() => {
         this.refreshing = undefined
-        if (this.pending) {
-          this.pending = false
-          this.schedule(0)
-        }
       })
     return this.refreshing
   }

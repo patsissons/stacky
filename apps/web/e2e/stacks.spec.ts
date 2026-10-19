@@ -65,10 +65,23 @@ test('creates an API token that works once and can be revoked', async ({ request
   await page.getByRole('button', { name: 'Create' }).click()
   const token = (await page.getByTestId('new-token').textContent())!.trim()
   expect(token).toMatch(/^stk_/)
+  // the dialog hands over a ready-to-paste MCP command with the new token
+  await expect(
+    page.getByRole('dialog').getByLabel('Claude Code command', { exact: true }),
+  ).toContainText(`/api/mcp --header "Authorization: Bearer ${token}"`)
   await page.keyboard.press('Escape')
+  await expect(page.getByLabel('MCP server URL', { exact: true })).toHaveText(
+    /^http:\/\/.+\/api\/mcp$/,
+  )
 
   const headers = { authorization: `Bearer ${token}` }
   expect((await request.get('/api/stacks', { headers })).status()).toBe(200)
+  const mcp = await request.post('/api/mcp', {
+    headers: { ...headers, accept: 'application/json, text/event-stream' },
+    data: { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} },
+  })
+  expect(mcp.status()).toBe(200)
+  expect(JSON.stringify(await mcp.json())).toContain('list_stacks')
   await page.getByRole('button', { name: 'Revoke e2e-script' }).click()
   await expect(page.getByLabel('API tokens')).toHaveCount(0)
   expect((await request.get('/api/stacks', { headers })).status()).toBe(401)

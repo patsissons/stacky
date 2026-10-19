@@ -144,6 +144,35 @@ describe('stacks', () => {
     expect(ok).toEqual({ ok: true, issues: [] })
   })
 
+  it('reads logs once and long-polls operations', async () => {
+    await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
+    const logs = await req('GET', '/api/stacks/app/logs?tail=10', { cookie })
+    expect(await json(logs)).toEqual({ lines: [] })
+    expect((await req('GET', '/api/stacks/nope/logs', { cookie })).status).toBe(404)
+    expect((await req('GET', '/api/stacks/app/logs?service=web', { cookie })).status).toBe(404)
+
+    const op = await json(await req('POST', '/api/stacks/app/actions/down', { cookie }))
+    const done = await json(await req('GET', `/api/operations/${op.id}?wait=60`, { cookie }))
+    expect(['succeeded', 'failed']).toContain(done.state)
+    expect(typeof done.output).toBe('string')
+    expect((await req('GET', '/api/operations/op_nope?wait=1', { cookie })).status).toBe(404)
+  })
+
+  it('rejects malformed action bodies with a 400', async () => {
+    await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
+    const res = await app.request('/api/stacks/app/actions/restart', {
+      method: 'POST',
+      headers: { origin: ORIGIN, host: 'localhost', cookie, 'content-type': 'application/json' },
+      body: '{not json',
+    })
+    expect(res.status).toBe(400)
+    const unknown = await req('POST', '/api/stacks/app/actions/restart', {
+      cookie,
+      body: { options: { nope: true } },
+    })
+    expect(unknown.status).toBe(400)
+  })
+
   it('rejects bad names and paths', async () => {
     const res = await req('POST', '/api/stacks', {
       cookie,

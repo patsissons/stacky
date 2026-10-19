@@ -98,3 +98,54 @@ export function parseLine(raw: string, target: LogTarget, stream: 'stdout' | 'st
     text: Number.isNaN(ts) ? line : line.slice(space + 1),
   }
 }
+
+/** Splits docker's multiplexed log stream (8-byte frame headers) into stdout/stderr text. */
+export function demuxLogs(
+  buf: Buffer,
+  tty: boolean,
+): { stream: 'stdout' | 'stderr'; text: string }[] {
+  if (tty) return [{ stream: 'stdout', text: buf.toString('utf8') }]
+  const frames: { stream: 'stdout' | 'stderr'; text: string }[] = []
+  let offset = 0
+  while (offset + 8 <= buf.length) {
+    const size = buf.readUInt32BE(offset + 4)
+    const stream = buf[offset] === 2 ? 'stderr' : 'stdout'
+    frames.push({ stream, text: buf.subarray(offset + 8, offset + 8 + size).toString('utf8') })
+    offset += 8 + size
+  }
+  return frames
+}
+
+/** Reads the most recent log lines of several containers once (no follow), oldest first. */
+export async function readLogs(
+  docker: Docker,
+  targets: LogTarget[],
+  options: { tail?: number; since?: number } = {},
+): Promise<LogLine[]> {
+  const perTarget = await Promise.all(
+    targets.map(async (target) => {
+      const container = docker.getContainer(target.id)
+      const info = await container.inspect()
+      const raw = (await container.logs({
+        follow: false,
+        stdout: true,
+        stderr: true,
+        timestamps: true,
+        tail: options.tail ?? 200,
+        since: options.since,
+      })) as unknown as Buffer
+      const lines: LogLine[] = []
+      const rest = { stdout: '', stderr: '' }
+      for (const frame of demuxLogs(Buffer.from(raw), !!info.Config?.Tty)) {
+        const parts = (rest[frame.stream] + frame.text).split('\n')
+        rest[frame.stream] = parts.pop() ?? ''
+        for (const part of parts) lines.push(parseLine(part, target, frame.stream))
+      }
+      for (const stream of ['stdout', 'stderr'] as const) {
+        if (rest[stream]) lines.push(parseLine(rest[stream], target, stream))
+      }
+      return lines
+    }),
+  )
+  return perTarget.flat().sort((a, b) => a.ts - b.ts)
+}
