@@ -2,6 +2,12 @@ name: ci
 
 on:
   pull_request:
+    # release-please PRs only touch these; their bot-authored runs wait for an
+    # approval nobody gives, and main-push CI (release.yml) covers the merge
+    paths-ignore:
+      - CHANGELOG.md
+      - .release-please-manifest.json
+      - package.json
   workflow_call:
 
 permissions:
