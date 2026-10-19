@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/patsissons/stacky/compare/v0.2.0...v0.3.0) (2026-10-19)
+
+
+### Features
+
+* add "Pull updates" and "Pull updates & deploy" stack operations ([#4](https://github.com/patsissons/stacky/issues/4)) ([93299f6](https://github.com/patsissons/stacky/commit/93299f61c2b697a26b5e882a59aa87229990dcfb))
+
 ## [0.2.0](https://github.com/patsissons/stacky/compare/v0.1.0...v0.2.0) (2026-10-19)
 
 
