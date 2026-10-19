@@ -40,12 +40,12 @@ The **Update** button on a stack page uses the results of the check. When the st
 
 It is recorded in the stack's history like a deploy. A service is left out (and the operation output says why) when its update is ignored, when its image comes from a variable such as `${TAG}`, or when its `image:` line changed after the check ran.
 
-When no update is known, **Update** falls back to pulling the tags already in the compose file. That helps for moving tags like `latest`, but does nothing for a pinned version such as `nginx:1.27.3`, which is exactly what the check is for. A stopped stack stays stopped.
+When no update is known, the **Update** button is disabled. **Re-pull current tags** in its arrow menu still pulls the tags already in the compose file. That helps for moving tags like `latest`, but does nothing for a pinned version such as `nginx:1.27.3`, which is exactly what the check is for. A stopped stack stays stopped.
 
-The arrow next to **Update** has two more options:
+The arrow next to **Update** is always available and has two more options:
 
 - **Pull updates only:** downloads the newer images ahead of time (`docker pull <image>:<new tag>`, and `docker compose pull` for services with only a new digest). The compose file and the running containers are left alone, so nothing changes yet.
-- **Re-pull current tags:** the plain pull described above, for when you want the newest build of your current tags without applying the newer versions.
+- **Re-pull current tags:** the plain pull of the current tags, for when you want the newest build of your current tags without applying the newer versions.
 
 **Update all** on the containers page runs the same thing for every stack with an update, after one confirmation that lists each change. Its arrow menu has **Pull all updates**, which runs **Pull updates only** for every stack instead. Either way each stack runs as one operation. Ignored updates, external stacks and stacky itself are left out; update stacky from its own stack page.
 

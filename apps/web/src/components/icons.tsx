@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
+import { iconSrc, isMonoIcon } from './icon-src'
 
 /** Small brand-neutral registry glyphs (no external icon fetches). */
 export function RegistryIcon({ registry, className }: { registry: string; className?: string }) {
@@ -73,14 +75,21 @@ export function AppIcon({
   className?: string
 }) {
   const [failed, setFailed] = useState<string>()
-  if (!icon || failed === icon) return <AppAvatar name={name} className={className} />
+  if (icon === 'stacky') return <Logo className={cn('size-6 shrink-0', className)} />
+  const src = icon ? iconSrc(icon) : undefined
+  if (!icon || !src || failed === icon) return <AppAvatar name={name} className={className} />
   return (
     <img
-      src={`/api/icons/${icon}`}
+      src={src}
       alt=""
       loading="lazy"
       onError={() => setFailed(icon)}
-      className={cn('size-6 shrink-0 rounded-md object-contain', className)}
+      className={cn(
+        'size-6 shrink-0 rounded-md object-contain',
+        // single-color glyphs are drawn black; keep them visible in dark mode
+        isMonoIcon(icon) && 'dark:invert',
+        className,
+      )}
     />
   )
 }

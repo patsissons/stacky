@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router'
 import { LoginPage, SetupPage } from '@/features/auth/auth-pages'
 import { ContainersPage, type ContainersSearch } from '@/features/containers/containers-page'
+import { FilesPage, type FilesSearch } from '@/features/files/files-page'
 import { AppShell } from '@/features/layout/app-shell'
 import { OperationDrawer, OperationWatcher } from '@/features/operations/operation-drawer'
 import { SelfUpdateOverlay } from '@/features/self-update/self-update-overlay'
@@ -80,7 +81,8 @@ const containersRoute = createRoute({
     status: ['running', 'problems', 'stopped', 'updates'].includes(s.status as string)
       ? (s.status as ContainersSearch['status'])
       : undefined,
-    group: s.group === true || s.group === 'true' ? true : undefined,
+    // grouped by default: only an explicit group=false turns it off
+    group: s.group === false || s.group === 'false' ? false : undefined,
     size: num(s.size),
     page: num(s.page),
     sort: str(s.sort),
@@ -113,10 +115,20 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 })
 
+const filesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/files',
+  validateSearch: (s: Record<string, unknown>): FilesSearch => ({
+    root: s.root === 'data' || s.root === 'stacks' ? s.root : undefined,
+    path: str(s.path),
+  }),
+  component: FilesPage,
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   setupRoute,
-  appRoute.addChildren([containersRoute, newStackRoute, stackRoute, settingsRoute]),
+  appRoute.addChildren([containersRoute, newStackRoute, stackRoute, filesRoute, settingsRoute]),
 ])
 
 export function createAppRouter(queryClient: QueryClient) {

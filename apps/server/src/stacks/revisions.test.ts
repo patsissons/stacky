@@ -39,4 +39,17 @@ describe('RevisionStore', () => {
     expect(list.at(-1)?.compose).toBe('v10')
     sqlite.close()
   })
+
+  it('clears one stack without touching the others', () => {
+    const { db, sqlite } = openDatabase(':memory:')
+    const store = new RevisionStore(db)
+    store.record('app', files('a'))
+    store.record('app', files('b'))
+    store.record('other', files('c'))
+    expect(store.clear('app')).toBe(2)
+    expect(store.list('app')).toEqual([])
+    expect(store.list('other')).toHaveLength(1)
+    expect(store.clear('app')).toBe(0)
+    sqlite.close()
+  })
 })

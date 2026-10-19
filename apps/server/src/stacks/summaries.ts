@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { serviceState, stackStatus, type ServiceSummary, type StackSummary } from '@stacky/shared'
 import type { ComposeContainer } from '../docker/containers'
+import { iconLabel, STACKY_ICON } from '../icons/icons'
 import type { ParsedCompose } from './compose-file'
 
 export interface ManagedStack {
@@ -25,9 +26,15 @@ export interface SummaryOptions {
  */
 export function buildStackSummaries(
   managed: ManagedStack[],
-  containers: ComposeContainer[],
+  engineContainers: ComposeContainer[],
   { selfContainerId, activeOperations }: SummaryOptions = {},
 ): StackSummary[] {
+  const isSelfContainer = (c: ComposeContainer) =>
+    !!selfContainerId && c.id.startsWith(selfContainerId)
+  // stacky shows its own logo, whatever its image is called, unless a label picks another icon
+  const containers = engineContainers.map((c) =>
+    isSelfContainer(c) && !iconLabel(c.labels) ? { ...c, icon: STACKY_ICON } : c,
+  )
   const byDir = new Map(managed.map((s) => [path.resolve(s.dir), s]))
   const byProject = new Map(managed.map((s) => [s.parsed.projectName ?? s.name, s]))
   const owned = new Map<string, ComposeContainer[]>()
@@ -40,8 +47,7 @@ export function buildStackSummaries(
     else push(external, c.project, c)
   }
 
-  const isSelf = (list: ComposeContainer[]) =>
-    !!selfContainerId && list.some((c) => c.id.startsWith(selfContainerId))
+  const isSelf = (list: ComposeContainer[]) => list.some(isSelfContainer)
 
   const summaries: StackSummary[] = managed.map((s) => {
     const list = owned.get(s.name) ?? []

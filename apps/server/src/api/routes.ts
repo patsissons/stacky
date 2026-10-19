@@ -30,7 +30,8 @@ import { WUD_KEY, type UpdateChecker } from '../updates/checker'
 import { WudClient, type WudSettings } from '../updates/wud'
 import type { Notifier } from '../notify/notifier'
 import type { GitSync } from '../git/sync'
-import type { IconCache } from '../icons/icons'
+import type { FileBrowser } from '../files/browser'
+import { untrustedImageHeaders, type Icon, type IconCache } from '../icons/icons'
 
 export interface ApiContext {
   config: Config
@@ -48,6 +49,7 @@ export interface ApiContext {
   tokens: ApiTokenStore
   gitSync: GitSync
   icons: IconCache
+  files: FileBrowser
   audit: AuditLog
   system: () => Promise<SystemInfo>
 }
@@ -270,13 +272,18 @@ export function apiRoutes(ctx: ApiContext) {
     }
   })
 
-  api.get('/icons/:name', async (c) => {
-    const icon = await ctx.icons.get(c.req.param('name'))
-    if (!icon) return c.body(null, 404, { 'cache-control': 'private, max-age=3600' })
-    return c.body(new Uint8Array(icon.data), 200, {
-      'content-type': icon.type,
-      'cache-control': 'private, max-age=604800',
-    })
+  const sendIcon = (c: Context, icon: Icon | undefined) =>
+    icon
+      ? c.body(new Uint8Array(icon.data), 200, {
+          ...untrustedImageHeaders(icon.type),
+          'cache-control': 'private, max-age=604800',
+        })
+      : c.body(null, 404, { 'cache-control': 'private, max-age=3600' })
+  // a bare name is a selfh.st icon (the original form of this route)
+  api.get('/icons/:name', async (c) => sendIcon(c, await ctx.icons.get('sh', c.req.param('name'))))
+  api.get('/icons/:set/:name', async (c) => {
+    const { set, name } = c.req.param()
+    return sendIcon(c, await (set === 'url' ? ctx.icons.getUrl(name) : ctx.icons.get(set, name)))
   })
 
   // ---- git ----
@@ -490,6 +497,15 @@ export function apiRoutes(ctx: ApiContext) {
     return c.json(await ctx.stacks.restoreRevision(name, id), 202)
   })
 
+  // wipes the stack's deployed versions and finished activity (a running operation stays)
+  api.delete('/stacks/:name/history', (c) => {
+    const name = assertStackName(c.req.param('name'))
+    return c.json({
+      revisions: ctx.stacks.revisions?.clear(name) ?? 0,
+      operations: ctx.engine.clear(name),
+    })
+  })
+
   // ---- arbitrary files inside a stack directory ----
   api.get('/stacks/:name/files', async (c) => {
     const name = assertStackName(c.req.param('name'))
@@ -520,6 +536,22 @@ export function apiRoutes(ctx: ApiContext) {
   api.post('/convert/docker-run', async (c) => {
     const input = await body(c, z.object({ command: z.string().min(1).max(20_000) }))
     return c.json({ compose: dockerRunToCompose(input.command) })
+  })
+
+  // ---- read-only file browser (stacks dir and data dir) ----
+  api.get('/files/roots', (c) => c.json(ctx.files.rootInfo()))
+  api.get('/files', async (c) =>
+    c.json(await ctx.files.list(c.req.query('root') ?? '', c.req.query('path') ?? '')),
+  )
+  api.get('/files/preview', async (c) =>
+    c.json(await ctx.files.preview(c.req.query('root') ?? '', c.req.query('path') ?? '')),
+  )
+  api.get('/files/raw', async (c) => {
+    const image = await ctx.files.image(c.req.query('root') ?? '', c.req.query('path') ?? '')
+    return c.body(new Uint8Array(image.data), 200, {
+      ...untrustedImageHeaders(image.type),
+      'cache-control': 'private, no-cache',
+    })
   })
 
   // ---- global.env ----

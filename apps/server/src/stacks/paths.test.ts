@@ -3,7 +3,13 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { AppError } from '../lib/errors'
-import { assertStackName, findComposeFile, resolveStackFile, stackDir } from './paths'
+import {
+  assertStackName,
+  findComposeFile,
+  resolveInside,
+  resolveStackFile,
+  stackDir,
+} from './paths'
 
 let root: string
 
@@ -51,6 +57,24 @@ describe('resolveStackFile', () => {
     fs.mkdirSync(path.join(root, 'secret'))
     fs.symlinkSync(path.join(root, 'secret'), path.join(dir, 'link'))
     await expect(resolveStackFile(dir, 'link/file.txt')).rejects.toThrow(/outside/)
+  })
+})
+
+describe('resolveInside', () => {
+  it('can resolve the root itself when asked', async () => {
+    expect(await resolveInside(root, '', { allowRoot: true })).toBe(path.resolve(root))
+    expect(await resolveInside(root, '.', { allowRoot: true })).toBe(path.resolve(root))
+    await expect(resolveInside(root, '')).rejects.toThrow(AppError)
+    await expect(resolveInside(root, '..', { allowRoot: true })).rejects.toThrow(/outside/)
+  })
+
+  it('rejects symlink escapes with the given code', async () => {
+    const inner = path.join(root, 'inner')
+    fs.mkdirSync(inner)
+    fs.symlinkSync(os.tmpdir(), path.join(inner, 'tmp'))
+    const err = await resolveInside(inner, 'tmp/x', { code: 'nope' }).catch((e: AppError) => e)
+    expect(err).toBeInstanceOf(AppError)
+    expect((err as AppError).code).toBe('nope')
   })
 })
 

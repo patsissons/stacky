@@ -35,15 +35,15 @@ test('reaches a stack from its card and keeps the stack page within the screen',
   expect(created.status()).toBe(201)
   try {
     await page.goto('/')
-    const card = page.getByTestId('container-cards').getByRole('link', { name: 'mobile-app' })
-    await expect(card).toBeVisible({ timeout: 120_000 })
-    // grouping applies to the cards too, with a heading per stack
-    await page.goto('/?group=true')
+    // grouping (on by default) applies to the cards too, with a heading per stack
     const group = page.getByTestId('container-group').filter({ hasText: 'mobile-app' })
-    await expect(group).toBeVisible()
+    await expect(group).toBeVisible({ timeout: 120_000 })
     await expect(group.getByText(/1 container/)).toBeVisible()
     await expectNoSidewaysScroll(page)
-    await page.goto('/')
+    // ungrouped, the card's own stack link is the way to the stack page
+    await page.goto('/?group=false')
+    const card = page.getByTestId('container-cards').getByRole('link', { name: 'mobile-app' })
+    await expect(card).toBeVisible()
     await card.click()
     await expect(page).toHaveURL(/\/stacks\/mobile-app$/)
     await expect(page.getByTestId('service-app')).toBeVisible()
@@ -63,4 +63,17 @@ test('reaches a stack from its card and keeps the stack page within the screen',
       })
       .toMatch(/succeeded|failed|cancelled/)
   }
+})
+
+test('browses files on a phone, one pane at a time', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/files?root=data')
+  const tree = page.getByRole('complementary', { name: 'Files' })
+  await tree.getByRole('button', { name: 'stacky.db', exact: true }).click()
+  await expect(page.getByText(/^Binary data \(/)).toBeVisible()
+  await expect(tree).toBeHidden()
+  await expectNoSidewaysScroll(page)
+  await page.getByRole('button', { name: 'Back to files' }).click()
+  await expect(tree).toBeVisible()
+  await expectNoSidewaysScroll(page)
 })

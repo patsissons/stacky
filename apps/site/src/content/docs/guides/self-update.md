@@ -15,6 +15,8 @@ Stacky can manage the stack it runs in. Open that stack (marked **SELF** in the 
 
 **Update** is disabled while there's nothing to update to: no newer release, and no new image behind your tag found by the [image update check](/guides/image-updates/). Use **Check for updates** on the containers page to look again.
 
+The version shown at the bottom of the sidebar and under **Settings → System** links to that release's notes on GitHub (development builds show plain text).
+
 **Stop**, **Down** and **Delete** aren't offered for stacky's own stack, because they would leave you without the UI. Do those on the host with `docker compose`.
 
 ## How it works

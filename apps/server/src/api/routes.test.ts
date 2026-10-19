@@ -177,6 +177,52 @@ describe('stacks', () => {
     expect((await req('GET', '/api/nope', { cookie })).status).toBe(404)
   })
 
+  it('browses the stacks and data directories read-only', async () => {
+    await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
+    const roots = await json(await req('GET', '/api/files/roots', { cookie }))
+    expect(roots.map((r: { id: string }) => r.id)).toEqual(['stacks', 'data'])
+    const listing = await json(await req('GET', '/api/files?root=stacks&path=app', { cookie }))
+    expect(listing.entries.map((e: { name: string }) => e.name)).toContain('compose.yaml')
+    const preview = await json(
+      await req('GET', '/api/files/preview?root=stacks&path=app/compose.yaml', { cookie }),
+    )
+    expect(preview).toMatchObject({ kind: 'text', content: 'services: {}\n' })
+    const data = await json(await req('GET', '/api/files?root=data', { cookie }))
+    expect(data.entries.map((e: { name: string }) => e.name)).not.toContain('auth-secret')
+    expect(
+      (await req('GET', '/api/files/preview?root=data&path=auth-secret', { cookie })).status,
+    ).toBe(404)
+    expect((await req('GET', '/api/files?root=stacks&path=..', { cookie })).status).toBe(403)
+    expect(
+      (await req('GET', '/api/files/raw?root=stacks&path=app/compose.yaml', { cookie })).status,
+    ).toBe(400)
+    // there is no way to write through the browser
+    expect((await req('PUT', '/api/files?root=stacks&path=app/x', { cookie })).status).toBe(404)
+  })
+
+  it('serves icons only from known sets and registered URLs', async () => {
+    const unknown = await req('GET', `/api/icons/url/${'0'.repeat(24)}`, { cookie })
+    expect(unknown.status).toBe(404)
+    expect((await req('GET', '/api/icons/evil/nginx', { cookie })).status).toBe(404)
+  })
+
+  it('clears a stack history', async () => {
+    await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
+    runtime.stacks.revisions?.record('app', {
+      name: 'app',
+      composeFile: 'compose.yaml',
+      compose: 'services: {}\n',
+      env: '',
+      hasEnv: false,
+    })
+    expect(await json(await req('GET', '/api/stacks/app/revisions', { cookie }))).toHaveLength(1)
+    const res = await req('DELETE', '/api/stacks/app/history', { cookie })
+    expect(res.status).toBe(200)
+    expect(await json(res)).toEqual({ revisions: 1, operations: 0 })
+    expect(await json(await req('GET', '/api/stacks/app/revisions', { cookie }))).toEqual([])
+    expect((await req('DELETE', '/api/stacks/..%2Fx/history', { cookie })).status).toBe(400)
+  })
+
   it('accepts the update actions and explains when there is nothing to update', async () => {
     await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
     for (const action of ['pull-updates', 'deploy-updates']) {

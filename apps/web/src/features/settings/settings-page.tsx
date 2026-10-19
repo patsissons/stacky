@@ -15,6 +15,7 @@ import { NotificationsCard } from './notifications-card'
 import { ApiTokensCard, AuditCard, TwoFactorCard } from './security-card'
 import { WudCard } from './wud-card'
 import { useSession } from '@/hooks/use-session'
+import { VersionLink } from '@/components/version-link'
 import { useSystem } from '@/hooks/use-system'
 import { api } from '@/lib/api'
 
@@ -65,7 +66,9 @@ function SystemCard() {
         ) : (
           <>
             <div className="divide-y">
-              <Row label="stacky">{system.version}</Row>
+              <Row label="stacky">
+                <VersionLink version={system.version} />
+              </Row>
               <Row label="Stacks directory">{system.stacksDir}</Row>
               <Row label="Docker engine">
                 {system.docker

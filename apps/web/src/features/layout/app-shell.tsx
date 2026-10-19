@@ -11,7 +11,7 @@ import {
   User,
   X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -26,6 +26,7 @@ import {
   CommandPalette,
   useCommandPaletteShortcut,
 } from '@/features/command-palette/command-palette'
+import { useServiceSheet } from '@/features/containers/service-sheet-store'
 import { HelpDialog, helpStore } from '@/features/help/help-dialog'
 import { useDismissed } from '@/hooks/use-dismissed'
 import { useSession } from '@/hooks/use-session'
@@ -36,6 +37,21 @@ import { api } from '@/lib/api'
 import { UpdateBanner } from '@/features/self-update/self-actions'
 import { Sidebar } from './sidebar'
 import { ThemeToggle } from './theme-toggle'
+
+const ServiceSheet = lazy(() => import('@/features/containers/service-sheet'))
+
+/** Loads the service sheet (and its YAML tooling) the first time a container is opened. */
+function ServiceSheetHost() {
+  const target = useServiceSheet()
+  const [used, setUsed] = useState(false)
+  if (target && !used) setUsed(true)
+  if (!used) return null
+  return (
+    <Suspense fallback={null}>
+      <ServiceSheet />
+    </Suspense>
+  )
+}
 
 export function AppShell() {
   useLiveStacksBridge()
@@ -109,6 +125,7 @@ export function AppShell() {
       </div>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <HelpDialog />
+      <ServiceSheetHost />
     </div>
   )
 }

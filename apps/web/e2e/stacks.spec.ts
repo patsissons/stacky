@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { ADMIN, compose, setEditorText } from './helpers'
+import { ADMIN, IMAGE, compose, setEditorText } from './helpers'
 
 // One server, one admin: these run in order, build on each other and share one
 // signed-in page (sign-in is rate limited, as it should be).
@@ -100,9 +100,13 @@ test('lists the container in the containers table with URL-backed filters', asyn
   await expect(table.getByText('e2e-app-app-1')).toBeVisible()
   await expect(page.getByRole('columnheader', { name: 'Update' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Check for updates|Checking/ })).toBeVisible()
-  await page.getByRole('switch', { name: 'Group by stack' }).click()
-  await expect(page).toHaveURL(/group=true/)
+  // grouped by default, with a heading row per stack; the switch turns it off in the URL
+  const groupSwitch = page.getByRole('switch', { name: 'Group by stack' })
+  await expect(groupSwitch).toBeChecked()
   await expect(table.getByRole('link', { name: 'e2e-app' }).first()).toBeVisible()
+  await groupSwitch.click()
+  await expect(page).toHaveURL(/group=false/)
+  await expect(groupSwitch).not.toBeChecked()
   await page.getByLabel('Search containers').fill('no-such-container')
   await expect(page).toHaveURL(/q=no-such-container/)
   await expect(page.getByText('No containers match the filters.')).toBeVisible()
@@ -136,6 +140,8 @@ test('checks one image for updates from the container menu', async () => {
 
 test('offers the newer-version updates, disabled while there are none', async () => {
   await page.goto('/stacks/e2e-app')
+  // nothing to apply: the Update button is off, but its menu still re-pulls the current tags
+  await expect(page.getByRole('button', { name: 'Update', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Update options' }).click()
   const menu = page.getByRole('menu')
   await expect(menu.getByText('(none found)')).toBeVisible()
@@ -279,6 +285,74 @@ test('creates, saves and deletes an extra file', async () => {
   await expect(files.getByRole('button', { name: /app\.conf/ })).toHaveCount(0)
 })
 
+test('inspects, edits and deploys one service from its container', async () => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'e2e-app-app-1', exact: true }).click()
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByText('Service app in')).toBeVisible()
+  await expect(sheet.locator('.monaco-editor')).toContainText('command:')
+  // read-only until Edit is on
+  await expect(sheet.getByRole('button', { name: 'Save' })).toHaveCount(0)
+  await sheet.getByRole('switch', { name: 'Edit' }).click()
+
+  const snippet = `app:
+  image: ${IMAGE}
+  command: ["sh", "-c", "echo hello-from-sheet; exec sleep 3600"]
+  init: true
+`
+  await setEditorText(page, snippet)
+  await expect(sheet.getByTestId('validation-ok')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByText('Saved app')).toBeVisible()
+  const files = (await (await page.request.get('/api/stacks/e2e-app')).json()).files
+  expect(files.compose).toBe(`services:\n  ${snippet.trimEnd().replace(/\n/g, '\n  ')}\n`)
+
+  // the next edit goes through a review of the service before it deploys
+  await setEditorText(page, snippet.replace('hello-from-sheet', 'hello-again-from-sheet'))
+  await sheet.getByRole('button', { name: 'Review & deploy' }).click()
+  await expect(sheet.getByText('Your changes to')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Save & deploy' }).click()
+  await expect(page.getByText('Deployed e2e-app').last()).toBeVisible({ timeout: 120_000 })
+  await page.keyboard.press('Escape')
+  await page.goto('/stacks/e2e-app?tab=logs')
+  await expect(page.getByTestId('log-lines')).toContainText('hello-again-from-sheet', {
+    timeout: 20_000,
+  })
+})
+
+test('browses the stacks and data directories read-only', async () => {
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Files' }).click()
+  await expect(page).toHaveURL(/\/files/)
+  const tree = page.getByRole('complementary', { name: 'Files' })
+  await tree.getByRole('button', { name: 'e2e-app' }).click()
+  await tree.getByRole('button', { name: 'compose.yaml' }).click()
+  await expect(page).toHaveURL(/path=e2e-app%2Fcompose\.yaml|path=e2e-app\/compose\.yaml/)
+  const viewer = page.getByRole('region', { name: 'File contents' })
+  await expect(viewer.locator('.monaco-editor')).toContainText('hello-again-from-sheet')
+  // a viewer, not an editor
+  await expect(page.getByRole('button', { name: /^(Save|Deploy)/ })).toHaveCount(0)
+
+  await page.getByRole('tab', { name: 'Data directory' }).click()
+  await expect(tree.getByRole('button', { name: 'auth-secret' })).toHaveCount(0)
+  await tree.getByRole('button', { name: 'stacky.db', exact: true }).click()
+  await expect(viewer.getByText(/^Binary data \(/)).toBeVisible()
+})
+
+test('clears the stack history after confirming', async () => {
+  await page.goto('/stacks/e2e-app?tab=history')
+  await expect(page.getByLabel('Deployed versions')).toBeVisible()
+  await expect(page.getByLabel('Activity')).toBeVisible()
+  await page.getByRole('button', { name: 'Clear history' }).click()
+  const confirm = page.getByRole('alertdialog')
+  await expect(confirm).toContainText('cannot be undone')
+  await confirm.getByRole('button', { name: 'Clear history' }).click()
+  await expect(page.getByText('Cleared the history of e2e-app')).toBeVisible()
+  await expect(page.getByText('Every successful deploy saves the files')).toBeVisible()
+  await expect(page.getByText('Nothing has been run on this stack yet.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Clear history' })).toBeDisabled()
+})
+
 test('deletes the stack after typed confirmation', async () => {
   await page.goto('/stacks/e2e-app')
   await page.getByRole('button', { name: 'More actions' }).click()
@@ -286,8 +360,11 @@ test('deletes the stack after typed confirmation', async () => {
   const confirm = page.getByRole('alertdialog')
   await expect(confirm.getByRole('button', { name: 'Delete stack' })).toBeDisabled()
   // the name field is focused, and Enter confirms once the name matches
-  await expect(confirm.getByLabel(/Type/)).toBeFocused()
-  await page.keyboard.type('e2e-app')
+  const typed = confirm.getByLabel(/Type/)
+  await expect(typed).toBeFocused()
+  // fill() rather than typing: a keystroke landing mid-render could drop a character
+  await typed.fill('e2e-app')
+  await expect(confirm.getByRole('button', { name: 'Delete stack' })).toBeEnabled()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByText('Deleted e2e-app').last()).toBeVisible({ timeout: 60_000 })
