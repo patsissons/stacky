@@ -80,7 +80,9 @@ export function AppShell() {
           </div>
         </header>
         <Banners />
-        <main className="min-h-0 flex-1 overflow-y-auto">
+        {/* relative: Radix's hidden form inputs are absolutely positioned and would otherwise
+            extend the document, scrolling the whole shell */}
+        <main className="relative min-h-0 flex-1 overflow-y-auto">
           <Outlet />
         </main>
       </div>

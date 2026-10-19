@@ -24,10 +24,15 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="bg-sidebar text-sidebar-foreground flex h-full flex-col">
-      <div className="flex h-14 items-center gap-2.5 px-4">
+      <Link
+        to="/"
+        onClick={onNavigate}
+        aria-label="stacky home"
+        className="flex h-14 items-center gap-2.5 px-4"
+      >
         <Logo />
         <span className="text-lg font-semibold tracking-tight">stacky</span>
-      </div>
+      </Link>
 
       <nav className="space-y-0.5 px-2">
         <NavLink to="/" active={pathname === '/'} icon={Boxes} onClick={onNavigate}>
