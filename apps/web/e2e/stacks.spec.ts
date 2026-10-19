@@ -109,6 +109,56 @@ test('streams logs for the stack', async () => {
   await expect(page.getByText('No matching lines.')).toBeVisible()
 })
 
+test('explains every operation in the help modal', async () => {
+  await page.goto('/stacks/e2e-app')
+  await page.getByRole('button', { name: 'What these actions do' }).click()
+  const dialog = page.getByRole('dialog', { name: 'What the operations do' })
+  await expect(dialog.getByText('More → Down')).toBeVisible()
+  await expect(dialog.getByRole('link', { name: 'Full documentation' })).toHaveAttribute(
+    'href',
+    'https://stacky.lgtm.page',
+  )
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Help', exact: true }).click()
+  await expect(dialog).toBeVisible()
+  await page.keyboard.press('Escape')
+})
+
+test('keeps the shell layout steady', async () => {
+  // the stack tab bar keeps its height and never scrolls vertically, even when a short
+  // window makes the page content overflow
+  const viewport = page.viewportSize()!
+  await page.setViewportSize({ width: viewport.width, height: 360 })
+  await page.goto('/stacks/e2e-app')
+  const tabs = page.getByRole('tablist')
+  await expect(tabs).toBeVisible()
+  await expect(page.getByTestId('service-app')).toBeVisible()
+  const tabBox = await tabs.evaluate((el) => ({
+    overflowY: getComputedStyle(el).overflowY,
+    height: el.getBoundingClientRect().height,
+  }))
+  expect(tabBox).toEqual({ overflowY: 'hidden', height: 36 })
+  await page.setViewportSize(viewport)
+
+  // only <main> scrolls on a long page; the document itself never does
+  await page.goto('/settings')
+  await expect(page.getByText('Activity log', { exact: true })).toBeVisible()
+  const doc = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollHeight,
+    client: document.documentElement.clientHeight,
+  }))
+  expect(doc.scroll).toBeLessThanOrEqual(doc.client)
+
+  // the logo goes home
+  await page.getByRole('link', { name: 'stacky home' }).click()
+  await expect(page).toHaveURL(/\/$/)
+
+  // the header buttons on the containers page line up
+  const newStack = await page.getByRole('link', { name: 'New stack' }).last().boundingBox()
+  const check = await page.getByRole('button', { name: /Check for updates|Checking/ }).boundingBox()
+  expect(newStack?.height).toBe(check?.height)
+})
+
 test('edits with live validation and reviews a diff before deploying', async () => {
   await page.goto('/stacks/e2e-app?tab=editor')
   await expect(page.locator('.monaco-editor').first()).toBeVisible()
