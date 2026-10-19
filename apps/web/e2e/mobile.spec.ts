@@ -37,6 +37,13 @@ test('reaches a stack from its card and keeps the stack page within the screen',
     await page.goto('/')
     const card = page.getByTestId('container-cards').getByRole('link', { name: 'mobile-app' })
     await expect(card).toBeVisible({ timeout: 120_000 })
+    // grouping applies to the cards too, with a heading per stack
+    await page.goto('/?group=true')
+    const group = page.getByTestId('container-group').filter({ hasText: 'mobile-app' })
+    await expect(group).toBeVisible()
+    await expect(group.getByText(/1 container/)).toBeVisible()
+    await expectNoSidewaysScroll(page)
+    await page.goto('/')
     await card.click()
     await expect(page).toHaveURL(/\/stacks\/mobile-app$/)
     await expect(page.getByTestId('service-app')).toBeVisible()

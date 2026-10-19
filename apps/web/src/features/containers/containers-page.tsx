@@ -29,6 +29,7 @@ import {
   Search,
   Square,
   SquareTerminal,
+  Telescope,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -37,6 +38,7 @@ import { UpdateBadge } from '@/features/updates/update-badge'
 import { UpdateAllDialog, type UpdateAllMode } from '@/features/updates/update-all-dialog'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
 import { checkForUpdates, isActionable, useUpdates } from '@/hooks/use-updates'
+import { checkImageNow } from '@/features/updates/check-image'
 import { formatRelative } from '@/lib/format'
 import { AppIcon, RegistryIcon, registryLabel } from '@/components/icons'
 import { ServiceStateBadge, StackStatusBadge } from '@/components/status'
@@ -250,6 +252,8 @@ function Ports({ row }: { row: ContainerRow }) {
 
 function RowActions({ row }: { row: ContainerRow }) {
   const navigate = useNavigate()
+  const { byRef } = useUpdates()
+  const checkedAt = byRef.get(row.image)?.checkedAt
   const up = ['running', 'healthy', 'unhealthy', 'starting', 'restarting', 'paused'].includes(
     row.state,
   )
@@ -309,6 +313,10 @@ function RowActions({ row }: { row: ContainerRow }) {
             <Play className="size-4" /> Start
           </DropdownMenuItem>
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => void checkImageNow(row.image, checkedAt)}>
+          <Telescope className="size-4" /> Check for updates
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -580,50 +588,50 @@ export function ContainersPage() {
 
       {/* mobile cards */}
       <div className="space-y-2 md:hidden" data-testid="container-cards">
-        {table.getRowModel().rows.map(({ original: r }) => (
-          <div key={r.id} className="bg-card flex items-center gap-3 rounded-lg border p-3">
-            <AppIcon icon={r.icon} name={r.service} className="size-8" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="truncate font-medium">{r.name}</span>
-              </div>
-              <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
-                <RegistryIcon registry={r.registry} className="size-3" />
-                {/* the only way from a phone card to the stack page */}
-                {r.managed ? (
-                  <Link
-                    to="/stacks/$name"
-                    params={{ name: r.stack }}
-                    className="hover:text-foreground truncate underline-offset-2 hover:underline"
+        {grouped
+          ? [...byStack].map(([name, list]) => {
+              const stack = stackByName.get(`${list[0]!.managed}:${name}`)
+              return (
+                <section key={name} aria-label={name} className="space-y-2">
+                  <div
+                    className="flex items-center gap-2 px-1 pt-2 text-sm"
+                    data-testid="container-group"
                   >
-                    {r.stack}
-                  </Link>
-                ) : (
-                  <span className="truncate">{r.stack}</span>
-                )}
-                <span>·</span>
-                <span className="font-mono">{r.tag}</span>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <ServiceStateBadge state={r.state} />
-              <UpdateBadge
+                    {stack?.managed ? (
+                      <Link
+                        to="/stacks/$name"
+                        params={{ name }}
+                        className="truncate font-semibold hover:underline"
+                      >
+                        {name}
+                      </Link>
+                    ) : (
+                      <span className="truncate font-semibold">{name}</span>
+                    )}
+                    {stack && <StackStatusBadge status={stack.status} />}
+                    <span className="text-muted-foreground text-xs">
+                      {plural(list.length, 'container')}
+                    </span>
+                  </div>
+                  {list.map((r) => (
+                    <ContainerCard
+                      key={r.id}
+                      row={r}
+                      update={byRef.get(r.image)}
+                      onUpdate={setUpdateTarget}
+                    />
+                  ))}
+                </section>
+              )
+            })
+          : visible.map((r) => (
+              <ContainerCard
+                key={r.id}
+                row={r}
                 update={byRef.get(r.image)}
-                onClick={() => {
-                  const update = byRef.get(r.image)
-                  if (update)
-                    setUpdateTarget({
-                      update,
-                      stack: r.stack,
-                      service: r.service,
-                      managed: r.managed,
-                    })
-                }}
+                onUpdate={setUpdateTarget}
               />
-            </div>
-            <RowActions row={r} />
-          </div>
-        ))}
+            ))}
         {!isLoading && rows.length === 0 && (
           <p className="text-muted-foreground py-8 text-center text-sm">No containers to show.</p>
         )}
@@ -759,6 +767,55 @@ function CheckUpdatesButton({
           </>
         )}
       </Button>
+    </div>
+  )
+}
+
+/** One container on a phone, where the table becomes a list of cards. */
+function ContainerCard({
+  row: r,
+  update,
+  onUpdate,
+}: {
+  row: ContainerRow
+  update?: ImageUpdate
+  onUpdate: (target: UpdateTarget) => void
+}) {
+  return (
+    <div className="bg-card flex items-center gap-3 rounded-lg border p-3">
+      <AppIcon icon={r.icon} name={r.service} className="size-8" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate font-medium">{r.name}</span>
+        </div>
+        <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
+          <RegistryIcon registry={r.registry} className="size-3" />
+          {/* the only way from a phone card to the stack page */}
+          {r.managed ? (
+            <Link
+              to="/stacks/$name"
+              params={{ name: r.stack }}
+              className="hover:text-foreground truncate underline-offset-2 hover:underline"
+            >
+              {r.stack}
+            </Link>
+          ) : (
+            <span className="truncate">{r.stack}</span>
+          )}
+          <span>·</span>
+          <span className="font-mono">{r.tag}</span>
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-1">
+        <ServiceStateBadge state={r.state} />
+        <UpdateBadge
+          update={update}
+          onClick={() =>
+            update && onUpdate({ update, stack: r.stack, service: r.service, managed: r.managed })
+          }
+        />
+      </div>
+      <RowActions row={r} />
     </div>
   )
 }

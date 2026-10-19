@@ -117,6 +117,23 @@ test('streams logs for the stack', async () => {
   await expect(page.getByText('No matching lines.')).toBeVisible()
 })
 
+test('reserves the stats row before the first sample and fills it in', async () => {
+  await page.goto('/stacks/e2e-app')
+  const stats = page.getByTestId('service-app').getByTestId('service-stats')
+  await expect(stats).toBeVisible()
+  await expect(stats).toContainText('%', { timeout: 30_000 })
+})
+
+test('checks one image for updates from the container menu', async () => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Actions for e2e-app-app-1' }).click()
+  await page.getByRole('menuitem', { name: 'Check for updates' }).click()
+  await expect(page.getByText(/^Checking .+…$/)).toBeVisible()
+  await expect(
+    page.getByText(/is up to date|is available|check (failed|skipped)|no result yet/),
+  ).toBeVisible({ timeout: 90_000 })
+})
+
 test('offers the newer-version updates, disabled while there are none', async () => {
   await page.goto('/stacks/e2e-app')
   await page.getByRole('button', { name: 'Update options' }).click()

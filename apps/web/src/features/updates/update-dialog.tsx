@@ -1,4 +1,4 @@
-import { ArrowRight, ExternalLink, Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react'
+import { ArrowRight, ExternalLink, Eye, EyeOff, Loader2, RefreshCw, Telescope } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { ImageUpdate } from '@stacky/shared'
@@ -15,6 +15,7 @@ import { bumpServiceImage, runServiceAction } from '@/features/operations/action
 import { operationStore } from '@/features/operations/store'
 import { isSelfOperation } from '@/features/self-update/store'
 import { api, ApiError } from '@/lib/api'
+import { checkImageNow } from './check-image'
 import { registryPage } from './registry-link'
 import { updateKindMeta } from './update-badge'
 
@@ -112,16 +113,31 @@ export function UpdateDialog({ target, onClose }: { target?: UpdateTarget; onClo
           )}
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
-          <Button variant="ghost" onClick={ignore} disabled={!!busy}>
-            {busy === 'ignore' ? (
-              <Loader2 className="animate-spin" />
-            ) : update.ignored ? (
-              <Eye />
-            ) : (
-              <EyeOff />
-            )}
-            {update.ignored ? 'Stop ignoring' : 'Ignore this update'}
-          </Button>
+          <div className="flex gap-1">
+            <Button variant="ghost" onClick={ignore} disabled={!!busy}>
+              {busy === 'ignore' ? (
+                <Loader2 className="animate-spin" />
+              ) : update.ignored ? (
+                <Eye />
+              ) : (
+                <EyeOff />
+              )}
+              {update.ignored ? 'Stop ignoring' : 'Ignore this update'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Check again"
+              title="Check again"
+              disabled={!!busy}
+              onClick={() => {
+                onClose()
+                void checkImageNow(update.ref, update.checkedAt)
+              }}
+            >
+              <Telescope />
+            </Button>
+          </div>
           {managed && (
             <div className="flex gap-2">
               {update.digestChanged && (

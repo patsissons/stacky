@@ -120,7 +120,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       },
       {
         name: 'Check for updates',
-        what: 'Asks each image’s registry whether a newer version or a new build of the same tag exists. Nothing is changed.',
+        what: 'Asks each image’s registry whether a newer version or a new build of the same tag exists. Nothing is changed. A container’s menu (and the telescope in the update dialog) checks that one image only.',
       },
       {
         name: 'Update to <version>',

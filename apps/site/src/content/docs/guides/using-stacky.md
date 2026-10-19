@@ -13,13 +13,13 @@ The home page lists every container from every compose project on the host, much
 - **Container, stack and registry:** stacks outside the stacks directory are marked **external**
 - **Image and version:** the tag the container runs
 - **Ports:** published ports as links that open the service
-- **Actions:** logs, a shell, restart, stop or start
+- **Actions:** logs, a shell, restart, stop or start, and a check for updates of that one image
 
 **Check for updates** looks for newer images now, and **Update all** applies every available update after you confirm. Its arrow menu has **Pull all updates**, which only downloads the newer images (see [Image updates](/guides/image-updates/)).
 
 Icons come from the [selfh.st icon set](https://selfh.st/icons/), matched by image name. Stacky downloads each icon once and serves it from its own cache. To pick a different icon, add a `dev.stacky.icon: jellyfin` label (WUD's `wud.display.icon: selfhst:jellyfin` works too).
 
-Search, the stack and status filters, sorting, **Group by stack** and pagination are all stored in the URL, so you can bookmark a view. On a phone the table turns into cards.
+Search, the stack and status filters, sorting, **Group by stack** and pagination are all stored in the URL, so you can bookmark a view. On a phone the table turns into cards, grouped under a stack heading when **Group by stack** is on.
 
 ## Stack pages
 
@@ -36,13 +36,13 @@ Every action streams its output in a drawer at the bottom of the screen. When it
 
 The tabs:
 
-| Tab      | What it does                                                                                                         |
-| -------- | -------------------------------------------------------------------------------------------------------------------- |
-| Overview | Service cards with state, image, ports, live CPU and memory, and per-service actions (restart, stop, recreate, pull) |
-| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory (create and delete files too)                  |
-| Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download                    |
-| Shell    | An interactive shell in any running container (bash if available, otherwise sh)                                      |
-| History  | Every deployed version of the files (compare or restore one) and every operation with its full output                |
+| Tab      | What it does                                                                                                                            |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview | Service cards with state, image, ports, live CPU and memory, and per-service actions (restart, stop, recreate, pull, check for updates) |
+| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory (create and delete files too)                                     |
+| Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download                                       |
+| Shell    | An interactive shell in any running container (bash if available, otherwise sh)                                                         |
+| History  | Every deployed version of the files (compare or restore one) and every operation with its full output                                   |
 
 ## Rolling back
 
