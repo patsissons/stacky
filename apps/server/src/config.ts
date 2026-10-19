@@ -28,6 +28,7 @@ const envSchema = z.object({
   STACKY_OIDC_ALLOWED_GROUPS: z.string().optional(),
   STACKY_OIDC_AUTO_REDIRECT: booleanish,
   STACKY_ICON_CDN: z.string().default('https://cdn.jsdelivr.net/gh/selfhst/icons'),
+  STACKY_DOCKER_HOST: z.string().optional(),
   STACKY_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 })
 
@@ -54,6 +55,8 @@ export interface Config {
   oidc: OidcConfig | undefined
   /** Base URL of the selfh.st icon set; empty disables fetching icons. */
   iconCdn: string | undefined
+  /** Host (name or IP) that published container ports are reachable on; undefined uses the UI's host. */
+  dockerHost: string | undefined
 }
 
 export interface OidcConfig {
@@ -90,6 +93,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new ConfigError('STACKY_ADMIN_USER and STACKY_ADMIN_PASSWORD must be set together')
   }
 
+  const dockerHost = parseDockerHost(e.STACKY_DOCKER_HOST)
+
   return {
     port: e.STACKY_PORT,
     hostname: e.STACKY_HOSTNAME,
@@ -111,6 +116,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     updateIntervalHours: e.STACKY_UPDATE_INTERVAL,
     logLevel: e.STACKY_LOG_LEVEL,
     iconCdn: e.STACKY_ICON_CDN || undefined,
+    dockerHost,
     oidc: e.STACKY_OIDC_ISSUER
       ? {
           issuer: e.STACKY_OIDC_ISSUER.replace(/\/+$/, ''),
@@ -126,4 +132,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         }
       : undefined,
   }
+}
+
+/** A bare host for port links: no scheme or path; IPv6 is bracketed like `location.hostname`. */
+function parseDockerHost(value: string | undefined): string | undefined {
+  const host = (value ?? '').trim()
+  if (!host) return undefined
+  if (host.includes('/')) {
+    throw new ConfigError(
+      `STACKY_DOCKER_HOST must be a hostname or IP address (e.g. docker.lan), not a URL: ${host}`,
+    )
+  }
+  return host.includes(':') && !host.startsWith('[') ? `[${host}]` : host
 }

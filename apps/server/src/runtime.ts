@@ -169,6 +169,7 @@ export async function createRuntime(
       version: VERSION,
       stacksDir: config.stacksDir,
       authDisabled: config.authDisabled,
+      dockerHost: config.dockerHost,
       docker: dockerInfo,
       self: self
         ? {

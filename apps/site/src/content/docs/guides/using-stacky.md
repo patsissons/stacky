@@ -12,7 +12,7 @@ The home page lists every container from every compose project on the host, much
 - **Status:** running, healthy, unhealthy, starting, restarting, paused, completed (one-shot jobs that finished), exited, created or error
 - **Container, stack and registry:** stacks outside the stacks directory are marked **external**
 - **Image and version:** the tag the container runs
-- **Ports:** published ports as links that open the service
+- **Ports:** published ports as links that open the service (on the host you opened stacky from, or `STACKY_DOCKER_HOST` when stacky sits behind a reverse proxy on another hostname)
 - **Actions:** logs, a shell, restart, stop or start, and a check for updates of that one image
 
 ### Inspecting one container

@@ -220,7 +220,7 @@ export const routes: Route[] = [
     path: '/system',
     tag: 'system',
     summary: 'Version, Docker engine and preflight checks',
-    response: obj({ version: str, stacksDir: str, authDisabled: bool }),
+    response: obj({ version: str, stacksDir: str, authDisabled: bool, dockerHost: str }),
   },
   {
     method: 'get',

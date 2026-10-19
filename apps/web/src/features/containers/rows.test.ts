@@ -109,6 +109,15 @@ describe('portUrl', () => {
     )
     expect(portUrl({ containerPort: 80, protocol: 'tcp' }, 'nas')).toBeUndefined()
   })
+
+  it('links to the configured Docker host', () => {
+    expect(portUrl({ hostPort: 8080, containerPort: 80, protocol: 'tcp' }, 'op.example.io')).toBe(
+      'http://op.example.io:8080',
+    )
+    expect(portUrl({ hostPort: 8080, containerPort: 80, protocol: 'tcp' }, '[fd00::10]')).toBe(
+      'http://[fd00::10]:8080',
+    )
+  })
 })
 
 describe('planUpdates', () => {

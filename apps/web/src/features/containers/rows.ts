@@ -66,7 +66,7 @@ export function buildRows(stacks: StackSummary[]): ContainerRow[] {
   return rows
 }
 
-/** Base URL for a published port: the configured host, else the host stacky is served from. */
+/** Base URL for a published port on `host` (see `useDockerHost`). */
 export function portUrl(port: PortMapping, host = window.location.hostname): string | undefined {
   if (!port.hostPort) return undefined
   const scheme = port.containerPort === 443 || port.hostPort === 443 ? 'https' : 'http'

@@ -34,6 +34,8 @@ export interface SystemInfo {
   version: string
   stacksDir: string
   authDisabled: boolean
+  /** Host published container ports are reachable on, when it differs from the UI's host. */
+  dockerHost?: string
   docker?: {
     version: string
     apiVersion: string

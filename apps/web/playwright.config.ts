@@ -35,6 +35,7 @@ export default defineConfig({
     env: {
       STACKY_PORT: String(port),
       STACKY_HOSTNAME: '127.0.0.1',
+      STACKY_DOCKER_HOST: 'docker.e2e.test',
       STACKY_E2E_TMP: tmp,
     },
   },

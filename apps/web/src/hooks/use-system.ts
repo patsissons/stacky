@@ -9,3 +9,9 @@ export function useSystem() {
     staleTime: 60_000,
   })
 }
+
+/** Host for published-port links: the configured Docker host, else the host stacky is served from. */
+export function useDockerHost() {
+  const { data } = useSystem()
+  return data?.dockerHost ?? window.location.hostname
+}

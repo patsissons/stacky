@@ -71,6 +71,7 @@ import {
 } from '@/components/ui/table'
 import { runServiceAction } from '@/features/operations/actions'
 import { useStacks } from '@/hooks/use-stacks'
+import { useDockerHost } from '@/hooks/use-system'
 import { cn } from '@/lib/utils'
 import {
   buildRows,
@@ -241,6 +242,7 @@ function makeColumns(
 const COLUMN_COUNT = 10
 
 function Ports({ row }: { row: ContainerRow }) {
+  const dockerHost = useDockerHost()
   const published = row.ports.filter((p) => p.hostPort)
   if (published.length === 0) return <span className="text-muted-foreground text-xs">—</span>
   return (
@@ -248,7 +250,7 @@ function Ports({ row }: { row: ContainerRow }) {
       {published.slice(0, 3).map((p) => (
         <a
           key={`${p.hostPort}/${p.protocol}`}
-          href={portUrl(p)}
+          href={portUrl(p, dockerHost)}
           target="_blank"
           rel="noreferrer"
           className="hover:bg-accent inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 font-mono text-[11px]"

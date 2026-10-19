@@ -36,6 +36,7 @@ import { portUrl } from '@/features/containers/rows'
 import { openFromClick, serviceSheetStore } from '@/features/containers/service-sheet-store'
 import { runServiceAction } from '@/features/operations/actions'
 import { useStackStats } from '@/hooks/use-stats'
+import { useDockerHost } from '@/hooks/use-system'
 import { ApiError } from '@/lib/api'
 import { formatBytes } from '@/lib/format'
 
@@ -122,6 +123,7 @@ function ServiceCard({
   onUpdate: (update: ImageUpdate) => void
 }) {
   const navigate = useNavigate()
+  const dockerHost = useDockerHost()
   const up = service.containers.some((c) => UP.has(c.state))
   const canAct = stack.managed
   const act = (action: ServiceAction) =>
@@ -254,7 +256,7 @@ function ServiceCard({
                   .map((p) => (
                     <a
                       key={`${p.hostPort}/${p.protocol}`}
-                      href={portUrl(p)}
+                      href={portUrl(p, dockerHost)}
                       target="_blank"
                       rel="noreferrer"
                       className="hover:bg-accent inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 font-mono"
