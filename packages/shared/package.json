@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./compose-spec.json": "./src/compose-spec.json"
+    "./compose-spec.json": "./src/compose-spec.json",
+    "./compose-service": "./src/compose-service.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

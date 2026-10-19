@@ -15,6 +15,12 @@ The home page lists every container from every compose project on the host, much
 - **Ports:** published ports as links that open the service
 - **Actions:** logs, a shell, restart, stop or start, and a check for updates of that one image
 
+### Inspecting one container
+
+Click a container (a table row, a card on a phone, or a service card on a stack page) to open its service's definition from the compose file in a panel at the bottom. That is the quickest way to check one container's settings without opening the whole file.
+
+Turn on **Edit** to change it there. The edit is checked live against the whole compose file. **Save** writes it into the compose file, changing only that service's lines, so comments and formatting elsewhere stay as they were. **Review & deploy** shows the change first, then saves and deploys the stack, just like the editor. If the compose file changed on disk while you were editing, stacky stops and offers to load the new version instead. Containers of external stacks and of stacky itself are view-only here.
+
 **Check for updates** looks for newer images now, and **Update all** applies every available update after you confirm. Its arrow menu has **Pull all updates**, which only downloads the newer images (see [Image updates](/guides/image-updates/)).
 
 Icons come from the [selfh.st icon set](https://selfh.st/icons/), matched by image name. Stacky shows its own logo for its container without any label. Stacky downloads each icon once and serves it from its own cache, so your browser never calls a CDN.

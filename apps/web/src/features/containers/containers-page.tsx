@@ -80,6 +80,7 @@ import {
   type ContainerRow,
   type StatusFilter,
 } from './rows'
+import { openFromClick, serviceSheetStore } from './service-sheet-store'
 
 export interface ContainersSearch {
   q?: string
@@ -102,6 +103,13 @@ declare module '@tanstack/react-table' {
     className?: string
   }
 }
+
+const sheetTarget = (row: ContainerRow) => ({
+  stack: row.stack,
+  managed: row.managed,
+  service: row.service,
+  containerId: row.id,
+})
 
 function serviceAction(row: ContainerRow, action: 'start' | 'stop' | 'restart') {
   runServiceAction(row.stack, row.service, action).catch((err: Error) =>
@@ -131,7 +139,14 @@ function makeColumns(
         <div className="flex min-w-0 items-center gap-2.5">
           <AppIcon icon={row.original.icon} name={row.original.service} />
           <div className="min-w-0">
-            <div className="truncate font-medium">{row.original.name}</div>
+            <button
+              type="button"
+              className="block max-w-full truncate text-left font-medium hover:underline"
+              onClick={() => serviceSheetStore.open(sheetTarget(row.original))}
+              title={`Show the compose definition of ${row.original.name}`}
+            >
+              {row.original.name}
+            </button>
             <div className="text-muted-foreground truncate text-xs">
               {row.original.service}
               {row.original.number > 1 ? ` #${row.original.number}` : ''}
@@ -549,7 +564,11 @@ export function ContainersPage() {
                         .getRowModel()
                         .rows.filter((r) => r.original.stack === name)
                         .map((r) => (
-                          <TableRow key={r.id}>
+                          <TableRow
+                            key={r.id}
+                            className="cursor-pointer"
+                            onClick={(e) => openFromClick(e, sheetTarget(r.original))}
+                          >
                             {r.getVisibleCells().map((cell) => (
                               <TableCell
                                 key={cell.id}
@@ -567,7 +586,11 @@ export function ContainersPage() {
                   )
                 })
               : table.getRowModel().rows.map((r) => (
-                  <TableRow key={r.id}>
+                  <TableRow
+                    key={r.id}
+                    className="cursor-pointer"
+                    onClick={(e) => openFromClick(e, sheetTarget(r.original))}
+                  >
                     {r.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className={cell.column.columnDef.meta?.className}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -782,11 +805,20 @@ function ContainerCard({
   onUpdate: (target: UpdateTarget) => void
 }) {
   return (
-    <div className="bg-card flex items-center gap-3 rounded-lg border p-3">
+    <div
+      className="bg-card flex cursor-pointer items-center gap-3 rounded-lg border p-3"
+      onClick={(e) => openFromClick(e, sheetTarget(r))}
+    >
       <AppIcon icon={r.icon} name={r.service} className="size-8" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="truncate font-medium">{r.name}</span>
+          <button
+            type="button"
+            className="truncate text-left font-medium"
+            onClick={() => serviceSheetStore.open(sheetTarget(r))}
+          >
+            {r.name}
+          </button>
         </div>
         <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
           <RegistryIcon registry={r.registry} className="size-3" />

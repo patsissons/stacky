@@ -3,7 +3,7 @@
 A modern, compose-first Docker stack manager for your home lab: a better-looking, easier-to-use, more robust take on [Dockge](https://github.com/louislam/dockge).
 
 - **Compose files are the source of truth.** Each stack is a plain directory (`/opt/stacks/<name>/compose.yaml` plus an optional `.env`). Stacky reads Dockge's layout as-is, so migrating means pointing it at the same directory.
-- **Modern UI.** Covers stacks, a cross-stack containers table, logs, container shells and a real editor with schema completion and a diff before every deploy.
+- **Modern UI.** Covers stacks, a cross-stack containers table, logs, container shells and a real editor with schema completion and a diff before every deploy. Click any container to inspect or edit just its service.
 - **Clear errors.** Failed operations explain what went wrong and how to fix it.
 - **Image updates.** Native registry digest checks, plus an optional [What's Up Docker](https://github.com/getwud/wud) integration. Apply updates per service, per stack (including pinned versions), or all at once.
 - **File browser.** A read-only view of the stacks directory and stacky's data directory, with a text viewer and an image viewer.

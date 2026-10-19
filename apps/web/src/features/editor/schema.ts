@@ -16,3 +16,18 @@ export function toDraft7(schema: unknown): unknown {
 }
 
 export const composeSchema = toDraft7(composeSpec)
+
+/** File names the single-service editor uses, so they get `serviceSchema` instead. */
+export const SERVICE_FILE_SUFFIX = '.service.yaml'
+
+/** A YAML file holding one service (`name: { ...service }`), as edited from a container. */
+export const serviceSchema = (() => {
+  const compose = composeSchema as { definitions: unknown; properties: { services: unknown } }
+  return {
+    $schema: 'http://json-schema.org/draft-07/schema#',
+    definitions: compose.definitions,
+    ...(compose.properties.services as object),
+    minProperties: 1,
+    maxProperties: 1,
+  }
+})()

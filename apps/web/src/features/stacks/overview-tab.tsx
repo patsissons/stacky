@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { portUrl } from '@/features/containers/rows'
+import { openFromClick, serviceSheetStore } from '@/features/containers/service-sheet-store'
 import { runServiceAction } from '@/features/operations/actions'
 import { useStackStats } from '@/hooks/use-stats'
 import { ApiError } from '@/lib/api'
@@ -134,14 +135,31 @@ function ServiceCard({
   const cpu = latest.reduce((a, s) => a + s.cpuPercent, 0)
   const mem = latest.reduce((a, s) => a + s.memoryBytes, 0)
   const first = service.containers[0]
+  const sheetTarget = {
+    stack: stack.name,
+    managed: stack.managed,
+    service: service.name,
+    containerId: first?.id,
+  }
 
   return (
-    <div className="bg-card rounded-xl border p-4" data-testid={`service-${service.name}`}>
+    <div
+      className="bg-card cursor-pointer rounded-xl border p-4"
+      data-testid={`service-${service.name}`}
+      onClick={(e) => openFromClick(e, sheetTarget)}
+    >
       <div className="flex items-start gap-3">
         <AppIcon icon={first?.icon} name={service.name} className="size-9 text-xs" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">{service.name}</span>
+            <button
+              type="button"
+              className="font-semibold hover:underline"
+              onClick={() => serviceSheetStore.open(sheetTarget)}
+              title={`Show the compose definition of ${service.name}`}
+            >
+              {service.name}
+            </button>
             <ServiceStateBadge state={service.state} />
             <UpdateBadge update={update} onClick={() => update && onUpdate(update)} />
             {service.containers.length > 1 && (

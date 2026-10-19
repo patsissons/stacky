@@ -4,7 +4,7 @@ import * as monaco from 'monaco-editor'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import { configureMonacoYaml } from 'monaco-yaml'
 import YamlWorker from './yaml.worker.js?worker'
-import { composeSchema } from './schema'
+import { composeSchema, SERVICE_FILE_SUFFIX, serviceSchema } from './schema'
 
 self.MonacoEnvironment = {
   getWorker(_id: string, label: string) {
@@ -29,6 +29,11 @@ configureMonacoYaml(monaco, {
         '**/docker-compose.yml',
       ],
       schema: composeSchema as never,
+    },
+    {
+      uri: 'https://stacky.lgtm.page/schema/compose-service.json',
+      fileMatch: [`**/*${SERVICE_FILE_SUFFIX}`],
+      schema: serviceSchema as never,
     },
   ],
 })
