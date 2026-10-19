@@ -30,7 +30,16 @@ Click a badge to see the details:
 
 Use **Updates available** in the status filter, or the **N updates** button, to list everything with an update.
 
-**Update all** on the containers page applies every update at once, after a confirmation that lists each change. A service with a newer version gets **Update to &lt;version&gt;**, and one with only a new digest gets **Pull &lt;tag&gt;**. Services are handled one after another, so several services in the same stack never edit its compose file at the same time. Ignored updates, external stacks and stacky itself are left out; update stacky from its own stack page.
+## Applying updates to a whole stack
+
+A stack's plain **Update** (and **Pull images only**) pulls the tags already in its compose file. That helps for moving tags like `latest`, but does nothing for a pinned version such as `nginx:1.27.3`. The arrow next to **Update** on a stack page shows how many updates the stack has, and offers two actions that use the newer versions found by the check:
+
+- **Pull updates:** downloads the newer images ahead of time (`docker pull <image>:<new tag>`, and `docker compose pull` for services with only a new digest). The compose file and the running containers are left alone, so nothing changes yet.
+- **Pull updates & deploy:** writes each newer tag into the service's `image:` line (comments and formatting stay), then pulls and recreates the services that have an update, and removes dangling images. It is recorded in the stack's history like a deploy.
+
+A service is left out (and the operation output says why) when its update is ignored, when its image comes from a variable such as `${TAG}`, or when its `image:` line changed after the check ran.
+
+**Update all** on the containers page runs **Pull updates & deploy** for every stack with an update, after a confirmation that lists each change. Its arrow menu has **Pull all updates**, which runs **Pull updates** for every stack instead. Either way each stack runs as one operation. Ignored updates, external stacks and stacky itself are left out; update stacky from its own stack page.
 
 ## When checks run
 

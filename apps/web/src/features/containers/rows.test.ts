@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { ImageUpdate, StackSummary } from '@stacky/shared'
-import { buildRows, matchesStatus, planUpdates, portUrl, type ContainerRow } from './rows'
+import {
+  buildRows,
+  groupByStack,
+  matchesStatus,
+  planUpdates,
+  portUrl,
+  type ContainerRow,
+} from './rows'
 
 const stack = (over: Partial<StackSummary>): StackSummary => ({
   name: 'app',
@@ -174,5 +181,22 @@ describe('planUpdates', () => {
     )
     expect(plan.steps).toEqual([])
     expect(plan.skipped.map((s) => s.stack)).toEqual(['ext', 'stacky'])
+  })
+})
+
+describe('groupByStack', () => {
+  it('collects each stack’s services in plan order', () => {
+    const step = (stack: string, service: string) => ({
+      stack,
+      service,
+      kind: 'pull' as const,
+      tag: 'latest',
+    })
+    expect(
+      groupByStack([step('media', 'plex'), step('db', 'postgres'), step('media', 'sonarr')]),
+    ).toEqual([
+      { stack: 'media', services: ['plex', 'sonarr'] },
+      { stack: 'db', services: ['postgres'] },
+    ])
   })
 })

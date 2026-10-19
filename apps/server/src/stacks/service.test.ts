@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import type { ImageUpdate } from '@stacky/shared'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { openDatabase } from '../db'
 import { silentLogger } from '../lib/logger'
@@ -86,5 +87,96 @@ describe('revisions', () => {
     expect(revs[0]?.compose).toContain('nginx')
     st.stop()
     sqlite.close()
+  })
+})
+
+describe('update actions', () => {
+  const compose = `services:
+  web:
+    image: nginx:1.27.3 # pinned on purpose
+  db:
+    image: postgres:16
+`
+  const container = (service: string, image: string) => ({
+    id: `${service}-id`,
+    name: `app-${service}-1`,
+    project: 'app',
+    service,
+    number: 1,
+    image,
+    imageId: `sha256:${service}`,
+    state: 'running' as const,
+    statusText: 'Up',
+    createdAt: 0,
+    ports: [],
+    labels: {},
+  })
+  const available = (ref: string, patch: Partial<ImageUpdate>): ImageUpdate => ({
+    ref,
+    registry: 'docker.io',
+    repository: ref.split(':')[0]!,
+    tag: ref.split(':')[1]!,
+    status: 'update_available',
+    checkedAt: 0,
+    source: 'native',
+    ...patch,
+  })
+
+  let repo: StackRepository
+  let st: StackState
+  let svc: StackService
+  let updates: ImageUpdate[]
+
+  beforeEach(async () => {
+    repo = new StackRepository(tmp)
+    const containers = [container('web', 'nginx:1.27.3'), container('db', 'postgres:16')]
+    st = new StackState(repo, {} as never, { list: async () => containers } as never, silentLogger)
+    svc = new StackService(repo, st, engine, fakeDocker)
+    updates = [available('nginx:1.27.3', { newerTag: '1.28.0' })]
+    svc.updates = { summary: () => ({ updates, checking: false }) } as never
+    await svc.create('app', compose)
+  })
+
+  afterEach(() => st.stop())
+
+  it('pull-updates prefetches the newer tag and leaves compose.yaml alone', async () => {
+    const op = await svc.stackAction('app', 'pull-updates')
+    expect(op.services).toEqual(['web'])
+    expect(op.commands).toContain('docker pull nginx:1.28.0')
+    expect((await engine.wait(op.id))?.state).toBe('succeeded')
+    expect((await repo.read('app')).compose).toBe(compose)
+  })
+
+  it('deploy-updates edits only the image: line, then pulls and recreates the service', async () => {
+    updates.push(available('postgres:16', { digestChanged: true }))
+    const op = await svc.stackAction('app', 'deploy-updates', { prune: true })
+    expect(op.services).toEqual(['web', 'db'])
+    expect(op.commands).toContain('docker compose up -d --remove-orphans web db')
+    expect((await engine.wait(op.id))?.state).toBe('succeeded')
+    expect((await repo.read('app')).compose).toBe(compose.replace('nginx:1.27.3', 'nginx:1.28.0'))
+  })
+
+  it('honours the services filter', async () => {
+    updates.push(available('postgres:16', { digestChanged: true }))
+    const op = await svc.stackAction('app', 'deploy-updates', { services: ['db'] })
+    expect(op.services).toEqual(['db'])
+    await engine.wait(op.id)
+    expect((await repo.read('app')).compose).toBe(compose)
+  })
+
+  it('refuses when there is nothing to update', async () => {
+    updates = [available('nginx:1.27.3', { newerTag: '1.28.0', ignored: true })]
+    await expect(svc.stackAction('app', 'pull-updates')).rejects.toMatchObject({
+      status: 409,
+      code: 'no_updates',
+    })
+  })
+
+  it("refuses stacky's own stack", async () => {
+    st.selfContainerId = 'web-id'
+    await st.refreshNow()
+    await expect(svc.stackAction('app', 'deploy-updates')).rejects.toMatchObject({
+      code: 'self_stack',
+    })
   })
 })

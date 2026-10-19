@@ -4,6 +4,7 @@ import {
   displayCommand,
   planServiceAction,
   planStackAction,
+  planUpdateAction,
   type Step,
 } from './compose'
 
@@ -89,6 +90,63 @@ describe('planStackAction', () => {
     expect(
       tail(planStackAction(target, 'down', { removeVolumes: true }, { running: true })[0]!),
     ).toEqual(['down', '--remove-orphans', '--volumes'])
+  })
+})
+
+describe('planUpdateAction', () => {
+  const plan = {
+    bumps: [
+      { service: 'web', from: 'nginx:1.27.3', to: 'nginx:1.28.0' },
+      { service: 'worker', from: 'nginx:1.28.0', to: 'nginx:1.28.0' },
+    ],
+    rebuilt: ['db'],
+    skipped: [{ service: 'cache', reason: 'image set from a variable' }],
+  }
+  const output = async (step: Step) => {
+    const lines: string[] = []
+    if (step.kind === 'task') await step.run({ write: (t) => lines.push(t) })
+    return lines
+  }
+
+  it('prefetches newer tags by reference and re-pulls rebuilt services', async () => {
+    const steps = planUpdateAction(target, 'pull', plan, {})
+    expect(steps[0]?.kind).toBe('task')
+    expect(await output(steps[0]!)).toEqual([
+      'web: nginx:1.27.3 → nginx:1.28.0',
+      'cache: skipped (image set from a variable)',
+    ])
+    expect(steps.slice(1).map((s) => (s.kind === 'docker' ? s.args : []))).toEqual([
+      ['pull', 'nginx:1.28.0'],
+      [...composeArgs(target), 'pull', 'db'],
+    ])
+  })
+
+  it('has no compose pull when nothing was rebuilt', () => {
+    const steps = planUpdateAction(
+      target,
+      'pull',
+      { bumps: [plan.bumps[0]!], rebuilt: [], skipped: [] },
+      {},
+    )
+    expect(steps.map((s) => (s.kind === 'docker' ? s.args : s.label))).toEqual([
+      'newer images',
+      ['pull', 'nginx:1.28.0'],
+    ])
+  })
+
+  it('validates, pulls and recreates only the updated services', () => {
+    const steps = planUpdateAction(target, 'deploy', plan, {})
+    expect(steps[0]?.kind).toBe('task')
+    expect(steps.slice(1).map(tail)).toEqual([
+      ['config', '--quiet'],
+      ['pull', 'web', 'worker', 'db'],
+      ['up', '-d', '--remove-orphans', 'web', 'worker', 'db'],
+    ])
+  })
+
+  it('prunes after deploying when asked', () => {
+    const steps = planUpdateAction(target, 'deploy', plan, { prune: true })
+    expect(steps.at(-1)).toEqual({ kind: 'docker', args: ['image', 'prune', '--force'] })
   })
 })
 

@@ -15,7 +15,7 @@ The home page lists every container from every compose project on the host, much
 - **Ports:** published ports as links that open the service
 - **Actions:** logs, a shell, restart, stop or start
 
-**Check for updates** looks for newer images now, and **Update all** applies every available update after you confirm (see [Image updates](/guides/image-updates/)).
+**Check for updates** looks for newer images now, and **Update all** applies every available update after you confirm. Its arrow menu has **Pull all updates**, which only downloads the newer images (see [Image updates](/guides/image-updates/)).
 
 Icons come from the [selfh.st icon set](https://selfh.st/icons/), matched by image name. Stacky downloads each icon once and serves it from its own cache. To pick a different icon, add a `dev.stacky.icon: jellyfin` label (WUD's `wud.display.icon: selfhst:jellyfin` works too).
 
@@ -26,7 +26,7 @@ Search, the stack and status filters, sorting, **Group by stack** and pagination
 Each stack page has an action bar:
 
 - **Deploy:** `docker compose up -d`. The arrow menu adds options: pull images first, rebuild Dockerfile-based services (`--build`), or recreate every container.
-- **Update:** pulls new images. If the stack is running, it then recreates changed containers and removes dangling images.
+- **Update:** pulls the tags in the compose file again. If the stack is running, it then recreates changed containers and removes dangling images. The arrow menu works with the newer versions found by the update check: **Pull updates** only downloads them, and **Pull updates & deploy** writes the new tags into the compose file and recreates those services (see [Image updates](/guides/image-updates/#applying-updates-to-a-whole-stack)).
 - **Restart**, **Stop** / **Start**
 - **More:** pull only, **Down** (remove containers, optionally named volumes), and **Delete** (removes the stack directory; you type the name to confirm)
 

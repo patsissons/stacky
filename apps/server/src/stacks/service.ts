@@ -12,7 +12,7 @@ import type {
 } from '@stacky/shared'
 import { AppError, badRequest, notFound } from '../lib/errors'
 import type { ComposeTarget, Step } from '../ops/compose'
-import { planServiceAction, planStackAction } from '../ops/compose'
+import { planServiceAction, planStackAction, planUpdateAction } from '../ops/compose'
 import type { OperationEngine } from '../ops/engine'
 import { GLOBAL_ENV_FILE, type StackRepository } from './repository'
 import type { RevisionStore } from './revisions'
@@ -22,6 +22,7 @@ import { setServiceImage } from '../self/compose-edit'
 import { withTag } from '../self/image-ref'
 import { parseDocument } from 'yaml'
 import { composeTags } from './compose-file'
+import { planServices, planStackUpdates, TAG_PATTERN } from './update-plan'
 import { validateCompose } from './validate'
 
 const UP_STATES: ReadonlySet<string> = new Set([
@@ -43,6 +44,7 @@ const SELF_DISRUPTIVE: ReadonlySet<string> = new Set([
   'update',
   'delete',
   'recreate',
+  'deploy-updates',
 ])
 
 export interface SelfUpdateHook {
@@ -51,10 +53,10 @@ export interface SelfUpdateHook {
 }
 
 /** Application logic for stacks: ties files on disk, live state and operations together. */
-const REFRESHES_IMAGES = /^(deploy|update|pull)( |$)/
+const REFRESHES_IMAGES = /^(deploy|update|pull)(-updates)?( |$)/
 
 /** Actions that apply the compose files; their files become a revision when they succeed. */
-const APPLIES_CONFIG = /^(deploy|start|update|recreate)( |$)/
+const APPLIES_CONFIG = /^(deploy|start|update|recreate|deploy-updates)( |$)/
 
 export class StackService {
   selfUpdate: SelfUpdateHook | undefined
@@ -152,6 +154,9 @@ export class StackService {
     options: ActionOptions = {},
   ): Promise<OperationSummary> {
     const stack = this.requireManaged(name)
+    if (action === 'pull-updates' || action === 'deploy-updates') {
+      return this.updateAction(stack, action, options)
+    }
     if (stack.isSelf && SELF_DISRUPTIVE.has(action)) return this.routeSelf(stack, action, options)
 
     const target = await this.target(name)
@@ -190,6 +195,60 @@ export class StackService {
     })
     // set synchronously after enqueue: the operation can't finish before this runs
     if (files) this.pendingRevisions.set(op.id, files)
+    return op
+  }
+
+  /**
+   * Applies the update checker's results to a stack: prefetches the newer images, or
+   * writes the newer tags into compose.yaml (targeted edits) and redeploys those services.
+   */
+  private async updateAction(
+    stack: StackSummary,
+    action: 'pull-updates' | 'deploy-updates',
+    options: ActionOptions,
+  ): Promise<OperationSummary> {
+    const name = stack.name
+    if (stack.isSelf) {
+      throw new AppError(
+        409,
+        'self_stack',
+        `"${action}" is not available for stacky's own stack`,
+        'Update stacky from the self-update banner instead.',
+      )
+    }
+    const deploy = action === 'deploy-updates'
+    const files = deploy ? await this.repo.read(name) : undefined
+    const plan = planStackUpdates(stack, this.updates?.summary().updates ?? [], {
+      compose: files?.compose,
+      only: options.services,
+    })
+    const services = planServices(plan)
+    if (!services.length) {
+      throw new AppError(
+        409,
+        'no_updates',
+        `No updates available for "${name}"`,
+        plan.skipped[0] && `${plan.skipped[0].service}: ${plan.skipped[0].reason}`,
+      )
+    }
+    if (files) {
+      let compose = files.compose
+      for (const b of plan.bumps) {
+        if (b.from !== b.to) compose = setServiceImage(compose, b.service, b.to)
+      }
+      if (compose !== files.compose) await this.save(name, { compose })
+    }
+
+    const target = await this.target(name)
+    const snapshot = await this.filesForRevision(name, action)
+    const op = this.engine.enqueue({
+      stack: name,
+      action,
+      services,
+      cwd: target.dir,
+      steps: planUpdateAction(target, deploy ? 'deploy' : 'pull', plan, options),
+    })
+    if (snapshot) this.pendingRevisions.set(op.id, snapshot)
     return op
   }
 
@@ -254,7 +313,7 @@ export class StackService {
    * `image:` line (comments and formatting stay), then pulls and recreates it.
    */
   async bumpImage(name: string, service: string, tag: string): Promise<OperationSummary> {
-    if (!/^[\w][\w.-]{0,127}$/.test(tag)) throw badRequest(`invalid tag "${tag}"`)
+    if (!TAG_PATTERN.test(tag)) throw badRequest(`invalid tag "${tag}"`)
     const stack = this.requireManaged(name)
     if (stack.isSelf && this.selfUpdate) {
       // stacky's own image goes through the self-update flow
