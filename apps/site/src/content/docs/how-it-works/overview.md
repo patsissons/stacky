@@ -17,8 +17,9 @@ Stacky reads container state directly from the Docker engine and listens to its 
 
 | Status      | Meaning                                                              |
 | ----------- | -------------------------------------------------------------------- |
-| running     | Container is up (and healthy, if it has a healthcheck)               |
+| running     | Container is up; **healthy** when it has a healthcheck that passes   |
 | unhealthy   | Container is up but its healthcheck is failing                       |
+| starting    | Container is up but its healthcheck has not passed yet               |
 | completed   | A one-shot container (restart `no`/`on-failure`) exited successfully |
 | exited      | Container stopped with an error, or was stopped                      |
 | not created | Service is defined in the compose file but has no container          |

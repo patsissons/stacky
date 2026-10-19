@@ -182,6 +182,12 @@ export class StackRepository {
     const dir = this.dir(name)
     const file = await resolveStackFile(dir, relative)
     await fs.rm(file, { force: true })
+    // tidy up the directories the file leaves empty, up to the stack root
+    for (let parent = path.dirname(file); parent !== dir; parent = path.dirname(parent)) {
+      const entries = await fs.readdir(parent).catch(() => undefined)
+      if (!entries || entries.length > 0) break
+      await fs.rmdir(parent).catch(() => undefined)
+    }
     this.changed(
       [`${name}/${path.relative(dir, file)}`],
       `delete ${name}/${path.relative(dir, file)}`,

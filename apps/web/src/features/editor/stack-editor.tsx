@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   Eye,
   EyeOff,
   FileCode2,
@@ -10,12 +11,29 @@ import {
   Loader2,
   Rocket,
   Save,
+  Trash2,
   Undo2,
   X,
 } from 'lucide-react'
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import type { StackFiles, StackSummary, ValidationIssue, ValidationResult } from '@stacky/shared'
+import type {
+  ActionOptions,
+  StackFiles,
+  StackSummary,
+  ValidationIssue,
+  ValidationResult,
+} from '@stacky/shared'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -25,12 +43,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { runStackAction } from '@/features/operations/actions'
 import { api, ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { hasSecrets, languageFor, maskEnv } from './language'
+import { editorStore } from './store'
 
 const CodeEditor = lazy(() => import('./code-editor'))
 const CodeDiff = lazy(() => import('./code-editor').then((m) => ({ default: m.CodeDiff })))
@@ -80,8 +106,11 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
   const [masked, setMasked] = useState(true)
   const [saving, setSaving] = useState(false)
   const [diffOpen, setDiffOpen] = useState(false)
+  // deploy options chosen before the review dialog opened (e.g. pull images first)
+  const [deployOptions, setDeployOptions] = useState<ActionOptions>({})
   const [deploying, setDeploying] = useState(false)
   const [newFile, setNewFile] = useState<string>()
+  const [deleting, setDeleting] = useState<string>()
 
   // Adopt server contents when we have no unsaved edits; otherwise flag the conflict.
   const dirtyCompose = base !== undefined && compose !== base.compose
@@ -126,6 +155,8 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
         setExtra((list) =>
           list.map((f) => (f.path === file.path ? { ...f, original: f.draft } : f)),
         )
+        // a new file (and any new directory) shows up in the tree
+        void qc.invalidateQueries({ queryKey: ['stack-tree', name] })
         toast.success(`Saved ${file.path}`)
       } catch (err) {
         toast.error(err instanceof Error ? err.message : String(err))
@@ -156,13 +187,13 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
     }
   }, [active, extra, name, dirty, dirtyCompose, dirtyEnv, compose, env, base, qc, errors.length])
 
-  const deploy = async () => {
+  const deploy = async (options: ActionOptions = {}) => {
     setDeploying(true)
     try {
       await runStackAction(
         name,
         'deploy',
-        {},
+        options,
         dirty
           ? { compose: dirtyCompose ? compose : undefined, env: dirtyEnv ? env : undefined }
           : undefined,
@@ -184,7 +215,21 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
     }
   }
 
-  const requestDeploy = () => (dirty ? setDiffOpen(true) : void deploy())
+  const requestDeploy = (options: ActionOptions = {}) => {
+    if (!dirty) return void deploy(options)
+    setDeployOptions(options)
+    setDiffOpen(true)
+  }
+
+  // Let the stack's action bar deploy through the review dialog instead of the files on disk.
+  const requestDeployRef = useRef(requestDeploy)
+  useEffect(() => {
+    requestDeployRef.current = requestDeploy
+  })
+  useEffect(() => {
+    editorStore.register({ stack: name, dirty, deploy: (o) => requestDeployRef.current(o) })
+    return () => editorStore.unregister(name)
+  }, [name, dirty])
 
   const discard = () => {
     if (!base) return
@@ -221,6 +266,18 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
     setExtra((list) => [...list, { path: clean, original: '\u0000new', draft: '' }])
     setActive(clean)
     setNewFile(undefined)
+  }
+
+  const deleteFile = async (path: string) => {
+    try {
+      await api.delete(`/api/stacks/${name}/file?path=${encodeURIComponent(path)}`)
+      setExtra((list) => list.filter((x) => x.path !== path))
+      if (active === path) setActive('compose')
+      void qc.invalidateQueries({ queryKey: ['stack-tree', name] })
+      toast.success(`Deleted ${path}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    }
   }
 
   const closeFile = (path: string) => {
@@ -263,6 +320,12 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
 
   const extraFile = extra.find((f) => f.path === active)
   const showMasked = active === ENV && masked && hasSecrets(env)
+  // Typing a secret into an unmasked .env must not swap the editor for the masked preview
+  // mid-keystroke; the user just wrote the value, so keep it revealed until they mask it.
+  const editEnv = (value: string) => {
+    setEnv(value)
+    if (masked && hasSecrets(value)) setMasked(false)
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -293,6 +356,32 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
             </TabsTrigger>
           </TabsList>
         </Tabs>
+        {/* the Files panel only fits from lg up; this menu stands in for it below that */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="lg:hidden" aria-label="Files">
+              <Folder /> Files <ChevronDown />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
+            {files
+              .filter((f) => f.type === 'file')
+              .map((f) => (
+                <DropdownMenuItem
+                  key={f.path}
+                  disabled={!f.editable}
+                  onSelect={() => void openFile(f.path)}
+                  className="font-mono text-xs"
+                >
+                  <FileCode2 className="size-3.5" /> {f.path}
+                </DropdownMenuItem>
+              ))}
+            {files.some((f) => f.type === 'file') && <DropdownMenuSeparator />}
+            <DropdownMenuItem onSelect={() => setNewFile('')}>
+              <FilePlus2 className="size-4" /> New file…
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {extra.map((f) => (
           <span
             key={f.path}
@@ -333,7 +422,7 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
           </Button>
           <Button
             size="sm"
-            onClick={requestDeploy}
+            onClick={() => requestDeploy()}
             disabled={deploying || !!stack.activeOperationId}
           >
             {deploying ? <Loader2 className="animate-spin" /> : <Rocket />}
@@ -343,7 +432,10 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
       </div>
 
       <div className="flex min-h-0 flex-1 gap-3">
-        <aside className="bg-card hidden w-52 shrink-0 flex-col overflow-hidden rounded-lg border lg:flex">
+        <aside
+          className="bg-card hidden w-52 shrink-0 flex-col overflow-hidden rounded-lg border lg:flex"
+          aria-label="Files"
+        >
           <div className="text-muted-foreground flex items-center justify-between border-b px-3 py-2 text-xs font-semibold tracking-wider uppercase">
             Files
             <button type="button" aria-label="New file" onClick={() => setNewFile('')}>
@@ -351,24 +443,6 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-1 text-sm">
-            {newFile !== undefined && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void createFile(newFile)
-                }}
-                className="p-1"
-              >
-                <Input
-                  autoFocus
-                  value={newFile}
-                  onChange={(e) => setNewFile(e.target.value)}
-                  onBlur={() => !newFile && setNewFile(undefined)}
-                  placeholder="config/app.conf"
-                  className="h-7 text-xs"
-                />
-              </form>
-            )}
             <FileButton
               label={base.composeFile}
               active={active === 'compose'}
@@ -391,19 +465,87 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
                   {f.path.split('/').pop()}
                 </div>
               ) : (
-                <FileButton
-                  key={f.path}
-                  label={f.path.split('/').pop()!}
-                  title={f.path}
-                  indent={depth(f.path)}
-                  active={active === f.path}
-                  disabled={!f.editable}
-                  onClick={() => void openFile(f.path)}
-                />
+                <div key={f.path} className="group flex items-center">
+                  <FileButton
+                    label={f.path.split('/').pop()!}
+                    title={f.path}
+                    indent={depth(f.path)}
+                    active={active === f.path}
+                    disabled={!f.editable}
+                    onClick={() => void openFile(f.path)}
+                    className="min-w-0 flex-1"
+                  />
+                  {f.editable && (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${f.path}`}
+                      title="Delete file"
+                      onClick={() => setDeleting(f.path)}
+                      className="text-muted-foreground hover:text-destructive mr-1 rounded p-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  )}
+                </div>
               ),
             )}
           </div>
         </aside>
+
+        <Dialog open={newFile !== undefined} onOpenChange={(o) => !o && setNewFile(undefined)}>
+          <DialogContent className="sm:max-w-sm">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                void createFile(newFile ?? '')
+              }}
+              className="space-y-4"
+            >
+              <DialogHeader>
+                <DialogTitle>New file</DialogTitle>
+                <DialogDescription>
+                  A path inside the stack directory; folders are created as needed.
+                </DialogDescription>
+              </DialogHeader>
+              <Input
+                autoFocus
+                value={newFile ?? ''}
+                onChange={(e) => setNewFile(e.target.value)}
+                placeholder="config/app.conf"
+                aria-label="File path"
+              />
+              <DialogFooter>
+                <Button type="submit" disabled={!newFile?.trim()}>
+                  <FilePlus2 /> Create
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(undefined)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {deleting}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                The file is removed from the stack directory. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90 text-white"
+                onClick={() => {
+                  const path = deleting!
+                  setDeleting(undefined)
+                  void deleteFile(path)
+                }}
+              >
+                Delete file
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <div className="bg-card relative min-h-[420px] min-w-0 flex-1 overflow-hidden rounded-lg border">
           <Suspense
@@ -417,7 +559,7 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
                 onChange={setCompose}
                 issues={issues}
                 onSave={() => void save()}
-                onDeploy={requestDeploy}
+                onDeploy={() => requestDeploy()}
               />
             )}
             {active === ENV &&
@@ -433,9 +575,9 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
                   path={`${name}/.env`}
                   language="ini"
                   value={env}
-                  onChange={setEnv}
+                  onChange={editEnv}
                   onSave={() => void save()}
-                  onDeploy={requestDeploy}
+                  onDeploy={() => requestDeploy()}
                 />
               ))}
             {extraFile && (
@@ -492,7 +634,10 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
             <Button variant="outline" onClick={() => setDiffOpen(false)}>
               Keep editing
             </Button>
-            <Button onClick={() => void deploy()} disabled={deploying || errors.length > 0}>
+            <Button
+              onClick={() => void deploy(deployOptions)}
+              disabled={deploying || errors.length > 0}
+            >
               {deploying ? <Loader2 className="animate-spin" /> : <Rocket />} Save &amp; deploy
             </Button>
           </DialogFooter>
@@ -518,6 +663,7 @@ function FileButton({
   indent = 0,
   disabled,
   muted,
+  className,
 }: {
   label: string
   title?: string
@@ -526,6 +672,7 @@ function FileButton({
   indent?: number
   disabled?: boolean
   muted?: boolean
+  className?: string
 }) {
   return (
     <button
@@ -538,6 +685,7 @@ function FileButton({
         active ? 'bg-accent text-accent-foreground font-medium' : 'hover:bg-muted',
         (disabled || muted) && 'text-muted-foreground',
         disabled && 'cursor-not-allowed opacity-60',
+        className,
       )}
       style={{ paddingLeft: 8 + indent * 12 }}
     >

@@ -26,20 +26,28 @@ Click a badge to see the details:
 
 - **Pull &lt;tag&gt;:** pulls the rebuilt image and recreates the service.
 - **Update to &lt;version&gt;:** changes only the service's `image:` line in your compose file (comments and formatting stay), then pulls and recreates it. If the image comes from a variable such as `${TAG}`, stacky asks you to change the variable instead.
-- **Ignore this update:** hides this specific version or digest. The next newer one shows up again.
+- **Ignore this update:** hides this specific version or digest. The next newer one shows up again. An ignored update stays visible as a dashed, greyed badge; open it and choose **Stop ignoring** to bring it back.
 
 Use **Updates available** in the status filter, or the **N updates** button, to list everything with an update.
 
 ## Applying updates to a whole stack
 
-A stack's plain **Update** (and **Pull images only**) pulls the tags already in its compose file. That helps for moving tags like `latest`, but does nothing for a pinned version such as `nginx:1.27.3`. The arrow next to **Update** on a stack page shows how many updates the stack has, and offers two actions that use the newer versions found by the check:
+The **Update** button on a stack page uses the results of the check. When the stack has updates, the button shows how many and opens a confirmation that lists each change; confirming does, for the services with an update:
 
-- **Pull updates:** downloads the newer images ahead of time (`docker pull <image>:<new tag>`, and `docker compose pull` for services with only a new digest). The compose file and the running containers are left alone, so nothing changes yet.
-- **Pull updates & deploy:** writes each newer tag into the service's `image:` line (comments and formatting stay), then pulls and recreates the services that have an update, and removes dangling images. It is recorded in the stack's history like a deploy.
+1. writes each newer tag into the service's `image:` line (comments and formatting stay),
+2. pulls and recreates those services, and
+3. removes dangling images.
 
-A service is left out (and the operation output says why) when its update is ignored, when its image comes from a variable such as `${TAG}`, or when its `image:` line changed after the check ran.
+It is recorded in the stack's history like a deploy. A service is left out (and the operation output says why) when its update is ignored, when its image comes from a variable such as `${TAG}`, or when its `image:` line changed after the check ran.
 
-**Update all** on the containers page runs **Pull updates & deploy** for every stack with an update, after a confirmation that lists each change. Its arrow menu has **Pull all updates**, which runs **Pull updates** for every stack instead. Either way each stack runs as one operation. Ignored updates, external stacks and stacky itself are left out; update stacky from its own stack page.
+When no update is known, **Update** falls back to pulling the tags already in the compose file. That helps for moving tags like `latest`, but does nothing for a pinned version such as `nginx:1.27.3`, which is exactly what the check is for. A stopped stack stays stopped.
+
+The arrow next to **Update** has two more options:
+
+- **Pull updates only:** downloads the newer images ahead of time (`docker pull <image>:<new tag>`, and `docker compose pull` for services with only a new digest). The compose file and the running containers are left alone, so nothing changes yet.
+- **Re-pull current tags:** the plain pull described above, for when you want the newest build of your current tags without applying the newer versions.
+
+**Update all** on the containers page runs the same thing for every stack with an update, after one confirmation that lists each change. Its arrow menu has **Pull all updates**, which runs **Pull updates only** for every stack instead. Either way each stack runs as one operation. Ignored updates, external stacks and stacky itself are left out; update stacky from its own stack page.
 
 ## When checks run
 

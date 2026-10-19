@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { actionLabel } from '@/features/operations/actions'
+import { actionLabel, operationTense } from '@/features/operations/actions'
 import { OperationStateIcon } from '@/features/operations/operation-view'
 import { operationStore } from '@/features/operations/store'
 import { api, ApiError } from '@/lib/api'
@@ -200,7 +200,7 @@ function Operations({ stack, activeOperationId }: { stack: string; activeOperati
               >
                 <OperationStateIcon op={op} />
                 <span className="font-medium">
-                  {actionLabel(op.action, op.state === 'succeeded')}
+                  {actionLabel(op.action, operationTense(op.state))}
                 </span>
                 {op.error && (
                   <span className="text-destructive min-w-0 flex-1 truncate">

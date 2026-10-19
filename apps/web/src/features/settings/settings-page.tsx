@@ -37,7 +37,7 @@ export function SettingsPage() {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[10rem_1fr] gap-3 py-1.5 text-sm">
+    <div className="grid gap-x-3 gap-y-0.5 py-1.5 text-sm sm:grid-cols-[10rem_1fr]">
       <span className="text-muted-foreground">{label}</span>
       <span className="min-w-0 font-mono text-[13px] break-all">{children}</span>
     </div>
@@ -90,8 +90,8 @@ function SystemCard() {
                   <span className="mt-0.5">
                     <CheckIcon check={c} />
                   </span>
-                  <div>
-                    <p>{c.message}</p>
+                  <div className="min-w-0">
+                    <p className="break-words">{c.message}</p>
                     {c.hint && !c.ok && <p className="text-muted-foreground text-xs">{c.hint}</p>}
                   </div>
                 </li>

@@ -87,6 +87,18 @@ describe('StackRepository', () => {
     await expect(repo.readFile('app', '../global.env')).rejects.toThrow(/outside/)
   })
 
+  it('deletes a file and the directories it leaves empty', async () => {
+    mkStack('app')
+    await repo.writeFile('app', 'config/nested/a.conf', 'x')
+    await repo.writeFile('app', 'config/b.conf', 'y')
+    await repo.deleteFile('app', 'config/nested/a.conf')
+    expect(fs.existsSync(path.join(root, 'app/config/nested'))).toBe(false)
+    expect(fs.existsSync(path.join(root, 'app/config/b.conf'))).toBe(true)
+    await repo.deleteFile('app', 'config/b.conf')
+    expect(fs.existsSync(path.join(root, 'app/config'))).toBe(false)
+    expect(fs.existsSync(path.join(root, 'app/compose.yaml'))).toBe(true)
+  })
+
   it('rejects binary files', async () => {
     mkStack('app')
     fs.writeFileSync(path.join(root, 'app/bin.dat'), Buffer.from([1, 0, 2]))

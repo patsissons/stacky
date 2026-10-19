@@ -9,7 +9,7 @@ sidebar:
 
 The home page lists every container from every compose project on the host, much like [What's Up Docker](https://github.com/getwud/wud):
 
-- **Status:** running, healthy, unhealthy, completed (one-shot jobs that finished), exited or error
+- **Status:** running, healthy, unhealthy, starting, restarting, paused, completed (one-shot jobs that finished), exited, created or error
 - **Container, stack and registry:** stacks outside the stacks directory are marked **external**
 - **Image and version:** the tag the container runs
 - **Ports:** published ports as links that open the service
@@ -25,8 +25,8 @@ Search, the stack and status filters, sorting, **Group by stack** and pagination
 
 Each stack page has an action bar:
 
-- **Deploy:** `docker compose up -d`. The arrow menu adds options: pull images first, rebuild Dockerfile-based services (`--build`), or recreate every container.
-- **Update:** pulls the tags in the compose file again. If the stack is running, it then recreates changed containers and removes dangling images. The arrow menu works with the newer versions found by the update check: **Pull updates** only downloads them, and **Pull updates & deploy** writes the new tags into the compose file and recreates those services (see [Image updates](/guides/image-updates/#applying-updates-to-a-whole-stack)).
+- **Deploy:** `docker compose up -d`. The arrow menu adds options: pull images first, rebuild Dockerfile-based services (`--build`), or recreate every container. While the editor has unsaved changes, every one of these opens the review diff first, so you never deploy an older file by accident.
+- **Update:** applies the newer versions found by the update check, after a confirmation that lists them; the number on the button is how many there are (see [Image updates](/guides/image-updates/#applying-updates-to-a-whole-stack)). When none are known it pulls the tags in the compose file again and, if the stack is running, recreates changed containers and removes dangling images. The arrow menu has **Pull updates only** (download the newer images, change nothing) and **Re-pull current tags** (the plain pull, even when newer versions are waiting).
 - **Restart**, **Stop** / **Start**
 - **More:** pull only, **Down** (remove containers, optionally named volumes), and **Delete** (removes the stack directory; you type the name to confirm)
 
@@ -36,13 +36,13 @@ Every action streams its output in a drawer at the bottom of the screen. When it
 
 The tabs:
 
-| Tab      | What it does                                                                                          |
-| -------- | ----------------------------------------------------------------------------------------------------- |
-| Overview | Service cards with state, image, ports, live CPU and memory, and per-service actions                  |
-| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory                                 |
-| Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download     |
-| Shell    | An interactive shell in any running container (bash if available, otherwise sh)                       |
-| History  | Every deployed version of the files (compare or restore one) and every operation with its full output |
+| Tab      | What it does                                                                                                         |
+| -------- | -------------------------------------------------------------------------------------------------------------------- |
+| Overview | Service cards with state, image, ports, live CPU and memory, and per-service actions (restart, stop, recreate, pull) |
+| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory (create and delete files too)                  |
+| Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download                    |
+| Shell    | An interactive shell in any running container (bash if available, otherwise sh)                                      |
+| History  | Every deployed version of the files (compare or restore one) and every operation with its full output                |
 
 ## Rolling back
 
@@ -63,6 +63,6 @@ Each successful deploy or update saves the compose file and `.env` it used, keep
 
 ## Command palette
 
-Press <kbd>⌘/Ctrl</kbd>+<kbd>K</kbd> anywhere to jump to a stack, or to update, restart, start or stop one.
+Press <kbd>⌘/Ctrl</kbd>+<kbd>K</kbd> anywhere to jump to a stack, or to deploy, update, restart, start or stop one.
 
 The stacky logo in the top left always takes you back to the containers page.

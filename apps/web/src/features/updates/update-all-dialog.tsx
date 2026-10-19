@@ -16,34 +16,45 @@ import { runStackAction } from '@/features/operations/actions'
 /** `deploy` applies the updates; `pull` only downloads the newer images. */
 export type UpdateAllMode = 'pull' | 'deploy'
 
-const COPY: Record<UpdateAllMode, { title: string; description: string; verb: string }> = {
+const COPY: Record<
+  UpdateAllMode,
+  { title: string; stackTitle: (stack: string) => string; description: string; verb: string }
+> = {
   deploy: {
     title: 'Update all containers',
+    stackTitle: (stack) => `Update ${stack}`,
     description:
-      "New version tags are written to each stack's compose file. Images with a new build behind the same tag are pulled again. Changed containers are then recreated.",
+      'New version tags are written to the compose file (only the image: lines). Images with a new build behind the same tag are pulled again. Changed containers are then recreated.',
     verb: 'Update',
   },
   pull: {
     title: 'Pull all updates',
+    stackTitle: (stack) => `Pull updates for ${stack}`,
     description:
       'Downloads the newer images ahead of time. Compose files and running containers are left as they are, so nothing changes until you update.',
     verb: 'Pull',
   },
 }
 
-/** Confirms and applies (or prefetches) every available update, one operation per stack. */
+/**
+ * Confirms and applies (or prefetches) every available update, one operation per stack.
+ * With `stack` the plan covers that stack only: the title names it and its output drawer opens.
+ */
 export function UpdateAllDialog({
   plan,
   mode,
+  stack,
   onClose,
 }: {
   plan: UpdatePlan
   mode: UpdateAllMode | undefined
+  stack?: string
   onClose: () => void
 }) {
   const [busy, setBusy] = useState(false)
   const count = plan.steps.length
   const copy = COPY[mode ?? 'deploy']
+  const title = stack ? copy.stackTitle(stack) : copy.title
 
   const apply = async () => {
     setBusy(true)
@@ -55,7 +66,7 @@ export function UpdateAllDialog({
           mode === 'pull' ? 'pull-updates' : 'deploy-updates',
           { services, prune: mode === 'deploy' },
           undefined,
-          { openDrawer: false },
+          { openDrawer: !!stack },
         )
         started++
       } catch (err) {
@@ -64,7 +75,7 @@ export function UpdateAllDialog({
     }
     setBusy(false)
     onClose()
-    if (started > 0) {
+    if (started > 0 && !stack) {
       toast.message(
         `${mode === 'pull' ? 'Pulling' : 'Updating'} ${started} stack${started === 1 ? '' : 's'}`,
         {
@@ -78,7 +89,7 @@ export function UpdateAllDialog({
     <Dialog open={!!mode} onOpenChange={(o) => !o && !busy && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{copy.title}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
         <ul className="max-h-72 space-y-1.5 overflow-y-auto text-sm" aria-label="Updates to apply">

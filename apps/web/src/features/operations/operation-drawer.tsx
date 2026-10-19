@@ -32,13 +32,15 @@ export function OperationWatcher() {
         const op = msg.operation
         if (op.state === 'queued' || op.state === 'running') return
         operationStore.unwatch(id)
+        // the drawer already shows this result (and the toast would cover it on phones)
+        if (operationStore.get().openId === op.id) return
         const title = `${actionLabel(op.action, true)} ${op.stack}`
         const view = { label: 'View output', onClick: () => operationStore.open(op.id) }
         if (op.state === 'succeeded') toast.success(title, { action: view })
         else if (op.state === 'cancelled')
-          toast.message(`${actionLabel(op.action, false)} ${op.stack} cancelled`)
+          toast.message(`${actionLabel(op.action, 'verb')} ${op.stack} cancelled`)
         else
-          toast.error(op.error?.message ?? `${actionLabel(op.action, false)} ${op.stack} failed`, {
+          toast.error(op.error?.message ?? `${actionLabel(op.action, 'verb')} ${op.stack} failed`, {
             description: op.error?.hint,
             action: view,
             duration: 15_000,

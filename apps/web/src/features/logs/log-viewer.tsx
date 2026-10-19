@@ -111,12 +111,16 @@ export function LogViewer({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
+      {/* phones: the two selects share the first row, search and the icons the second */}
       <div className="flex flex-wrap items-center gap-2">
         <Select
           value={service ?? '__all'}
           onValueChange={(v) => onServiceChange?.(v === '__all' ? undefined : v)}
         >
-          <SelectTrigger className="h-8 w-40" aria-label="Service">
+          <SelectTrigger
+            className="h-8 min-w-0 flex-1 basis-32 sm:w-40 sm:flex-none sm:basis-auto"
+            aria-label="Service"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -128,7 +132,7 @@ export function LogViewer({
             ))}
           </SelectContent>
         </Select>
-        <div className="relative min-w-40 flex-1 sm:max-w-xs">
+        <div className="relative order-1 min-w-40 flex-1 sm:order-none sm:max-w-xs">
           <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
           <Input
             value={query}
@@ -143,13 +147,16 @@ export function LogViewer({
             size="sm"
             pressed={onlyMatches}
             onPressedChange={setOnlyMatches}
-            className="h-8 text-xs"
+            className="order-1 h-8 text-xs sm:order-none"
           >
             Only matches
           </Toggle>
         )}
         <Select value={String(tail)} onValueChange={(v) => setTail(Number(v))}>
-          <SelectTrigger className="h-8 w-40" aria-label="History">
+          <SelectTrigger
+            className="h-8 min-w-0 flex-1 basis-32 sm:w-40 sm:flex-none sm:basis-auto"
+            aria-label="History"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -160,7 +167,7 @@ export function LogViewer({
             ))}
           </SelectContent>
         </Select>
-        <div className="ml-auto flex items-center gap-1">
+        <div className="order-2 ml-auto flex items-center gap-1 sm:order-none">
           <IconToggle
             label={follow ? 'Pause auto-scroll' : 'Follow new lines'}
             pressed={follow}

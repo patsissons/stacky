@@ -1,4 +1,4 @@
-import { ArrowRight, ExternalLink, EyeOff, Loader2, RefreshCw } from 'lucide-react'
+import { ArrowRight, ExternalLink, Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { ImageUpdate } from '@stacky/shared'
@@ -56,11 +56,12 @@ export function UpdateDialog({ target, onClose }: { target?: UpdateTarget; onClo
     run('pull', () =>
       runServiceAction(stack, service, 'update').then((op) => operationStore.open(op.id)),
     )
+  // no value clears the ignore
   const ignore = () =>
     run('ignore', () =>
       api.post('/api/updates/ignore', {
         ref: update.ref,
-        value: update.newerTag ?? update.remoteDigest,
+        value: update.ignored ? undefined : (update.newerTag ?? update.remoteDigest),
       }),
     )
 
@@ -73,7 +74,8 @@ export function UpdateDialog({ target, onClose }: { target?: UpdateTarget; onClo
             {update.kind ? updateKindMeta(update.kind).label : 'Update'} for{' '}
             <span className="font-mono">{update.ref}</span> in stack{' '}
             <span className="font-medium">{stack}</span>
-            {update.source === 'wud' ? ' (reported by What’s Up Docker)' : ''}.
+            {update.source === 'wud' ? ' (reported by What’s Up Docker)' : ''}
+            {update.ignored ? ', which you chose to ignore' : ''}.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 text-sm">
@@ -111,8 +113,14 @@ export function UpdateDialog({ target, onClose }: { target?: UpdateTarget; onClo
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
           <Button variant="ghost" onClick={ignore} disabled={!!busy}>
-            {busy === 'ignore' ? <Loader2 className="animate-spin" /> : <EyeOff />} Ignore this
-            update
+            {busy === 'ignore' ? (
+              <Loader2 className="animate-spin" />
+            ) : update.ignored ? (
+              <Eye />
+            ) : (
+              <EyeOff />
+            )}
+            {update.ignored ? 'Stop ignoring' : 'Ignore this update'}
           </Button>
           {managed && (
             <div className="flex gap-2">

@@ -30,15 +30,17 @@ export function languageFor(path: string): string {
 
 const SECRET_KEY = /(pass(word)?|secret|token|key|credential|auth|private)/i
 
-/** Masks values of secret-looking keys in .env text for display. */
+/** Masks values of secret-looking keys in .env text for display. Keeps CRLF line endings. */
 export function maskEnv(text: string): string {
   return text
     .split('\n')
-    .map((line) => {
+    .map((raw) => {
+      const cr = raw.endsWith('\r') ? '\r' : ''
+      const line = cr ? raw.slice(0, -1) : raw
       const m = /^(\s*(?:export\s+)?)([A-Za-z_][A-Za-z0-9_.-]*)(\s*=\s*)(.*)$/.exec(line)
-      if (!m || !SECRET_KEY.test(m[2]!) || !m[4]) return line
+      if (!m || !SECRET_KEY.test(m[2]!) || !m[4]) return raw
       // fixed width so the mask doesn't reveal the value's length
-      return `${m[1]}${m[2]}${m[3]}••••••••`
+      return `${m[1]}${m[2]}${m[3]}••••••••${cr}`
     })
     .join('\n')
 }

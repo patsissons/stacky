@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import { formatDuration } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Xterm } from '@/features/terminal/xterm'
-import { actionLabel } from './actions'
+import { actionLabel, operationTense } from './actions'
 import { ErrorCard } from './error-card'
 import { isFinished, useOperation } from './use-operation'
 
@@ -59,7 +59,7 @@ export function OperationView({ id, className }: { id: string; className?: strin
       <div className="flex flex-wrap items-center gap-2">
         <OperationStateIcon op={op} />
         <span className="font-medium">
-          {op ? `${actionLabel(op.action, isFinished(op))} ${op.stack}` : 'Loading…'}
+          {op ? `${actionLabel(op.action, operationTense(op.state))} ${op.stack}` : 'Loading…'}
         </span>
         {op?.state === 'failed' && <span className="text-destructive text-sm">failed</span>}
         {op?.state === 'cancelled' && (
