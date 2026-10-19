@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router'
 import {
   ArrowDownToLine,
   ChevronDown,
+  CircleHelp,
   Loader2,
   Play,
   PowerOff,
@@ -36,6 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { helpStore } from '@/features/help/help-dialog'
 import { runStackAction } from '@/features/operations/actions'
 import { operationStore } from '@/features/operations/store'
 import { ApiError } from '@/lib/api'
@@ -155,6 +157,15 @@ export function StackActions({ stack }: { stack: StackSummary }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <Button
+        size="icon-sm"
+        variant="ghost"
+        onClick={helpStore.open}
+        aria-label="What these actions do"
+        title="What these actions do"
+      >
+        <CircleHelp />
+      </Button>
 
       <AlertDialog
         open={!!confirm}
