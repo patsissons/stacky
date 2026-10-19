@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/patsissons/stacky/compare/v0.4.0...v0.4.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **web:** no word suggestions in .env editor, retry-safe e2e setup ([#8](https://github.com/patsissons/stacky/issues/8)) ([bf5d8dc](https://github.com/patsissons/stacky/commit/bf5d8dc3855683cb3232fc20fe07160261e19caa))
+
 ## [0.4.0](https://github.com/patsissons/stacky/compare/v0.3.0...v0.4.0) (2026-10-19)
 
 
