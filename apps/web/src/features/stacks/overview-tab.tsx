@@ -3,6 +3,7 @@ import {
   Cpu,
   ExternalLink,
   Link2,
+  Loader2,
   MemoryStick,
   MoreHorizontal,
   Play,
@@ -11,10 +12,12 @@ import {
   ScrollText,
   Square,
   SquareTerminal,
+  Telescope,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useState } from 'react'
 import type { ImageUpdate, ServiceAction, ServiceSummary, StackSummary } from '@stacky/shared'
+import { checkImageNow } from '@/features/updates/check-image'
 import { UpdateBadge } from '@/features/updates/update-badge'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
 import { useUpdates } from '@/hooks/use-updates'
@@ -81,11 +84,7 @@ export function OverviewTab({ stack }: { stack: StackSummary }) {
             stack={stack}
             service={service}
             stats={stats}
-            update={byRef.get(
-              service.containers[0]?.image.startsWith('sha256:')
-                ? (service.image ?? '')
-                : (service.containers[0]?.image ?? service.image ?? ''),
-            )}
+            update={byRef.get(imageRef(service))}
             onUpdate={(update) =>
               setUpdateTarget({
                 update,
@@ -100,6 +99,12 @@ export function OverviewTab({ stack }: { stack: StackSummary }) {
       <UpdateDialog target={updateTarget} onClose={() => setUpdateTarget(undefined)} />
     </div>
   )
+}
+
+/** The reference the update checker knows the service by (the engine may report a bare id). */
+function imageRef(service: ServiceSummary) {
+  const running = service.containers[0]?.image
+  return running && !running.startsWith('sha256:') ? running : (service.image ?? '')
 }
 
 function ServiceCard({
@@ -208,6 +213,13 @@ function ServiceCard({
             <DropdownMenuItem disabled={!canAct} onSelect={() => act('update')}>
               <RefreshCw className="size-4" /> Pull &amp; recreate
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={!imageRef(service)}
+              onSelect={() => void checkImageNow(imageRef(service), update?.checkedAt)}
+            >
+              <Telescope className="size-4" /> Check for updates
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -240,11 +252,19 @@ function ServiceCard({
         </div>
       )}
 
-      {latest.length > 0 && (
-        <div className="text-muted-foreground mt-3 flex items-center gap-4 border-t pt-3 text-xs">
+      {/* reserved while the first sample is on its way, so the card does not jump */}
+      {up && (
+        <div
+          className="text-muted-foreground mt-3 flex items-center gap-4 border-t pt-3 text-xs"
+          data-testid="service-stats"
+        >
           <span className="flex items-center gap-1.5" title="CPU">
             <Cpu className="size-3.5" />
-            <span className="text-foreground tabular-nums">{cpu.toFixed(1)}%</span>
+            {latest.length > 0 ? (
+              <span className="text-foreground min-w-10 tabular-nums">{cpu.toFixed(1)}%</span>
+            ) : (
+              <Loader2 className="min-w-10 animate-spin" aria-label="Loading CPU" />
+            )}
             <Sparkline
               className="text-primary"
               values={samples.map((s) => s.cpuPercent)}
@@ -253,7 +273,11 @@ function ServiceCard({
           </span>
           <span className="flex items-center gap-1.5" title="Memory">
             <MemoryStick className="size-3.5" />
-            <span className="text-foreground tabular-nums">{formatBytes(mem)}</span>
+            {latest.length > 0 ? (
+              <span className="text-foreground min-w-14 tabular-nums">{formatBytes(mem)}</span>
+            ) : (
+              <Loader2 className="min-w-14 animate-spin" aria-label="Loading memory" />
+            )}
             <Sparkline
               className="text-status-info"
               values={samples.map((s) => s.memoryBytes)}
