@@ -22,4 +22,10 @@ describe('maskEnv', () => {
     expect(hasSecrets(text)).toBe(true)
     expect(hasSecrets('TZ=UTC')).toBe(false)
   })
+
+  it('masks files with CRLF line endings and keeps them', () => {
+    const text = 'TZ=UTC\r\nDB_PASSWORD=hunter2\r\nPORT=8080'
+    expect(maskEnv(text)).toBe('TZ=UTC\r\nDB_PASSWORD=••••••••\r\nPORT=8080')
+    expect(hasSecrets(text)).toBe(true)
+  })
 })

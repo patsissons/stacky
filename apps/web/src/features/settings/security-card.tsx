@@ -332,7 +332,8 @@ export function AuditCard() {
                       {new Date(e.ts).toLocaleString()}
                     </td>
                     <td className="px-3 py-1.5">{e.actor}</td>
-                    <td className="px-3 py-1.5 font-mono">
+                    {/* the card scrolls sideways on phones; keep each request on one line */}
+                    <td className="px-3 py-1.5 font-mono whitespace-nowrap">
                       {e.method} {e.path}
                     </td>
                     <td

@@ -21,6 +21,16 @@ const OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
   fixedOverflowWidgets: true,
 }
 
+/**
+ * Monaco picks the line ending for new lines from the browser's platform, so on Windows an
+ * empty .env would be saved with CRLF. Files that already use CRLF keep it; everything else
+ * is written with LF, which is what docker compose and shells expect.
+ */
+function forceUnixLineEndings(model: monaco.editor.ITextModel | null) {
+  if (!model || model.getValue().includes('\r\n')) return
+  model.setEOL(monaco.editor.EndOfLineSequence.LF)
+}
+
 export interface CodeEditorProps {
   /** Model path; compose files match the schema by name, e.g. `stack/compose.yaml`. */
   path: string
@@ -59,6 +69,8 @@ export default function CodeEditor({
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyD, () =>
       handlers.current.onDeploy?.(),
     )
+    forceUnixLineEndings(editor.getModel())
+    editor.onDidChangeModel(() => forceUnixLineEndings(editor.getModel()))
   }
 
   // Server-side (docker compose config) issues become editor markers.

@@ -57,7 +57,8 @@ export function StackPage() {
   return (
     <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        {/* grows so the path can truncate instead of pushing the actions onto a second row */}
+        <div className="min-w-0 flex-1 basis-56">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="truncate text-2xl font-semibold tracking-tight">{stack.name}</h1>
             <StackStatusBadge status={stack.status} />
@@ -68,10 +69,15 @@ export function StackPage() {
             )}
           </div>
           {stack.path && (
-            <p className="text-muted-foreground mt-1 flex items-center gap-1.5 font-mono text-xs">
-              <FolderOpen className="size-3.5" />
-              {stack.path}
-              {stack.composeFile ? `/${stack.composeFile}` : ''}
+            <p
+              className="text-muted-foreground mt-1 flex min-w-0 items-center gap-1.5 font-mono text-xs"
+              title={`${stack.path}${stack.composeFile ? `/${stack.composeFile}` : ''}`}
+            >
+              <FolderOpen className="size-3.5 shrink-0" />
+              <span className="truncate">
+                {stack.path}
+                {stack.composeFile ? `/${stack.composeFile}` : ''}
+              </span>
             </p>
           )}
         </div>

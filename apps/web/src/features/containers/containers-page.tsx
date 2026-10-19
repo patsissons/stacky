@@ -394,7 +394,7 @@ export function ContainersPage() {
             {plural(allRows.length, 'container')} across {plural(stackNames.length, 'stack')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <CheckUpdatesButton
             checking={!!updates?.checking}
             lastCheckAt={updates?.lastCheckAt}
@@ -444,7 +444,7 @@ export function ContainersPage() {
             setSearch({ status: v === 'all' ? undefined : (v as StatusFilter), page: undefined })
           }
         >
-          <SelectTrigger className="w-36" aria-label="Filter by status">
+          <SelectTrigger className="w-44" aria-label="Filter by status">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -571,7 +571,18 @@ export function ContainersPage() {
               </div>
               <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
                 <RegistryIcon registry={r.registry} className="size-3" />
-                <span className="truncate">{r.stack}</span>
+                {/* the only way from a phone card to the stack page */}
+                {r.managed ? (
+                  <Link
+                    to="/stacks/$name"
+                    params={{ name: r.stack }}
+                    className="hover:text-foreground truncate underline-offset-2 hover:underline"
+                  >
+                    {r.stack}
+                  </Link>
+                ) : (
+                  <span className="truncate">{r.stack}</span>
+                )}
                 <span>·</span>
                 <span className="font-mono">{r.tag}</span>
               </div>
@@ -600,7 +611,8 @@ export function ContainersPage() {
         )}
       </div>
 
-      {!grouped && rows.length > 0 && (
+      {/* pagination only once there is more than the smallest page */}
+      {!grouped && rows.length > PAGE_SIZES[0]! && (
         <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Rows per page</span>
@@ -678,7 +690,7 @@ function CheckUpdatesButton({
 }) {
   const check = () => checkForUpdates().catch((err: Error) => toast.error(err.message))
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {count > 0 && (
         <Button variant="secondary" size="sm" onClick={onShow}>
           <ArrowUpCircle className="text-primary" /> {count} update{count === 1 ? '' : 's'}
@@ -721,7 +733,13 @@ function CheckUpdatesButton({
         title={lastCheckAt ? `Last checked ${formatRelative(lastCheckAt)}` : 'Not checked yet'}
       >
         <RefreshCw className={cn(checking && 'animate-spin')} />
-        {checking ? 'Checking…' : 'Check for updates'}
+        {checking ? (
+          'Checking…'
+        ) : (
+          <>
+            Check<span className="hidden sm:inline"> for updates</span>
+          </>
+        )}
       </Button>
     </div>
   )

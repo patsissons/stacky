@@ -39,7 +39,7 @@ The tabs:
 | Tab      | What it does                                                                                          |
 | -------- | ----------------------------------------------------------------------------------------------------- |
 | Overview | Service cards with state, image, ports, live CPU and memory, and per-service actions                  |
-| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory                                 |
+| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory (create and delete files too)   |
 | Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download     |
 | Shell    | An interactive shell in any running container (bash if available, otherwise sh)                       |
 | History  | Every deployed version of the files (compare or restore one) and every operation with its full output |

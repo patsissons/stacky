@@ -69,22 +69,41 @@ export async function bumpServiceImage(
   return op
 }
 
-export const ACTION_LABELS: Record<string, { running: string; done: string }> = {
-  deploy: { running: 'Deploying', done: 'Deployed' },
-  start: { running: 'Starting', done: 'Started' },
-  stop: { running: 'Stopping', done: 'Stopped' },
-  restart: { running: 'Restarting', done: 'Restarted' },
-  down: { running: 'Taking down', done: 'Took down' },
-  pull: { running: 'Pulling', done: 'Pulled' },
-  update: { running: 'Updating', done: 'Updated' },
-  delete: { running: 'Deleting', done: 'Deleted' },
-  'pull-updates': { running: 'Pulling updates', done: 'Pulled updates' },
-  'deploy-updates': { running: 'Deploying updates', done: 'Deployed updates' },
+export const ACTION_LABELS: Record<string, { verb: string; running: string; done: string }> = {
+  deploy: { verb: 'Deploy', running: 'Deploying', done: 'Deployed' },
+  start: { verb: 'Start', running: 'Starting', done: 'Started' },
+  stop: { verb: 'Stop', running: 'Stopping', done: 'Stopped' },
+  restart: { verb: 'Restart', running: 'Restarting', done: 'Restarted' },
+  down: { verb: 'Take down', running: 'Taking down', done: 'Took down' },
+  pull: { verb: 'Pull', running: 'Pulling', done: 'Pulled' },
+  update: { verb: 'Update', running: 'Updating', done: 'Updated' },
+  delete: { verb: 'Delete', running: 'Deleting', done: 'Deleted' },
+  'pull-updates': { verb: 'Pull updates', running: 'Pulling updates', done: 'Pulled updates' },
+  'deploy-updates': {
+    verb: 'Deploy updates',
+    running: 'Deploying updates',
+    done: 'Deployed updates',
+  },
 }
 
-export function actionLabel(action: string, done: boolean) {
+export type ActionTense = 'verb' | 'running' | 'done'
+
+/**
+ * Label for an operation: `done` once it succeeded, `running` while it runs and the bare
+ * `verb` when it failed or was cancelled ("Deploy demo failed", not "Deployed demo failed").
+ * `true`/`false` are kept as shorthands for done/running.
+ */
+export function actionLabel(action: string, tense: ActionTense | boolean) {
   const [verb, ...rest] = action.split(' ')
   const labels = ACTION_LABELS[verb ?? '']
-  const word = labels ? (done ? labels.done : labels.running) : verb
+  const key = tense === true ? 'done' : tense === false ? 'running' : tense
+  const word = labels ? labels[key] : verb
   return [word, ...rest].join(' ')
+}
+
+/** The tense that matches an operation's state. */
+export function operationTense(state: OperationSummary['state']): ActionTense {
+  if (state === 'succeeded') return 'done'
+  if (state === 'queued' || state === 'running') return 'running'
+  return 'verb'
 }

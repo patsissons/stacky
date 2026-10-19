@@ -13,7 +13,7 @@ import {
   Square,
   Trash2,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { ActionOptions, StackAction, StackSummary } from '@stacky/shared'
 import {
@@ -72,6 +72,7 @@ export function StackActions({ stack }: { stack: StackSummary }) {
   const [confirm, setConfirm] = useState<'down' | 'delete'>()
   const [removeVolumes, setRemoveVolumes] = useState(false)
   const [typed, setTyped] = useState('')
+  const confirmInput = useRef<HTMLInputElement>(null)
   const busy = !!stack.activeOperationId || !!pending
   const up = stack.status !== 'inactive' && stack.status !== 'stopped' && stack.status !== 'error'
   const { byRef } = useUpdates()
@@ -82,6 +83,12 @@ export function StackActions({ stack }: { stack: StackSummary }) {
 
   const spinner = (action: string) =>
     pending === action ? <Loader2 className="animate-spin" /> : undefined
+  const confirmReady = confirm === 'down' || typed === stack.name
+  const runConfirmed = async () => {
+    const action = confirm!
+    const op = await run(action, { removeVolumes })
+    if (op && action === 'delete') void navigate({ to: '/' })
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -216,7 +223,14 @@ export function StackActions({ stack }: { stack: StackSummary }) {
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent
+          // Radix focuses the Cancel button; typing the name is the next step, so focus that
+          onOpenAutoFocus={(e) => {
+            if (confirm !== 'delete') return
+            e.preventDefault()
+            confirmInput.current?.focus()
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirm === 'delete' ? `Delete ${stack.name}?` : `Take ${stack.name} down?`}
@@ -247,7 +261,15 @@ export function StackActions({ stack }: { stack: StackSummary }) {
                   id="confirm-name"
                   value={typed}
                   onChange={(e) => setTyped(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && confirmReady) {
+                      e.preventDefault()
+                      setConfirm(undefined)
+                      void runConfirmed()
+                    }
+                  }}
                   autoComplete="off"
+                  ref={confirmInput}
                 />
               </div>
             )}
@@ -256,12 +278,8 @@ export function StackActions({ stack }: { stack: StackSummary }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90 text-white"
-              disabled={confirm === 'delete' && typed !== stack.name}
-              onClick={async () => {
-                const action = confirm!
-                const op = await run(action, { removeVolumes })
-                if (op && action === 'delete') void navigate({ to: '/' })
-              }}
+              disabled={!confirmReady}
+              onClick={() => void runConfirmed()}
             >
               {confirm === 'delete' ? 'Delete stack' : 'Take down'}
             </AlertDialogAction>

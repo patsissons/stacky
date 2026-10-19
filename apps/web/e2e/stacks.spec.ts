@@ -205,14 +205,60 @@ test('restores an earlier deployed version', async () => {
   await expect(page.getByTestId('log-lines')).toContainText('hello-from-e2e', { timeout: 20_000 })
 })
 
+test('keeps the .env editor open while a secret is typed', async () => {
+  await page.goto('/stacks/e2e-app?tab=editor')
+  await page.getByRole('tab', { name: '.env' }).click()
+  const editor = page.locator('.monaco-editor').first()
+  await editor.locator('.view-lines').click()
+  await expect(editor.locator('textarea')).toBeFocused()
+  // the editor used to be swapped for the masked preview as soon as a secret appeared,
+  // silently dropping every keystroke after it
+  await page.keyboard.type('DB_PASSWORD=hunter2\nPORT=8080', { delay: 10 })
+  await expect(editor).toContainText('PORT=8080')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+  const res = await page.request.get('/api/stacks/e2e-app')
+  // LF even though this browser profile reports Windows, where Monaco would default to CRLF
+  expect((await res.json()).files.env).toBe('DB_PASSWORD=hunter2\nPORT=8080')
+
+  await page.getByRole('button', { name: 'Mask' }).click()
+  await expect(page.getByLabel('.env (masked)')).toContainText('DB_PASSWORD=••••••••')
+  await expect(editor).toBeHidden()
+})
+
+test('creates, saves and deletes an extra file', async () => {
+  await page.goto('/stacks/e2e-app?tab=editor')
+  await page.getByRole('button', { name: 'New file' }).click()
+  await page.getByPlaceholder('config/app.conf').fill('config/app.conf')
+  await page.keyboard.press('Enter')
+  const editor = page.locator('.monaco-editor').first()
+  await editor.locator('.view-lines').click()
+  await expect(editor.locator('textarea')).toBeFocused()
+  await page.keyboard.type('[app]', { delay: 10 })
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByText('Saved config/app.conf')).toBeVisible()
+  // the tree picks the new file (and its directory) up without a reload
+  const files = page.getByRole('complementary', { name: 'Files' })
+  await expect(files.getByText('config', { exact: true })).toBeVisible()
+  const file = files.getByRole('button', { name: /app\.conf/ }).first()
+  await expect(file).toBeVisible()
+  await file.hover()
+  await files.getByRole('button', { name: 'Delete config/app.conf' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete file' }).click()
+  await expect(page.getByText('Deleted config/app.conf')).toBeVisible()
+  await expect(files.getByRole('button', { name: /app\.conf/ })).toHaveCount(0)
+})
+
 test('deletes the stack after typed confirmation', async () => {
   await page.goto('/stacks/e2e-app')
   await page.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Delete stack' }).click()
   const confirm = page.getByRole('alertdialog')
   await expect(confirm.getByRole('button', { name: 'Delete stack' })).toBeDisabled()
-  await confirm.getByLabel(/Type/).fill('e2e-app')
-  await confirm.getByRole('button', { name: 'Delete stack' }).click()
+  // the name field is focused, and Enter confirms once the name matches
+  await expect(confirm.getByLabel(/Type/)).toBeFocused()
+  await page.keyboard.type('e2e-app')
+  await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByText('Deleted e2e-app').last()).toBeVisible({ timeout: 60_000 })
   await expect(page.getByRole('link', { name: /e2e-app/ })).toHaveCount(0)

@@ -10,12 +10,23 @@ import {
   Loader2,
   Rocket,
   Save,
+  Trash2,
   Undo2,
   X,
 } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { StackFiles, StackSummary, ValidationIssue, ValidationResult } from '@stacky/shared'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -82,6 +93,7 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
   const [diffOpen, setDiffOpen] = useState(false)
   const [deploying, setDeploying] = useState(false)
   const [newFile, setNewFile] = useState<string>()
+  const [deleting, setDeleting] = useState<string>()
 
   // Adopt server contents when we have no unsaved edits; otherwise flag the conflict.
   const dirtyCompose = base !== undefined && compose !== base.compose
@@ -126,6 +138,8 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
         setExtra((list) =>
           list.map((f) => (f.path === file.path ? { ...f, original: f.draft } : f)),
         )
+        // a new file (and any new directory) shows up in the tree
+        void qc.invalidateQueries({ queryKey: ['stack-tree', name] })
         toast.success(`Saved ${file.path}`)
       } catch (err) {
         toast.error(err instanceof Error ? err.message : String(err))
@@ -223,6 +237,18 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
     setNewFile(undefined)
   }
 
+  const deleteFile = async (path: string) => {
+    try {
+      await api.delete(`/api/stacks/${name}/file?path=${encodeURIComponent(path)}`)
+      setExtra((list) => list.filter((x) => x.path !== path))
+      if (active === path) setActive('compose')
+      void qc.invalidateQueries({ queryKey: ['stack-tree', name] })
+      toast.success(`Deleted ${path}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   const closeFile = (path: string) => {
     const f = extra.find((x) => x.path === path)
     if (f && f.draft !== f.original && !window.confirm(`Discard unsaved changes to ${path}?`))
@@ -263,6 +289,12 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
 
   const extraFile = extra.find((f) => f.path === active)
   const showMasked = active === ENV && masked && hasSecrets(env)
+  // Typing a secret into an unmasked .env must not swap the editor for the masked preview
+  // mid-keystroke; the user just wrote the value, so keep it revealed until they mask it.
+  const editEnv = (value: string) => {
+    setEnv(value)
+    if (masked && hasSecrets(value)) setMasked(false)
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -343,7 +375,10 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
       </div>
 
       <div className="flex min-h-0 flex-1 gap-3">
-        <aside className="bg-card hidden w-52 shrink-0 flex-col overflow-hidden rounded-lg border lg:flex">
+        <aside
+          className="bg-card hidden w-52 shrink-0 flex-col overflow-hidden rounded-lg border lg:flex"
+          aria-label="Files"
+        >
           <div className="text-muted-foreground flex items-center justify-between border-b px-3 py-2 text-xs font-semibold tracking-wider uppercase">
             Files
             <button type="button" aria-label="New file" onClick={() => setNewFile('')}>
@@ -391,19 +426,56 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
                   {f.path.split('/').pop()}
                 </div>
               ) : (
-                <FileButton
-                  key={f.path}
-                  label={f.path.split('/').pop()!}
-                  title={f.path}
-                  indent={depth(f.path)}
-                  active={active === f.path}
-                  disabled={!f.editable}
-                  onClick={() => void openFile(f.path)}
-                />
+                <div key={f.path} className="group flex items-center">
+                  <FileButton
+                    label={f.path.split('/').pop()!}
+                    title={f.path}
+                    indent={depth(f.path)}
+                    active={active === f.path}
+                    disabled={!f.editable}
+                    onClick={() => void openFile(f.path)}
+                    className="min-w-0 flex-1"
+                  />
+                  {f.editable && (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${f.path}`}
+                      title="Delete file"
+                      onClick={() => setDeleting(f.path)}
+                      className="text-muted-foreground hover:text-destructive mr-1 rounded p-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  )}
+                </div>
               ),
             )}
           </div>
         </aside>
+
+        <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(undefined)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {deleting}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                The file is removed from the stack directory. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90 text-white"
+                onClick={() => {
+                  const path = deleting!
+                  setDeleting(undefined)
+                  void deleteFile(path)
+                }}
+              >
+                Delete file
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <div className="bg-card relative min-h-[420px] min-w-0 flex-1 overflow-hidden rounded-lg border">
           <Suspense
@@ -433,7 +505,7 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
                   path={`${name}/.env`}
                   language="ini"
                   value={env}
-                  onChange={setEnv}
+                  onChange={editEnv}
                   onSave={() => void save()}
                   onDeploy={requestDeploy}
                 />
@@ -518,6 +590,7 @@ function FileButton({
   indent = 0,
   disabled,
   muted,
+  className,
 }: {
   label: string
   title?: string
@@ -526,6 +599,7 @@ function FileButton({
   indent?: number
   disabled?: boolean
   muted?: boolean
+  className?: string
 }) {
   return (
     <button
@@ -538,6 +612,7 @@ function FileButton({
         active ? 'bg-accent text-accent-foreground font-medium' : 'hover:bg-muted',
         (disabled || muted) && 'text-muted-foreground',
         disabled && 'cursor-not-allowed opacity-60',
+        className,
       )}
       style={{ paddingLeft: 8 + indent * 12 }}
     >
