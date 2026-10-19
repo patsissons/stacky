@@ -13,6 +13,8 @@ Stacky can manage the stack it runs in. Open that stack (marked **SELF** in the 
 | **Redeploy** | Applies your edits to stacky's compose file, e.g. a new environment variable or port |
 | **Restart**  | Recreates stacky's container with the same configuration                             |
 
+**Update** is disabled while there's nothing to update to: no newer release, and no new image behind your tag found by the [image update check](/guides/image-updates/). Use **Check for updates** on the containers page to look again.
+
 **Stop**, **Down** and **Delete** aren't offered for stacky's own stack, because they would leave you without the UI. Do those on the host with `docker compose`.
 
 ## How it works
