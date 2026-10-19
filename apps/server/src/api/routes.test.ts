@@ -176,6 +176,15 @@ describe('stacks', () => {
     expect(await json(res)).toMatchObject({ error: { code: 'not_found' } })
     expect((await req('GET', '/api/nope', { cookie })).status).toBe(404)
   })
+
+  it('accepts the update actions and explains when there is nothing to update', async () => {
+    await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
+    for (const action of ['pull-updates', 'deploy-updates']) {
+      const res = await req('POST', `/api/stacks/app/actions/${action}`, { cookie })
+      expect(res.status).toBe(409)
+      expect(await json(res)).toMatchObject({ error: { code: 'no_updates' } })
+    }
+  })
 })
 
 describe('API tokens and audit log', () => {

@@ -61,8 +61,18 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       },
       {
         name: 'Update',
-        what: 'Pulls new images. If the stack is running, recreates the containers whose image changed and removes dangling images. A stopped stack stays stopped.',
+        what: 'Pulls the tags already in the compose file again, which only helps for tags like latest. If the stack is running, recreates the containers whose image changed and removes dangling images. A stopped stack stays stopped.',
         command: 'docker compose pull → up -d → docker image prune',
+      },
+      {
+        name: 'Update → Pull updates',
+        what: 'Downloads the newer versions found by Check for updates, ahead of time. The compose file and the running containers are left alone.',
+        command: 'docker pull <image>:<new tag> · docker compose pull <rebuilt services>',
+      },
+      {
+        name: 'Update → Pull updates & deploy',
+        what: 'Writes the newer version tags into the compose file (only the image: lines), then pulls and recreates the services that have an update. Works for pinned versions like nginx:1.27.3.',
+        command: 'docker compose pull <services> → up -d <services> → docker image prune',
       },
       {
         name: 'Restart',
@@ -76,7 +86,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       },
       {
         name: 'More → Pull images only',
-        what: 'Downloads newer images without touching the running containers. They switch over on the next deploy.',
+        what: 'Pulls the tags already in the compose file again, without touching the running containers. They switch over on the next deploy. For pinned versions use Update → Pull updates.',
         command: 'docker compose pull',
       },
       {
@@ -113,7 +123,11 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       },
       {
         name: 'Update all',
-        what: 'Applies every available update above, one service at a time, after you confirm the list.',
+        what: 'Applies every available update above after you confirm the list: one Pull updates & deploy per stack.',
+      },
+      {
+        name: 'Update all → Pull all updates',
+        what: 'Downloads every available update without applying it: one Pull updates per stack.',
       },
       {
         name: 'Ignore this update',

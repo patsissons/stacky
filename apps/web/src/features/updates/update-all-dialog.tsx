@@ -1,4 +1,4 @@
-import { ArrowRight, Loader2, RefreshCw } from 'lucide-react'
+import { ArrowDownToLine, ArrowRight, Loader2, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -10,57 +10,76 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { UpdatePlan } from '@/features/containers/rows'
-import { bumpServiceImage, runServiceAction } from '@/features/operations/actions'
+import { groupByStack, type UpdatePlan } from '@/features/containers/rows'
+import { runStackAction } from '@/features/operations/actions'
 
-/** Confirms and applies every available update, one service at a time. */
+/** `deploy` applies the updates; `pull` only downloads the newer images. */
+export type UpdateAllMode = 'pull' | 'deploy'
+
+const COPY: Record<UpdateAllMode, { title: string; description: string; verb: string }> = {
+  deploy: {
+    title: 'Update all containers',
+    description:
+      "New version tags are written to each stack's compose file. Images with a new build behind the same tag are pulled again. Changed containers are then recreated.",
+    verb: 'Update',
+  },
+  pull: {
+    title: 'Pull all updates',
+    description:
+      'Downloads the newer images ahead of time. Compose files and running containers are left as they are, so nothing changes until you update.',
+    verb: 'Pull',
+  },
+}
+
+/** Confirms and applies (or prefetches) every available update, one operation per stack. */
 export function UpdateAllDialog({
   plan,
-  open,
+  mode,
   onClose,
 }: {
   plan: UpdatePlan
-  open: boolean
+  mode: UpdateAllMode | undefined
   onClose: () => void
 }) {
   const [busy, setBusy] = useState(false)
   const count = plan.steps.length
+  const copy = COPY[mode ?? 'deploy']
 
   const apply = async () => {
     setBusy(true)
-    const failed: string[] = []
-    // Sequential on purpose: a tag bump rewrites the stack's compose file, so two at once
-    // would race. The server queues the resulting operations per stack.
-    for (const step of plan.steps) {
+    let started = 0
+    for (const { stack, services } of groupByStack(plan.steps)) {
       try {
-        if (step.kind === 'bump') await bumpServiceImage(step.stack, step.service, step.newerTag!)
-        else await runServiceAction(step.stack, step.service, 'update')
-      } catch (err) {
-        failed.push(step.service)
-        toast.error(
-          `${step.stack} / ${step.service}: ${err instanceof Error ? err.message : String(err)}`,
+        await runStackAction(
+          stack,
+          mode === 'pull' ? 'pull-updates' : 'deploy-updates',
+          { services, prune: mode === 'deploy' },
+          undefined,
+          { openDrawer: false },
         )
+        started++
+      } catch (err) {
+        toast.error(`${stack}: ${err instanceof Error ? err.message : String(err)}`)
       }
     }
     setBusy(false)
     onClose()
-    const started = count - failed.length
     if (started > 0) {
-      toast.message(`Updating ${started} service${started === 1 ? '' : 's'}`, {
-        description: 'Each one reports back when it finishes.',
-      })
+      toast.message(
+        `${mode === 'pull' ? 'Pulling' : 'Updating'} ${started} stack${started === 1 ? '' : 's'}`,
+        {
+          description: 'Each one reports back when it finishes.',
+        },
+      )
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
+    <Dialog open={!!mode} onOpenChange={(o) => !o && !busy && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Update all containers</DialogTitle>
-          <DialogDescription>
-            New version tags are written to each stack&apos;s compose file. Images with a new build
-            behind the same tag are pulled again. Changed containers are then recreated.
-          </DialogDescription>
+          <DialogTitle>{copy.title}</DialogTitle>
+          <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
         <ul className="max-h-72 space-y-1.5 overflow-y-auto text-sm" aria-label="Updates to apply">
           {plan.steps.map((s) => (
@@ -100,8 +119,14 @@ export function UpdateAllDialog({
             Cancel
           </Button>
           <Button onClick={() => void apply()} disabled={busy || count === 0}>
-            {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />} Update {count} service
-            {count === 1 ? '' : 's'}
+            {busy ? (
+              <Loader2 className="animate-spin" />
+            ) : mode === 'pull' ? (
+              <ArrowDownToLine />
+            ) : (
+              <RefreshCw />
+            )}{' '}
+            {copy.verb} {count} service{count === 1 ? '' : 's'}
           </Button>
         </DialogFooter>
       </DialogContent>

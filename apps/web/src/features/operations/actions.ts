@@ -78,6 +78,8 @@ export const ACTION_LABELS: Record<string, { running: string; done: string }> = 
   pull: { running: 'Pulling', done: 'Pulled' },
   update: { running: 'Updating', done: 'Updated' },
   delete: { running: 'Deleting', done: 'Deleted' },
+  'pull-updates': { running: 'Pulling updates', done: 'Pulled updates' },
+  'deploy-updates': { running: 'Deploying updates', done: 'Deployed updates' },
 }
 
 export function actionLabel(action: string, done: boolean) {

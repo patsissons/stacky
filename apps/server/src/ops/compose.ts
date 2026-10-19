@@ -1,5 +1,6 @@
 import path from 'node:path'
 import type { ActionOptions, ServiceAction, StackAction } from '@stacky/shared'
+import { planServices, type StackUpdatePlan } from '../stacks/update-plan'
 
 export interface ComposeTarget {
   /** Absolute stack directory (the compose project directory). */
@@ -62,7 +63,7 @@ function upArgs(options: ActionOptions): string[] {
 /** The docker commands each stack action runs. */
 export function planStackAction(
   target: ComposeTarget,
-  action: Exclude<StackAction, 'delete'>,
+  action: Exclude<StackAction, 'delete' | 'pull-updates' | 'deploy-updates'>,
   options: ActionOptions,
   ctx: PlanContext,
 ): Step[] {
@@ -94,6 +95,47 @@ export function planStackAction(
       return steps
     }
   }
+}
+
+/**
+ * Applies the update checker's results. `pull` only prefetches the newer images (compose.yaml
+ * and the containers stay as they are); `deploy` runs after the new tags were written to
+ * compose.yaml, and pulls and recreates the affected services.
+ */
+export function planUpdateAction(
+  target: ComposeTarget,
+  mode: 'pull' | 'deploy',
+  plan: StackUpdatePlan,
+  options: ActionOptions,
+): Step[] {
+  const base = composeArgs(target)
+  const docker = (...args: string[]): Step => ({ kind: 'docker', args: [...base, ...args] })
+  const lines = [
+    ...plan.bumps.filter((b) => b.from !== b.to).map((b) => `${b.service}: ${b.from} → ${b.to}`),
+    ...plan.skipped.map((s) => `${s.service}: skipped (${s.reason})`),
+  ]
+  const steps: Step[] = []
+  if (lines.length) {
+    steps.push({
+      kind: 'task',
+      label: mode === 'pull' ? 'newer images' : 'set image tags',
+      run: async (ctx) => lines.forEach((line) => ctx.write(line)),
+    })
+  }
+
+  if (mode === 'pull') {
+    // pulled by reference: compose would pull the tags it already has
+    for (const ref of new Set(plan.bumps.map((b) => b.to))) {
+      steps.push({ kind: 'docker', args: ['pull', ref] })
+    }
+    if (plan.rebuilt.length) steps.push(docker('pull', ...plan.rebuilt))
+    return steps
+  }
+
+  const svc = planServices(plan)
+  steps.push(docker('config', '--quiet'), docker('pull', ...svc), docker(...upArgs({}), ...svc))
+  if (options.prune) steps.push({ kind: 'docker', args: ['image', 'prune', '--force'] })
+  return steps
 }
 
 /** The docker commands each per-service action runs. */

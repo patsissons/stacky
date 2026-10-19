@@ -109,11 +109,24 @@ test('streams logs for the stack', async () => {
   await expect(page.getByText('No matching lines.')).toBeVisible()
 })
 
+test('offers the newer-version updates, disabled while there are none', async () => {
+  await page.goto('/stacks/e2e-app')
+  await page.getByRole('button', { name: 'Update options' }).click()
+  const menu = page.getByRole('menu')
+  await expect(menu.getByText('(0 updates)')).toBeVisible()
+  await expect(menu.getByRole('menuitem', { name: 'Pull updates', exact: true })).toBeDisabled()
+  await expect(menu.getByRole('menuitem', { name: 'Pull updates & deploy' })).toBeDisabled()
+  await page.keyboard.press('Escape')
+})
+
 test('explains every operation in the help modal', async () => {
   await page.goto('/stacks/e2e-app')
   await page.getByRole('button', { name: 'What these actions do' }).click()
   const dialog = page.getByRole('dialog', { name: 'What the operations do' })
   await expect(dialog.getByText('More → Down')).toBeVisible()
+  await expect(dialog.getByText('Update → Pull updates', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('Update → Pull updates & deploy')).toBeVisible()
+  await expect(dialog.getByText('Update all → Pull all updates')).toBeVisible()
   await expect(dialog.getByRole('link', { name: 'Full documentation' })).toHaveAttribute(
     'href',
     'https://stacky.lgtm.page',

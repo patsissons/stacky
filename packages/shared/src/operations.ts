@@ -9,6 +9,10 @@ export const stackActions = [
   'pull',
   'update',
   'delete',
+  /** Prefetches the newer images the update checker found; compose.yaml is untouched. */
+  'pull-updates',
+  /** Writes the newer tags to compose.yaml, then pulls and recreates those services. */
+  'deploy-updates',
 ] as const
 export type StackAction = (typeof stackActions)[number]
 

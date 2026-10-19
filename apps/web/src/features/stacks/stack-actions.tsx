@@ -1,6 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import {
   ArrowDownToLine,
+  ArrowUpCircle,
   ChevronDown,
   CircleHelp,
   Loader2,
@@ -12,7 +13,7 @@ import {
   Square,
   Trash2,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { ActionOptions, StackAction, StackSummary } from '@stacky/shared'
 import {
@@ -37,9 +38,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { buildRows, planUpdates } from '@/features/containers/rows'
 import { helpStore } from '@/features/help/help-dialog'
 import { runStackAction } from '@/features/operations/actions'
 import { operationStore } from '@/features/operations/store'
+import { useUpdates } from '@/hooks/use-updates'
 import { ApiError } from '@/lib/api'
 
 function report(err: unknown) {
@@ -71,6 +74,11 @@ export function StackActions({ stack }: { stack: StackSummary }) {
   const [typed, setTyped] = useState('')
   const busy = !!stack.activeOperationId || !!pending
   const up = stack.status !== 'inactive' && stack.status !== 'stopped' && stack.status !== 'error'
+  const { byRef } = useUpdates()
+  const updates = useMemo(() => planUpdates(buildRows([stack]), byRef).steps.length, [stack, byRef])
+  const updating =
+    pending === 'update' || pending === 'pull-updates' || pending === 'deploy-updates'
+  const updatesLabel = `${updates} update${updates === 1 ? '' : 's'}`
 
   const spinner = (action: string) =>
     pending === action ? <Loader2 className="animate-spin" /> : undefined
@@ -116,14 +124,45 @@ export function StackActions({ stack }: { stack: StackSummary }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={busy}
-        onClick={() => run('update', { prune: true })}
-      >
-        {spinner('update') ?? <RefreshCw />} Update
-      </Button>
+      <div className="flex">
+        <Button
+          size="sm"
+          variant="outline"
+          className="rounded-r-none"
+          disabled={busy}
+          onClick={() => run('update', { prune: true })}
+        >
+          {updating ? <Loader2 className="animate-spin" /> : <RefreshCw />} Update
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-l-none border-l-0 px-2"
+              disabled={busy}
+              aria-label="Update options"
+            >
+              <ChevronDown />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              Newer versions{' '}
+              <span className="text-muted-foreground font-normal">({updatesLabel})</span>
+            </DropdownMenuLabel>
+            <DropdownMenuItem disabled={updates === 0} onSelect={() => run('pull-updates')}>
+              <ArrowDownToLine className="size-4" /> Pull updates
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={updates === 0}
+              onSelect={() => run('deploy-updates', { prune: true })}
+            >
+              <ArrowUpCircle className="size-4" /> Pull updates &amp; deploy
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       {up ? (
         <>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => run('restart')}>

@@ -11,9 +11,11 @@ import {
 } from '@tanstack/react-table'
 import {
   ArrowDown,
+  ArrowDownToLine,
   ArrowUp,
   ArrowUpCircle,
   RefreshCw,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -32,7 +34,7 @@ import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { ImageUpdate, StackSummary } from '@stacky/shared'
 import { UpdateBadge } from '@/features/updates/update-badge'
-import { UpdateAllDialog } from '@/features/updates/update-all-dialog'
+import { UpdateAllDialog, type UpdateAllMode } from '@/features/updates/update-all-dialog'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
 import { checkForUpdates, isActionable, useUpdates } from '@/hooks/use-updates'
 import { formatRelative } from '@/lib/format'
@@ -323,7 +325,7 @@ export function ContainersPage() {
   const allRows = useMemo(() => buildRows(stacks ?? []), [stacks])
   const updateCount = allRows.filter((r) => isActionable(byRef.get(r.image))).length
   const updatePlan = useMemo(() => planUpdates(allRows, byRef), [allRows, byRef])
-  const [updateAllOpen, setUpdateAllOpen] = useState(false)
+  const [updateAllMode, setUpdateAllMode] = useState<UpdateAllMode>()
   const status = search.status ?? 'all'
   const q = (search.q ?? '').trim().toLowerCase()
   const rows = useMemo(
@@ -399,7 +401,7 @@ export function ContainersPage() {
             count={updateCount}
             onShow={() => setSearch({ status: 'updates', page: undefined })}
             canUpdateAll={updatePlan.steps.length > 0}
-            onUpdateAll={() => setUpdateAllOpen(true)}
+            onUpdateAll={setUpdateAllMode}
           />
           <Button size="sm" asChild>
             <Link to="/new">New stack</Link>
@@ -554,8 +556,8 @@ export function ContainersPage() {
       <UpdateDialog target={updateTarget} onClose={() => setUpdateTarget(undefined)} />
       <UpdateAllDialog
         plan={updatePlan}
-        open={updateAllOpen}
-        onClose={() => setUpdateAllOpen(false)}
+        mode={updateAllMode}
+        onClose={() => setUpdateAllMode(undefined)}
       />
 
       {/* mobile cards */}
@@ -672,7 +674,7 @@ function CheckUpdatesButton({
   count: number
   onShow: () => void
   canUpdateAll: boolean
-  onUpdateAll: () => void
+  onUpdateAll: (mode: UpdateAllMode) => void
 }) {
   const check = () => checkForUpdates().catch((err: Error) => toast.error(err.message))
   return (
@@ -683,9 +685,33 @@ function CheckUpdatesButton({
         </Button>
       )}
       {canUpdateAll && (
-        <Button variant="outline" size="sm" onClick={onUpdateAll}>
-          <ArrowUpCircle /> Update all
-        </Button>
+        <div className="flex">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-r-none"
+            onClick={() => onUpdateAll('deploy')}
+          >
+            <ArrowUpCircle /> Update all
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-l-none border-l-0 px-2"
+                aria-label="Update all options"
+              >
+                <ChevronDown />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => onUpdateAll('pull')}>
+                <ArrowDownToLine className="size-4" /> Pull all updates
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       )}
       <Button
         variant="outline"

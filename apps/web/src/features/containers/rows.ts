@@ -106,3 +106,14 @@ export function planUpdates(rows: ContainerRow[], byRef: Map<string, ImageUpdate
   }
   return plan
 }
+
+/** The plan's services per stack, in plan order: each stack runs as one operation. */
+export function groupByStack(steps: UpdateStep[]): { stack: string; services: string[] }[] {
+  const groups = new Map<string, string[]>()
+  for (const step of steps) {
+    const services = groups.get(step.stack) ?? []
+    services.push(step.service)
+    groups.set(step.stack, services)
+  }
+  return [...groups].map(([stack, services]) => ({ stack, services }))
+}
