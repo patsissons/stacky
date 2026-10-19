@@ -19,14 +19,14 @@ The home page lists every container from every compose project on the host, much
 
 Icons come from the [selfh.st icon set](https://selfh.st/icons/), matched by image name. Stacky downloads each icon once and serves it from its own cache. To pick a different icon, add a `dev.stacky.icon: jellyfin` label (WUD's `wud.display.icon: selfhst:jellyfin` works too).
 
-Search, the stack and status filters, sorting, **Group by stack** and pagination are all stored in the URL, so you can bookmark a view. On a phone the table turns into cards, grouped under a stack heading when **Group by stack** is on.
+Containers are grouped under a heading per stack by default; turn **Group by stack** off for one flat, paginated list. Search, the stack and status filters, sorting, grouping and pagination are all stored in the URL, so you can bookmark a view. On a phone the table turns into cards, grouped the same way.
 
 ## Stack pages
 
 Each stack page has an action bar:
 
 - **Deploy:** `docker compose up -d`. The arrow menu adds options: pull images first, rebuild Dockerfile-based services (`--build`), or recreate every container. While the editor has unsaved changes, every one of these opens the review diff first, so you never deploy an older file by accident.
-- **Update:** applies the newer versions found by the update check, after a confirmation that lists them; the number on the button is how many there are (see [Image updates](/guides/image-updates/#applying-updates-to-a-whole-stack)). When none are known it pulls the tags in the compose file again and, if the stack is running, recreates changed containers and removes dangling images. The arrow menu has **Pull updates only** (download the newer images, change nothing) and **Re-pull current tags** (the plain pull, even when newer versions are waiting).
+- **Update:** applies the newer versions found by the update check, after a confirmation that lists them; the number on the button is how many there are (see [Image updates](/guides/image-updates/#applying-updates-to-a-whole-stack)). The button is disabled while none are known. The arrow menu stays available and has **Pull updates only** (download the newer images, change nothing) and **Re-pull current tags**. Re-pull pulls the tags in the compose file again and, if the stack is running, recreates changed containers and removes dangling images, even when newer versions are waiting.
 - **Restart**, **Stop** / **Start**
 - **More:** pull only, **Down** (remove containers, optionally named volumes), and **Delete** (removes the stack directory; you type the name to confirm)
 

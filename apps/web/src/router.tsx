@@ -80,7 +80,8 @@ const containersRoute = createRoute({
     status: ['running', 'problems', 'stopped', 'updates'].includes(s.status as string)
       ? (s.status as ContainersSearch['status'])
       : undefined,
-    group: s.group === true || s.group === 'true' ? true : undefined,
+    // grouped by default: only an explicit group=false turns it off
+    group: s.group === false || s.group === 'false' ? false : undefined,
     size: num(s.size),
     page: num(s.page),
     sort: str(s.sort),

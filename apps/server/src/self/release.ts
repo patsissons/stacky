@@ -1,3 +1,4 @@
+import { APP_REPO } from '@stacky/shared'
 import { compareVersions } from './image-ref'
 
 export interface ReleaseInfo {
@@ -6,7 +7,7 @@ export interface ReleaseInfo {
   publishedAt?: string
 }
 
-const REPO = 'patsissons/stacky'
+const REPO = APP_REPO
 const CACHE_MS = 6 * 60 * 60 * 1000
 
 /** Latest published stacky release from GitHub, cached for six hours. */

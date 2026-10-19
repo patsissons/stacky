@@ -61,7 +61,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       },
       {
         name: 'Update',
-        what: 'Applies the newer versions found by Check for updates, after you confirm the list: newer tags are written into the compose file (only the image: lines), then those services are pulled and recreated and dangling images are removed. When no update is known, it pulls the tags already in the compose file again (which only moves tags like latest) and recreates the containers whose image changed. A stopped stack stays stopped.',
+        what: 'Applies the newer versions found by Check for updates, after you confirm the list: newer tags are written into the compose file (only the image: lines), then those services are pulled and recreated and dangling images are removed. A stopped stack stays stopped. The button is disabled while no update is known; its menu still has Re-pull current tags, which pulls the tags already in the compose file again.',
         command: 'docker compose pull → up -d → docker image prune',
       },
       {

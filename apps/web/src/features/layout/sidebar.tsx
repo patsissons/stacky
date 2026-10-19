@@ -4,6 +4,7 @@ import { isActionable, useUpdates } from '@/hooks/use-updates'
 import { useMemo, useState } from 'react'
 import type { StackSummary } from '@stacky/shared'
 import { Logo } from '@/components/logo'
+import { VersionLink } from '@/components/version-link'
 import { stackStatusMeta, StatusDot } from '@/components/status'
 import { Input } from '@/components/ui/input'
 import { useSocketStatus } from '@/hooks/use-socket-status'
@@ -204,7 +205,7 @@ function ConnectionFooter() {
       <span>
         {status === 'open' ? 'Live' : status === 'connecting' ? 'Connecting…' : 'Offline'}
       </span>
-      {system && <span className="ml-auto font-mono">{system.version}</span>}
+      {system && <VersionLink version={system.version} className="ml-auto font-mono" />}
     </div>
   )
 }

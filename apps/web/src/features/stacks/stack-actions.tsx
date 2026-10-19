@@ -71,7 +71,7 @@ export function useRunAction(stack: string) {
  * The sticky action bar on a stack page. Destructive actions confirm first. While the editor
  * holds unsaved edits, Deploy goes through its review dialog instead of deploying the files on
  * disk. Update applies the newer versions found by the update check (after a confirmation that
- * lists them); when none are known it pulls the current tags again.
+ * lists them) and is disabled when none are known; its menu can still re-pull the current tags.
  */
 export function StackActions({ stack }: { stack: StackSummary }) {
   const navigate = useNavigate()
@@ -149,10 +149,8 @@ export function StackActions({ stack }: { stack: StackSummary }) {
           size="sm"
           variant="outline"
           className="rounded-r-none"
-          disabled={busy}
-          onClick={() =>
-            updates > 0 ? setUpdateMode('deploy') : void run('update', { prune: true })
-          }
+          disabled={busy || updates === 0}
+          onClick={() => setUpdateMode('deploy')}
         >
           {updating ? <Loader2 className="animate-spin" /> : <RefreshCw />} Update
           {updates > 0 && (

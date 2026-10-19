@@ -365,7 +365,7 @@ export function ContainersPage() {
     ? [{ id: search.sort.replace(/^-/, ''), desc: search.sort.startsWith('-') }]
     : [{ id: 'stack', desc: false }]
   const size = search.size ?? 25
-  const grouped = search.group ?? false
+  const grouped = search.group !== false
 
   const table = useReactTable({
     data: rows,
@@ -479,7 +479,7 @@ export function ContainersPage() {
           <Switch
             id="group-by-stack"
             checked={grouped}
-            onCheckedChange={(v) => setSearch({ group: v || undefined, page: undefined })}
+            onCheckedChange={(v) => setSearch({ group: v ? undefined : false, page: undefined })}
           />
           <Label htmlFor="group-by-stack" className="text-sm font-normal">
             Group by stack
@@ -892,6 +892,6 @@ function plural(n: number, word: string) {
 
 function clean(search: ContainersSearch): ContainersSearch {
   return Object.fromEntries(
-    Object.entries(search).filter(([, v]) => v !== undefined && v !== '' && v !== false),
+    Object.entries(search).filter(([, v]) => v !== undefined && v !== ''),
   ) as ContainersSearch
 }

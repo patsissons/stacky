@@ -100,9 +100,13 @@ test('lists the container in the containers table with URL-backed filters', asyn
   await expect(table.getByText('e2e-app-app-1')).toBeVisible()
   await expect(page.getByRole('columnheader', { name: 'Update' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Check for updates|Checking/ })).toBeVisible()
-  await page.getByRole('switch', { name: 'Group by stack' }).click()
-  await expect(page).toHaveURL(/group=true/)
+  // grouped by default, with a heading row per stack; the switch turns it off in the URL
+  const groupSwitch = page.getByRole('switch', { name: 'Group by stack' })
+  await expect(groupSwitch).toBeChecked()
   await expect(table.getByRole('link', { name: 'e2e-app' }).first()).toBeVisible()
+  await groupSwitch.click()
+  await expect(page).toHaveURL(/group=false/)
+  await expect(groupSwitch).not.toBeChecked()
   await page.getByLabel('Search containers').fill('no-such-container')
   await expect(page).toHaveURL(/q=no-such-container/)
   await expect(page.getByText('No containers match the filters.')).toBeVisible()
@@ -136,6 +140,8 @@ test('checks one image for updates from the container menu', async () => {
 
 test('offers the newer-version updates, disabled while there are none', async () => {
   await page.goto('/stacks/e2e-app')
+  // nothing to apply: the Update button is off, but its menu still re-pulls the current tags
+  await expect(page.getByRole('button', { name: 'Update', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Update options' }).click()
   const menu = page.getByRole('menu')
   await expect(menu.getByText('(none found)')).toBeVisible()
