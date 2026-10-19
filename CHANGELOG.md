@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/patsissons/stacky/compare/v0.6.0...v0.7.0) (2026-10-19)
+
+
+### Features
+
+* AI integrations — MCP server, public REST API, llms.txt ([#15](https://github.com/patsissons/stacky/issues/15)) ([f279ada](https://github.com/patsissons/stacky/commit/f279ada52c77b8c5c0b1bf8294815571087528ca))
+
 ## [0.6.0](https://github.com/patsissons/stacky/compare/v0.5.0...v0.6.0) (2026-10-19)
 
 
