@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../app'
 import { loadConfig } from '../config'
@@ -97,6 +98,16 @@ describe('MCP endpoint', () => {
     expect(tools.list_stacks.annotations.readOnlyHint).toBe(true)
     expect(tools.delete_stack.annotations.destructiveHint).toBe(true)
     expect(tools.stack_action.inputSchema.properties.action.enum).not.toContain('delete')
+
+    // the docs list every tool
+    const guide = fs.readFileSync(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        '../../../site/src/content/docs/guides/agents.md',
+      ),
+      'utf8',
+    )
+    for (const name of Object.keys(tools)) expect(guide).toContain(`| \`${name}\``)
   })
 
   it('creates, reads and edits a stack, auditing the changes', async () => {
