@@ -31,6 +31,7 @@ import type { GitSync } from '../git/sync'
 import type { FileBrowser } from '../files/browser'
 import { untrustedImageHeaders, type Icon, type IconCache } from '../icons/icons'
 import { readLogs } from '../docker/logs'
+import { handleMcpRequest } from '../mcp/server'
 import { logTargets } from '../stacks/log-targets'
 import { openApiDocument } from './openapi'
 import {
@@ -208,12 +209,17 @@ export function apiRoutes(ctx: ApiContext) {
     return next()
   })
 
+  const actorOf = (c: Context<Env>) =>
+    c.get('user')?.username ?? (config.authDisabled ? 'auth disabled' : 'anonymous')
+
   // every change is recorded: who, what, and whether it worked
   api.use('*', async (c, next) => {
     await next()
     if (c.req.method === 'GET' || c.req.method === 'HEAD') return
+    // MCP requests are JSON-RPC envelopes; the tools audit each change themselves
+    if (c.req.path === '/api/mcp') return
     ctx.audit.record({
-      actor: c.get('user')?.username ?? (config.authDisabled ? 'auth disabled' : 'anonymous'),
+      actor: actorOf(c),
       method: c.req.method,
       path: c.req.path,
       status: c.res.status,
@@ -599,6 +605,9 @@ export function apiRoutes(ctx: ApiContext) {
     const networks = await ctx.docker.listNetworks()
     return c.json(networks.map((n) => ({ name: n.Name, driver: n.Driver, scope: n.Scope })))
   })
+
+  // ---- MCP (Model Context Protocol) for AI agents ----
+  api.all('/mcp', (c) => handleMcpRequest(ctx, actorOf(c), c.req.raw))
 
   api.notFound((c) =>
     errorResponse(c, notFound(`API route ${c.req.method} ${c.req.path}`), ctx.logger),

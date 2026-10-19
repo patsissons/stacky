@@ -56,6 +56,7 @@ Open `http://<host>:5005` and create the admin account. From then on, stacky app
 ## Integrations
 
 - **REST API.** Scripts and other apps can drive stacky with an API token (**Settings → API tokens**): `curl -H "Authorization: Bearer stk_…" http://<host>:5005/api/stacks`. Each instance serves an OpenAPI 3.1 document at `/api/openapi.json`. See the [REST API reference](https://stacky.lgtm.page/reference/api/).
+- **AI agents (MCP).** A built-in [MCP](https://modelcontextprotocol.io) server at `/api/mcp` lets Claude Code, Claude Desktop, Cursor and other agents inspect, edit, deploy and update stacks: `claude mcp add --transport http stacky http://<host>:5005/api/mcp --header "Authorization: Bearer stk_…"`. See [AI agents & MCP](https://stacky.lgtm.page/guides/agents/).
 
 ## Development
 

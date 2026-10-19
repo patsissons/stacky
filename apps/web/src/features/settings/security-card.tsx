@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label'
 import { useSession } from '@/hooks/use-session'
 import { api } from '@/lib/api'
 import { formatRelative } from '@/lib/format'
+import { claudeMcpCommand, CopyLine } from './agents-card'
 
 /** Two-factor authentication for the admin account. */
 export function TwoFactorCard() {
@@ -272,6 +273,10 @@ export function ApiTokensCard() {
           >
             {created}
           </code>
+          <div className="space-y-1">
+            <div className="text-muted-foreground text-xs">Connect Claude Code (MCP)</div>
+            <CopyLine value={claudeMcpCommand(created)} label="Claude Code command" />
+          </div>
           <DialogFooter>
             <Button
               onClick={() => {
