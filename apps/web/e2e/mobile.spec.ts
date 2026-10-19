@@ -48,6 +48,12 @@ test('reaches a stack from its card and keeps the stack page within the screen',
     })
     await expectNoSidewaysScroll(page)
   } finally {
-    await page.request.post('/api/stacks/mobile-app/actions/delete')
+    // wait for the delete to finish so no container outlives the test server
+    const op = await (await page.request.post('/api/stacks/mobile-app/actions/delete')).json()
+    await expect
+      .poll(async () => (await (await page.request.get(`/api/operations/${op.id}`)).json()).state, {
+        timeout: 60_000,
+      })
+      .toMatch(/succeeded|failed|cancelled/)
   }
 })

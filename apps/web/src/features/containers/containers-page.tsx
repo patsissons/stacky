@@ -91,6 +91,16 @@ export interface ContainersSearch {
 
 const PAGE_SIZES = [10, 25, 50, 0]
 
+/** Columns dropped on laptops/tablets so the table fits without sideways scrolling. */
+const NARROW_HIDDEN = 'hidden xl:table-cell'
+
+declare module '@tanstack/react-table' {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData, TValue> {
+    className?: string
+  }
+}
+
 function serviceAction(row: ContainerRow, action: 'start' | 'stop' | 'restart') {
   runServiceAction(row.stack, row.service, action).catch((err: Error) =>
     toast.error(err.message, { description: (err as { hint?: string }).hint }),
@@ -156,6 +166,7 @@ function makeColumns(
       id: 'registry',
       accessorKey: 'registry',
       header: 'Registry',
+      meta: { className: NARROW_HIDDEN },
       cell: ({ row }) => (
         <span className="inline-flex items-center gap-1.5 text-sm" title={row.original.registry}>
           <RegistryIcon registry={row.original.registry} />
@@ -167,6 +178,7 @@ function makeColumns(
       id: 'image',
       accessorKey: 'repository',
       header: 'Image',
+      meta: { className: NARROW_HIDDEN },
       cell: ({ row }) => (
         <span className="text-muted-foreground font-mono text-xs" title={row.original.image}>
           {row.original.repository.replace(/^library\//, '')}
@@ -476,7 +488,10 @@ export function ContainersPage() {
                 {hg.headers.map((h) => {
                   const sorted = h.column.getIsSorted()
                   return (
-                    <TableHead key={h.id} className="h-10">
+                    <TableHead
+                      key={h.id}
+                      className={cn('h-10', h.column.columnDef.meta?.className)}
+                    >
                       {h.column.getCanSort() ? (
                         <button
                           type="button"
@@ -530,7 +545,10 @@ export function ContainersPage() {
                             {r.getVisibleCells().map((cell) => (
                               <TableCell
                                 key={cell.id}
-                                className={cell.column.id === 'container' ? 'pl-8' : ''}
+                                className={cn(
+                                  cell.column.id === 'container' && 'pl-8',
+                                  cell.column.columnDef.meta?.className,
+                                )}
                               >
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                               </TableCell>
@@ -543,7 +561,7 @@ export function ContainersPage() {
               : table.getRowModel().rows.map((r) => (
                   <TableRow key={r.id}>
                     {r.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} className={cell.column.columnDef.meta?.className}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}

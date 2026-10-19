@@ -26,7 +26,7 @@ Click a badge to see the details:
 
 - **Pull &lt;tag&gt;:** pulls the rebuilt image and recreates the service.
 - **Update to &lt;version&gt;:** changes only the service's `image:` line in your compose file (comments and formatting stay), then pulls and recreates it. If the image comes from a variable such as `${TAG}`, stacky asks you to change the variable instead.
-- **Ignore this update:** hides this specific version or digest. The next newer one shows up again.
+- **Ignore this update:** hides this specific version or digest. The next newer one shows up again. An ignored update stays visible as a dashed, greyed badge; open it and choose **Stop ignoring** to bring it back.
 
 Use **Updates available** in the status filter, or the **N updates** button, to list everything with an update.
 

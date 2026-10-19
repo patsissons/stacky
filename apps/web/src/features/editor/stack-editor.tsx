@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   Eye,
   EyeOff,
   FileCode2,
@@ -36,6 +37,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { runStackAction } from '@/features/operations/actions'
@@ -325,6 +333,32 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
             </TabsTrigger>
           </TabsList>
         </Tabs>
+        {/* the Files panel only fits from lg up; this menu stands in for it below that */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="lg:hidden" aria-label="Files">
+              <Folder /> Files <ChevronDown />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
+            {files
+              .filter((f) => f.type === 'file')
+              .map((f) => (
+                <DropdownMenuItem
+                  key={f.path}
+                  disabled={!f.editable}
+                  onSelect={() => void openFile(f.path)}
+                  className="font-mono text-xs"
+                >
+                  <FileCode2 className="size-3.5" /> {f.path}
+                </DropdownMenuItem>
+              ))}
+            {files.some((f) => f.type === 'file') && <DropdownMenuSeparator />}
+            <DropdownMenuItem onSelect={() => setNewFile('')}>
+              <FilePlus2 className="size-4" /> New file…
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {extra.map((f) => (
           <span
             key={f.path}
@@ -386,24 +420,6 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-1 text-sm">
-            {newFile !== undefined && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void createFile(newFile)
-                }}
-                className="p-1"
-              >
-                <Input
-                  autoFocus
-                  value={newFile}
-                  onChange={(e) => setNewFile(e.target.value)}
-                  onBlur={() => !newFile && setNewFile(undefined)}
-                  placeholder="config/app.conf"
-                  className="h-7 text-xs"
-                />
-              </form>
-            )}
             <FileButton
               label={base.composeFile}
               active={active === 'compose'}
@@ -452,6 +468,37 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
             )}
           </div>
         </aside>
+
+        <Dialog open={newFile !== undefined} onOpenChange={(o) => !o && setNewFile(undefined)}>
+          <DialogContent className="sm:max-w-sm">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                void createFile(newFile ?? '')
+              }}
+              className="space-y-4"
+            >
+              <DialogHeader>
+                <DialogTitle>New file</DialogTitle>
+                <DialogDescription>
+                  A path inside the stack directory; folders are created as needed.
+                </DialogDescription>
+              </DialogHeader>
+              <Input
+                autoFocus
+                value={newFile ?? ''}
+                onChange={(e) => setNewFile(e.target.value)}
+                placeholder="config/app.conf"
+                aria-label="File path"
+              />
+              <DialogFooter>
+                <Button type="submit" disabled={!newFile?.trim()}>
+                  <FilePlus2 /> Create
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(undefined)}>
           <AlertDialogContent>

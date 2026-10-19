@@ -1,4 +1,4 @@
-import { ArrowUp, TriangleAlert } from 'lucide-react'
+import { ArrowUp, EyeOff, TriangleAlert } from 'lucide-react'
 import type { ImageUpdate, UpdateKind } from '@stacky/shared'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -41,8 +41,25 @@ export function UpdateBadge({
       </Tooltip>
     )
   }
-  if (update.status !== 'update_available' || update.ignored || !update.kind) return null
+  if (update.status !== 'update_available' || !update.kind) return null
   const meta = KIND[update.kind]
+  if (update.ignored) {
+    // still reachable, so the user can stop ignoring it from the dialog
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={`${meta.label} (ignored)`}
+        className={cn(
+          'text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-md border border-dashed px-2 py-0.5 font-mono text-xs',
+          className,
+        )}
+      >
+        <EyeOff className="size-3" />
+        {update.newerTag ?? 'new digest'}
+      </button>
+    )
+  }
   return (
     <button
       type="button"

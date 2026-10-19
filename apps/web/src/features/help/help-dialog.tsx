@@ -131,7 +131,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       },
       {
         name: 'Ignore this update',
-        what: 'Hides that specific version or digest. The next newer one shows up again.',
+        what: 'Hides that specific version or digest. The next newer one shows up again. The greyed badge that stays behind opens the same dialog, where Stop ignoring brings it back.',
       },
     ],
   },
