@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/patsissons/stacky/compare/v0.4.1...v0.5.0) (2026-10-19)
+
+
+### Features
+
+* **web:** group phone cards by stack, steady stats row, per-image update check ([#9](https://github.com/patsissons/stacky/issues/9)) ([fba4bd0](https://github.com/patsissons/stacky/commit/fba4bd0b1a7d19ee709ab39ce88612625d179724))
+
 ## [0.4.1](https://github.com/patsissons/stacky/compare/v0.4.0...v0.4.1) (2026-10-19)
 
 
