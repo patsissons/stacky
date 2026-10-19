@@ -2,24 +2,8 @@ import { DiffEditor, Editor, type OnMount } from '@monaco-editor/react'
 import { useTheme } from 'next-themes'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { ValidationIssue } from '@stacky/shared'
+import { editorOptions, OPTIONS } from './editor-options'
 import { monaco } from './monaco'
-
-const OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
-  minimap: { enabled: false },
-  fontFamily: '"JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace',
-  fontSize: 13,
-  lineHeight: 20,
-  tabSize: 2,
-  insertSpaces: true,
-  scrollBeyondLastLine: false,
-  renderWhitespace: 'boundary',
-  automaticLayout: true,
-  wordWrap: 'off',
-  padding: { top: 10, bottom: 10 },
-  quickSuggestions: { other: true, comments: false, strings: true },
-  stickyScroll: { enabled: true },
-  fixedOverflowWidgets: true,
-}
 
 /**
  * Monaco picks the line ending for new lines from the browser's platform, so on Windows an
@@ -102,7 +86,7 @@ export default function CodeEditor({
       onChange={(v) => onChange?.(v ?? '')}
       onMount={onMount}
       theme={resolvedTheme === 'light' ? 'stacky-light' : 'stacky-dark'}
-      options={{ ...OPTIONS, readOnly }}
+      options={{ ...editorOptions(language), readOnly }}
       loading={<div className="text-muted-foreground p-4 text-sm">Loading editor…</div>}
     />
   )
