@@ -1,4 +1,5 @@
-import type { ContainerState, PortMapping, StackSummary } from '@stacky/shared'
+import type { ContainerState, ImageUpdate, PortMapping, StackSummary } from '@stacky/shared'
+import { isActionable } from '@/hooks/use-updates'
 import { parseImageRef } from '@/lib/format'
 
 export interface ContainerRow {
@@ -70,4 +71,38 @@ export function portUrl(port: PortMapping, host = window.location.hostname): str
   if (!port.hostPort) return undefined
   const scheme = port.containerPort === 443 || port.hostPort === 443 ? 'https' : 'http'
   return `${scheme}://${host}:${port.hostPort}`
+}
+
+/** One service to move to a newer image: a new tag (rewrites compose.yaml) or a re-pull. */
+export interface UpdateStep {
+  stack: string
+  service: string
+  kind: 'bump' | 'pull'
+  tag: string
+  newerTag?: string
+}
+
+export interface UpdatePlan {
+  steps: UpdateStep[]
+  skipped: { stack: string; service: string; reason: string }[]
+}
+
+/** What "Update all" will do: one step per service with an actionable update. */
+export function planUpdates(rows: ContainerRow[], byRef: Map<string, ImageUpdate>): UpdatePlan {
+  const plan: UpdatePlan = { steps: [], skipped: [] }
+  const seen = new Set<string>()
+  for (const row of rows) {
+    const update = byRef.get(row.image)
+    if (!isActionable(update)) continue
+    const key = `${row.managed}:${row.stack}/${row.service}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const at = { stack: row.stack, service: row.service }
+    if (!row.managed) plan.skipped.push({ ...at, reason: 'outside the stacks directory' })
+    else if (row.isSelf) plan.skipped.push({ ...at, reason: 'stacky updates itself separately' })
+    else if (update.newerTag)
+      plan.steps.push({ ...at, kind: 'bump', tag: update.tag, newerTag: update.newerTag })
+    else if (update.digestChanged) plan.steps.push({ ...at, kind: 'pull', tag: update.tag })
+  }
+  return plan
 }

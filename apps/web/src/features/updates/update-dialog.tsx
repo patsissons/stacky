@@ -1,7 +1,7 @@
 import { ArrowRight, ExternalLink, EyeOff, Loader2, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import type { ImageUpdate, OperationSummary } from '@stacky/shared'
+import type { ImageUpdate } from '@stacky/shared'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -11,9 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { runServiceAction } from '@/features/operations/actions'
+import { bumpServiceImage, runServiceAction } from '@/features/operations/actions'
 import { operationStore } from '@/features/operations/store'
-import { isSelfOperation, selfUpdateStore } from '@/features/self-update/store'
+import { isSelfOperation } from '@/features/self-update/store'
 import { api, ApiError } from '@/lib/api'
 import { registryPage } from './registry-link'
 import { updateKindMeta } from './update-badge'
@@ -49,15 +49,8 @@ export function UpdateDialog({ target, onClose }: { target?: UpdateTarget; onClo
 
   const bump = () =>
     run('bump', async () => {
-      const op = await api.post<OperationSummary>(
-        `/api/stacks/${stack}/services/${encodeURIComponent(service)}/image`,
-        { tag: update.newerTag },
-      )
-      if (isSelfOperation(op.action)) selfUpdateStore.begin(op.id)
-      else {
-        operationStore.watch(op.id)
-        operationStore.open(op.id)
-      }
+      const op = await bumpServiceImage(stack, service, update.newerTag!)
+      if (!isSelfOperation(op.action)) operationStore.open(op.id)
     })
   const pull = () =>
     run('pull', () =>

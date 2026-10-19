@@ -51,6 +51,24 @@ export async function runServiceAction(
   return op
 }
 
+/** Moves a service to a newer image tag (edits its `image:` line), then updates it. */
+export async function bumpServiceImage(
+  stack: string,
+  service: string,
+  tag: string,
+): Promise<OperationSummary> {
+  const op = await api.post<OperationSummary>(
+    `/api/stacks/${stack}/services/${encodeURIComponent(service)}/image`,
+    { tag },
+  )
+  if (isSelfOperation(op.action)) {
+    selfUpdateStore.begin(op.id)
+    return op
+  }
+  operationStore.watch(op.id)
+  return op
+}
+
 export const ACTION_LABELS: Record<string, { running: string; done: string }> = {
   deploy: { running: 'Deploying', done: 'Deployed' },
   start: { running: 'Starting', done: 'Started' },
