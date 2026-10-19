@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0](https://github.com/patsissons/stacky/compare/v0.5.0...v0.6.0) (2026-10-19)
+
+
+### Features
+
+* clear a stack's history ([16ee6c4](https://github.com/patsissons/stacky/commit/16ee6c4df483262d0d987b2768620dcfd989cbb0))
+* read-only file browser for the stacks and data directories ([16ee6c4](https://github.com/patsissons/stacky/commit/16ee6c4df483262d0d987b2768620dcfd989cbb0))
+* stacky.display.icon label with icon sets and URLs, built-in stacky icon ([16ee6c4](https://github.com/patsissons/stacky/commit/16ee6c4df483262d0d987b2768620dcfd989cbb0))
+* **web:** group by stack by default, link the version to its release, disable Update with no updates ([16ee6c4](https://github.com/patsissons/stacky/commit/16ee6c4df483262d0d987b2768620dcfd989cbb0))
+* **web:** inspect and edit a container's service in a bottom sheet ([16ee6c4](https://github.com/patsissons/stacky/commit/16ee6c4df483262d0d987b2768620dcfd989cbb0))
+
 ## [0.5.0](https://github.com/patsissons/stacky/compare/v0.4.1...v0.5.0) (2026-10-19)
 
 
