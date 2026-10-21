@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/patsissons/stacky/compare/v0.8.0...v0.9.0) (2026-10-21)
+
+
+### Features
+
+* Pushover notifications and links back to stacky ([#19](https://github.com/patsissons/stacky/issues/19)) ([0faac0d](https://github.com/patsissons/stacky/commit/0faac0dd481970481524d68b06df012c87789237))
+* update check schedules, globally and per container ([#21](https://github.com/patsissons/stacky/issues/21)) ([97d03a2](https://github.com/patsissons/stacky/commit/97d03a252c958c7ec8c662ff4f8dad2b43eabdea))
+
 ## [0.8.0](https://github.com/patsissons/stacky/compare/v0.7.0...v0.8.0) (2026-10-19)
 
 
