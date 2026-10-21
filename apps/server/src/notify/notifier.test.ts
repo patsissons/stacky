@@ -18,7 +18,7 @@ beforeEach(() => {
   sent = []
   now = 1_000_000
   const { db } = openDatabase(':memory:')
-  notifier = new Notifier(new SettingsStore(db), silentLogger, fetchImpl, () => now)
+  notifier = new Notifier(new SettingsStore(db), silentLogger, undefined, fetchImpl, () => now)
   notifier.save([
     {
       name: 'hook',
@@ -147,5 +147,48 @@ describe('Notifier', () => {
     await flush()
     expect(sent).toHaveLength(1)
     expect(JSON.parse(sent[0]!.body)).toMatchObject({ event: 'self_update', level: 'error' })
+  })
+
+  it('keeps the Pushover user key and returns it, unlike the token', () => {
+    notifier.save([
+      {
+        name: 'Phone',
+        type: 'pushover',
+        url: 'https://api.pushover.net/1/messages.json',
+        token: 'app-token',
+        recipient: 'user-key',
+        enabled: true,
+        events: ['operation_failed'],
+      },
+    ])
+    const [c] = notifier.list()
+    expect(c).toMatchObject({ recipient: 'user-key', hasToken: true })
+    expect(JSON.stringify(c)).not.toContain('app-token')
+    notifier.save([{ ...c!, recipient: '' }])
+    expect(notifier.list()[0]).not.toHaveProperty('recipient')
+  })
+
+  it('links messages to the stack when the public URL is known', async () => {
+    const { db } = openDatabase(':memory:')
+    const linked = new Notifier(
+      new SettingsStore(db),
+      silentLogger,
+      'https://stacky.lan/ui',
+      fetchImpl,
+    )
+    linked.save(notifier.list().map((c) => ({ ...c, token: 'x' })))
+    await linked.emit({
+      event: 'operation_failed',
+      level: 'error',
+      title: 't',
+      body: 'b',
+      stack: 'my app',
+    })
+    await linked.emit({ event: 'update_available', level: 'info', title: 't', body: 'b' })
+    expect(JSON.parse(sent[0]!.body).url).toBe('https://stacky.lan/ui/stacks/my%20app')
+    expect(JSON.parse(sent[1]!.body).url).toBe('https://stacky.lan/ui/')
+    // without a base URL there is nothing to link to
+    await notifier.emit({ event: 'update_available', level: 'info', title: 't', body: 'b' })
+    expect(JSON.parse(sent[2]!.body)).not.toHaveProperty('url')
   })
 })

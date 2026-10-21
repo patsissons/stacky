@@ -70,6 +70,8 @@ Credential helpers (`credsStore`) aren't supported. Use `docker login` with a co
 
 ## What's Up Docker
 
-If you already run [What's Up Docker](https://getwud.app) (WUD), add its URL and a personal API token (WUD → My Profile) under **Settings → What's Up Docker**. Stacky asks WUD to re-check, then uses WUD's answer for any image its own check couldn't handle, such as a private registry it has no credentials for. Results that came from WUD are marked in the update dialog.
+You don't need [What's Up Docker](https://getwud.app) (WUD) alongside stacky. Stacky checks for updates itself, and [notifications](/guides/notifications/) tell you about new ones on Pushover, ntfy, Gotify, Discord, Apprise or a webhook.
 
-If you use WUD only for notifications, leave its `dockercompose` trigger off and apply updates from stacky. Stacky also picks up changes WUD makes to compose files on disk.
+WUD is still useful for images stacky can't check itself, such as a private registry it has no credentials for. To use it as a fallback, add WUD's URL and a personal API token (WUD → My Profile) under **Settings → What's Up Docker**. Stacky asks WUD to re-check, then uses WUD's answer for any image its own check couldn't handle. Results that came from WUD are marked in the update dialog.
+
+If you keep WUD, leave its `dockercompose` trigger off and apply updates from stacky. Stacky also picks up changes WUD makes to compose files on disk.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildRequest, type Channel, type Message } from './channels'
+import { PUSHOVER_URL } from '@stacky/shared'
+import { buildRequest, errorReason, send, type Channel, type Message } from './channels'
 
 const msg: Message = {
   event: 'operation_failed',
@@ -59,5 +60,63 @@ describe('buildRequest', () => {
   it('sends the full event to generic webhooks', () => {
     const body = JSON.parse(buildRequest(channel({}), msg).init.body as string)
     expect(body).toMatchObject({ event: 'operation_failed', stack: 'app', source: 'stacky' })
+  })
+
+  it('posts Pushover messages with the app token, user key and a link', () => {
+    const { url, init } = buildRequest(
+      channel({ type: 'pushover', url: PUSHOVER_URL, token: 'app', recipient: 'user' }),
+      { ...msg, body: 'x'.repeat(2000), url: 'https://stacky.lan/stacks/app' },
+    )
+    expect(url).toBe(PUSHOVER_URL)
+    const body = JSON.parse(init.body as string)
+    expect(body).toMatchObject({
+      token: 'app',
+      user: 'user',
+      title: 'Deploy app failed',
+      priority: 1,
+      url: 'https://stacky.lan/stacks/app',
+      url_title: 'Open in stacky',
+    })
+    expect(body.message).toHaveLength(1024)
+    const info = JSON.parse(
+      buildRequest(channel({ type: 'pushover', recipient: 'user' }), { ...msg, level: 'info' }).init
+        .body as string,
+    )
+    expect(info.priority).toBe(0)
+    expect(info).not.toHaveProperty('url')
+  })
+
+  it('links back to stacky from ntfy, Discord and Gotify when a URL is known', () => {
+    const linked = { ...msg, url: 'https://stacky.lan/' }
+    expect(buildRequest(channel({ type: 'ntfy' }), linked).init.headers).toMatchObject({
+      click: 'https://stacky.lan/',
+    })
+    expect(buildRequest(channel({ type: 'ntfy' }), msg).init.headers).not.toHaveProperty('click')
+    const discord = JSON.parse(
+      buildRequest(channel({ type: 'discord' }), linked).init.body as string,
+    )
+    expect(discord.embeds[0].url).toBe('https://stacky.lan/')
+    const gotify = JSON.parse(buildRequest(channel({ type: 'gotify' }), linked).init.body as string)
+    expect(gotify.extras['client::notification'].click.url).toBe('https://stacky.lan/')
+  })
+})
+
+describe('send', () => {
+  it('explains rejected requests with the service error', async () => {
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({ user: 'invalid', errors: ['user identifier is invalid'], status: 0 }),
+        { status: 400 },
+      )) as unknown as typeof fetch
+    await expect(
+      send(channel({ type: 'pushover', name: 'Phone' }), msg, fetchImpl),
+    ).rejects.toThrow('Phone: HTTP 400 (user identifier is invalid)')
+  })
+
+  it('reads the error fields of common services', () => {
+    expect(errorReason('{"error":"unauthorized","http":401}')).toBe('unauthorized')
+    expect(errorReason('{"error":"Unauthorized","errorDescription":"bad token"}')).toBe('bad token')
+    expect(errorReason('<html>nope</html>')).toBeUndefined()
+    expect(errorReason('{}')).toBeUndefined()
   })
 })

@@ -59,6 +59,27 @@ test('adds a notification channel', async () => {
   await expect(page.getByLabel('Notification channels')).toContainText('Ops hook')
 })
 
+test('adds a Pushover channel with a user key', async () => {
+  await page.goto('/settings')
+  await page.getByRole('button', { name: 'Add channel' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Name').fill('Phone')
+  await dialog.getByRole('combobox', { name: 'Channel type' }).click()
+  await page.getByRole('option', { name: 'Pushover' }).click()
+  await expect(dialog.getByLabel('URL')).toHaveCount(0)
+  await dialog.getByLabel('Application API token').fill('app-token')
+  const save = dialog.getByRole('button', { name: 'Save' })
+  await expect(save).toBeDisabled()
+  await dialog.getByLabel('User or group key').fill('user-key')
+  await save.click()
+  const list = page.getByLabel('Notification channels')
+  await expect(list).toContainText('Phone')
+  await expect(list).toContainText('Pushover')
+  await page.getByRole('button', { name: 'Edit Phone' }).click()
+  await expect(page.getByRole('dialog').getByLabel('User or group key')).toHaveValue('user-key')
+  await page.keyboard.press('Escape')
+})
+
 test('creates an API token that works once and can be revoked', async ({ request }) => {
   await page.goto('/settings')
   await page.getByLabel('Token name').fill('e2e-script')

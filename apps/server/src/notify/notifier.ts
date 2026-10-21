@@ -29,6 +29,8 @@ export class Notifier {
   constructor(
     private readonly settings: SettingsStore,
     private readonly logger: Logger,
+    /** Public URL of stacky (`STACKY_BASE_URL`); messages link back to it when set. */
+    private readonly baseUrl?: string,
     private readonly fetchImpl: typeof fetch = fetch,
     private readonly now: () => number = Date.now,
   ) {}
@@ -49,7 +51,7 @@ export class Notifier {
     const next = inputs.map((input) => {
       const id = input.id && current.has(input.id) ? input.id : randomUUID()
       const token = input.token === undefined ? current.get(id)?.token : (input.token ?? undefined)
-      return { ...input, id, token: token || undefined }
+      return { ...input, id, token: token || undefined, recipient: input.recipient || undefined }
     })
     this.settings.set(CHANNELS_KEY, next)
     return this.list()
@@ -69,12 +71,21 @@ export class Notifier {
         title: 'Test from stacky',
         body: 'Notifications are working.',
         level: 'info',
+        url: this.link(),
       },
       this.fetchImpl,
     )
   }
 
+  /** A link into stacky: the stack's page, or the containers page. */
+  private link(stack?: string) {
+    if (!this.baseUrl) return undefined
+    const base = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`
+    return new URL(stack ? `stacks/${encodeURIComponent(stack)}` : '', base).toString()
+  }
+
   async emit(msg: Message) {
+    msg = { ...msg, url: msg.url ?? this.link(msg.stack) }
     const targets = this.stored().filter((c) => c.enabled && c.events.includes(msg.event))
     await Promise.all(
       targets.map((c) =>

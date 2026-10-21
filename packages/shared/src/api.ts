@@ -98,8 +98,11 @@ export const notifyEvents = [
 ] as const
 export type NotifyEvent = (typeof notifyEvents)[number]
 
-export const channelTypes = ['ntfy', 'gotify', 'discord', 'webhook', 'apprise'] as const
+export const channelTypes = ['ntfy', 'gotify', 'pushover', 'discord', 'webhook', 'apprise'] as const
 export type ChannelType = (typeof channelTypes)[number]
+
+/** Pushover's message endpoint; Pushover channels always post here. */
+export const PUSHOVER_URL = 'https://api.pushover.net/1/messages.json'
 
 /** A notification channel as the API returns it (secrets are never sent back). */
 export interface NotificationChannel {
@@ -107,6 +110,8 @@ export interface NotificationChannel {
   name: string
   type: ChannelType
   url: string
+  /** Who receives the message, for channels that need it (the Pushover user or group key). */
+  recipient?: string
   hasToken: boolean
   events: NotifyEvent[]
   enabled: boolean
