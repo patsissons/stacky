@@ -80,6 +80,26 @@ test('adds a Pushover channel with a user key', async () => {
   await page.keyboard.press('Escape')
 })
 
+test('sets the image update check schedule', async () => {
+  await page.goto('/settings')
+  const card = page.getByRole('form', { name: 'Image update checks' })
+  const schedule = card.getByRole('combobox', { name: 'Update check schedule' })
+  await schedule.click()
+  await page.getByRole('option', { name: 'Custom interval or cron…' }).click()
+  await card.getByLabel('Interval or cron pattern').fill('every so often')
+  await card.getByRole('button', { name: 'Save' }).click()
+  await expect(card.getByRole('alert')).toContainText('not a schedule')
+
+  await schedule.click()
+  await page.getByRole('option', { name: 'Weekly (Sunday, 3 AM)' }).click()
+  await card.getByRole('button', { name: 'Save' }).click()
+  await expect(card.getByRole('button', { name: 'Use default (6h)' })).toBeVisible()
+  await page.reload()
+  await expect(schedule).toHaveText('Weekly (Sunday, 3 AM)')
+  await card.getByRole('button', { name: 'Use default (6h)' }).click()
+  await expect(schedule).toHaveText('Every 6 hours')
+})
+
 test('creates an API token that works once and can be revoked', async ({ request }) => {
   await page.goto('/settings')
   await page.getByLabel('Token name').fill('e2e-script')

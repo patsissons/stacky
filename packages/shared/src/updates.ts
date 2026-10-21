@@ -25,6 +25,20 @@ export interface ImageUpdate {
   message?: string
   /** The user chose to ignore this specific update. */
   ignored?: boolean
+  /** The `stacky.update.schedule` label that decides how often this image is checked, if any. */
+  scheduleLabel?: string
+  /** Why a `stacky.update.schedule` label was ignored in favour of the global schedule. */
+  scheduleError?: string
+}
+
+/** The global image update check schedule, as `GET /api/settings/updates` returns it. */
+export interface UpdateScheduleSettings {
+  /** The schedule in effect: saved in Settings, else `default`. */
+  schedule: string
+  /** From `STACKY_UPDATE_SCHEDULE` (or the legacy `STACKY_UPDATE_INTERVAL`). */
+  default: string
+  saved: boolean
+  nextCheckAt?: number
 }
 
 export interface UpdatesSummary {

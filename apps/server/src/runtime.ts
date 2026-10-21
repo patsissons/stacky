@@ -66,7 +66,7 @@ export async function createRuntime(
     db,
     settings,
     logger,
-    config.updateIntervalHours * 60 * 60 * 1000,
+    config.updateSchedule,
   )
   stacks.updates = updates
   stacks.revisions = new RevisionStore(db)

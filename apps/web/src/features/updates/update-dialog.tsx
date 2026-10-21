@@ -111,6 +111,20 @@ export function UpdateDialog({ target, onClose }: { target?: UpdateTarget; onClo
               report the update.
             </p>
           )}
+          {update.scheduleError ? (
+            <p className="text-muted-foreground text-xs">
+              Its <span className="font-mono">stacky.update.schedule</span> label is invalid (
+              {update.scheduleError}), so the global schedule is used.
+            </p>
+          ) : (
+            update.scheduleLabel && (
+              <p className="text-muted-foreground text-xs">
+                Checked on its own schedule:{' '}
+                <span className="font-mono">{update.scheduleLabel}</span> (from its{' '}
+                <span className="font-mono">stacky.update.schedule</span> label).
+              </p>
+            )
+          )}
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
           <div className="flex gap-1">

@@ -29,6 +29,22 @@ describe('loadConfig', () => {
   })
 })
 
+describe('update schedule', () => {
+  it('prefers STACKY_UPDATE_SCHEDULE over the legacy interval', () => {
+    expect(loadConfig({}).updateSchedule).toBe('6h')
+    expect(loadConfig({ STACKY_UPDATE_INTERVAL: '12' }).updateSchedule).toBe('12h')
+    expect(loadConfig({ STACKY_UPDATE_INTERVAL: '0' }).updateSchedule).toBe('never')
+    expect(
+      loadConfig({ STACKY_UPDATE_SCHEDULE: 'nightly', STACKY_UPDATE_INTERVAL: '12' })
+        .updateSchedule,
+    ).toBe('nightly')
+  })
+
+  it('rejects an invalid schedule', () => {
+    expect(() => loadConfig({ STACKY_UPDATE_SCHEDULE: 'sometimes' })).toThrow(ConfigError)
+  })
+})
+
 describe('STACKY_DOCKER_HOST', () => {
   it('defaults to the host stacky is served from', () => {
     expect(loadConfig({}).dockerHost).toBeUndefined()

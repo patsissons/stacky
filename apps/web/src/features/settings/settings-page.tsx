@@ -14,6 +14,7 @@ import { AgentsCard } from './agents-card'
 import { GitCard } from './git-card'
 import { NotificationsCard } from './notifications-card'
 import { ApiTokensCard, AuditCard, TwoFactorCard } from './security-card'
+import { UpdatesCard } from './updates-card'
 import { WudCard } from './wud-card'
 import { useSession } from '@/hooks/use-session'
 import { VersionLink } from '@/components/version-link'
@@ -28,6 +29,7 @@ export function SettingsPage() {
       <GlobalEnvCard />
       <GitCard />
       <NotificationsCard />
+      <UpdatesCard />
       <WudCard />
       <PasswordCard />
       <TwoFactorCard />
