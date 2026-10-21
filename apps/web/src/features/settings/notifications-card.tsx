@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import {
   channelTypes,
   notifyEvents,
+  PUSHOVER_URL,
   type ChannelType,
   type NotificationChannel,
   type NotifyEvent,
@@ -32,9 +33,26 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { api } from '@/lib/api'
 
-const TYPE_LABELS: Record<ChannelType, { label: string; url: string; token?: string }> = {
+const TYPE_LABELS: Record<
+  ChannelType,
+  {
+    label: string
+    url: string
+    token?: string
+    recipient?: string
+    /** The service has one endpoint, so there is no URL to ask for. */
+    fixedUrl?: boolean
+  }
+> = {
   ntfy: { label: 'ntfy', url: 'https://ntfy.sh/my-stacky-topic', token: 'Access token (optional)' },
   gotify: { label: 'Gotify', url: 'https://gotify.example.com', token: 'Application token' },
+  pushover: {
+    label: 'Pushover',
+    url: PUSHOVER_URL,
+    token: 'Application API token',
+    recipient: 'User or group key',
+    fixedUrl: true,
+  },
   discord: { label: 'Discord', url: 'https://discord.com/api/webhooks/…' },
   apprise: {
     label: 'Apprise API',
@@ -78,6 +96,17 @@ export function NotificationsCard() {
   })
   const [draft, setDraft] = useState<Draft>()
   const [busy, setBusy] = useState<string>()
+  const ready =
+    !!draft?.url &&
+    (!TYPE_LABELS[draft.type].recipient || !!draft.recipient?.trim()) &&
+    (draft.type !== 'pushover' || !!draft.token || !!draft.hasToken)
+
+  const changeType = (type: ChannelType) => {
+    if (!draft) return
+    const wasFixed = TYPE_LABELS[draft.type].fixedUrl
+    const url = TYPE_LABELS[type].fixedUrl ? TYPE_LABELS[type].url : wasFixed ? '' : draft.url
+    setDraft({ ...draft, type, url })
+  }
 
   const persist = async (next: Draft[]) => {
     await api.put('/api/settings/notifications', {
@@ -141,8 +170,8 @@ export function NotificationsCard() {
       <CardContent>
         {channels.length === 0 ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Bell className="size-4" /> No channels yet. Add ntfy, Gotify, Discord, Apprise or a
-            webhook.
+            <Bell className="size-4" /> No channels yet. Add ntfy, Gotify, Pushover, Discord,
+            Apprise or a webhook.
           </p>
         ) : (
           <ul className="divide-y rounded-lg border" aria-label="Notification channels">
@@ -215,10 +244,7 @@ export function NotificationsCard() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Type</Label>
-                  <Select
-                    value={draft.type}
-                    onValueChange={(v) => setDraft({ ...draft, type: v as ChannelType })}
-                  >
+                  <Select value={draft.type} onValueChange={(v) => changeType(v as ChannelType)}>
                     <SelectTrigger aria-label="Channel type" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -232,15 +258,28 @@ export function NotificationsCard() {
                   </Select>
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ch-url">URL</Label>
-                <Input
-                  id="ch-url"
-                  value={draft.url}
-                  onChange={(e) => setDraft({ ...draft, url: e.target.value })}
-                  placeholder={TYPE_LABELS[draft.type].url}
-                />
-              </div>
+              {!TYPE_LABELS[draft.type].fixedUrl && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="ch-url">URL</Label>
+                  <Input
+                    id="ch-url"
+                    value={draft.url}
+                    onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+                    placeholder={TYPE_LABELS[draft.type].url}
+                  />
+                </div>
+              )}
+              {TYPE_LABELS[draft.type].recipient && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="ch-recipient">{TYPE_LABELS[draft.type].recipient}</Label>
+                  <Input
+                    id="ch-recipient"
+                    autoComplete="off"
+                    value={draft.recipient ?? ''}
+                    onChange={(e) => setDraft({ ...draft, recipient: e.target.value })}
+                  />
+                </div>
+              )}
               {TYPE_LABELS[draft.type].token && (
                 <div className="space-y-1.5">
                   <Label htmlFor="ch-token">{TYPE_LABELS[draft.type].token}</Label>
@@ -283,7 +322,7 @@ export function NotificationsCard() {
               <Button
                 variant="outline"
                 onClick={() => void test(draft)}
-                disabled={!draft.url || !!busy}
+                disabled={!ready || !!busy}
               >
                 {busy === `test-${draft.id ?? 'draft'}` ? (
                   <Loader2 className="animate-spin" />
@@ -292,10 +331,7 @@ export function NotificationsCard() {
                 )}{' '}
                 Send test
               </Button>
-              <Button
-                onClick={() => void saveDraft()}
-                disabled={!draft.name || !draft.url || !!busy}
-              >
+              <Button onClick={() => void saveDraft()} disabled={!draft.name || !ready || !!busy}>
                 {busy === 'save' && <Loader2 className="animate-spin" />} Save
               </Button>
             </DialogFooter>

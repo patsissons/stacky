@@ -75,7 +75,7 @@ export async function createRuntime(
   )
   repo.onChange = (paths, message) => gitSync.onChange(paths, message)
   gitSync.schedule()
-  const notifier = new Notifier(settings, logger)
+  const notifier = new Notifier(settings, logger, config.baseUrl)
   engine.on('update', (op) => notifier.onOperation(op))
   updates.on('change', (summary) => notifier.onUpdates(summary))
   state.on('change', (list) => notifier.onStacks(list))

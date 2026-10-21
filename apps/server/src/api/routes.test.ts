@@ -173,6 +173,28 @@ describe('stacks', () => {
     expect(unknown.status).toBe(400)
   })
 
+  it('requires a user key for Pushover channels and returns it', async () => {
+    const pushover = {
+      name: 'Phone',
+      type: 'pushover',
+      url: 'https://api.pushover.net/1/messages.json',
+      token: 'app-token',
+      events: ['operation_failed'],
+      enabled: true,
+    }
+    const missing = await req('PUT', '/api/settings/notifications', {
+      cookie,
+      body: { channels: [pushover] },
+    })
+    expect(missing.status).toBe(400)
+    const saved = await req('PUT', '/api/settings/notifications', {
+      cookie,
+      body: { channels: [{ ...pushover, recipient: 'user-key' }] },
+    })
+    expect(saved.status).toBe(200)
+    expect(await json(saved)).toMatchObject([{ type: 'pushover', recipient: 'user-key' }])
+  })
+
   it('rejects bad names and paths', async () => {
     const res = await req('POST', '/api/stacks', {
       cookie,

@@ -6,6 +6,7 @@ export interface Channel {
   type: ChannelType
   url: string
   token?: string
+  recipient?: string
   events: NotifyEvent[]
   enabled: boolean
 }
@@ -16,6 +17,8 @@ export interface Message {
   body: string
   level: 'info' | 'success' | 'warning' | 'error'
   stack?: string
+  /** Where the message should link to in stacky (only when `STACKY_BASE_URL` is set). */
+  url?: string
 }
 
 const DISCORD_COLORS = { info: 0x6366f1, success: 0x22c55e, warning: 0xf59e0b, error: 0xef4444 }
@@ -48,6 +51,7 @@ export function buildRequest(channel: Channel, msg: Message): { url: string; ini
                 : msg.level === 'success'
                   ? 'white_check_mark'
                   : 'whale',
+            ...(msg.url ? { click: msg.url } : {}),
             ...bearer,
           },
           body: msg.body,
@@ -62,9 +66,23 @@ export function buildRequest(channel: Channel, msg: Message): { url: string; ini
           title: msg.title,
           message: msg.body,
           priority: msg.level === 'error' ? 8 : 4,
+          ...(msg.url ? { extras: { 'client::notification': { click: { url: msg.url } } } } : {}),
         }),
       }
     }
+    case 'pushover':
+      return {
+        url: channel.url,
+        init: json({
+          token: channel.token,
+          user: channel.recipient,
+          title: msg.title.slice(0, 250),
+          message: msg.body.slice(0, 1024),
+          // 1 is "high": it bypasses quiet hours; 2 (emergency) needs acknowledging, so skip it
+          priority: msg.level === 'error' ? 1 : 0,
+          ...(msg.url ? { url: msg.url, url_title: 'Open in stacky' } : {}),
+        }),
+      }
     case 'discord':
       return {
         url: channel.url,
@@ -75,6 +93,7 @@ export function buildRequest(channel: Channel, msg: Message): { url: string; ini
               title: msg.title,
               description: msg.body.slice(0, 4000),
               color: DISCORD_COLORS[msg.level],
+              ...(msg.url ? { url: msg.url } : {}),
             },
           ],
         }),
@@ -95,5 +114,24 @@ export function buildRequest(channel: Channel, msg: Message): { url: string; ini
 export async function send(channel: Channel, msg: Message, fetchImpl: typeof fetch = fetch) {
   const { url, init } = buildRequest(channel, msg)
   const res = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(15_000) })
-  if (!res.ok) throw new Error(`${channel.name}: HTTP ${res.status}`)
+  if (!res.ok) {
+    const reason = errorReason(await res.text().catch(() => ''))
+    throw new Error(`${channel.name}: HTTP ${res.status}${reason ? ` (${reason})` : ''}`)
+  }
+}
+
+/** The human readable part of an error response from Pushover, Gotify, ntfy and friends. */
+export function errorReason(text: string): string | undefined {
+  let body: unknown
+  try {
+    body = JSON.parse(text)
+  } catch {
+    return undefined
+  }
+  if (!body || typeof body !== 'object') return undefined
+  const b = body as Record<string, unknown>
+  const reason = Array.isArray(b.errors)
+    ? b.errors.filter((e) => typeof e === 'string').join('; ')
+    : [b.errorDescription, b.error, b.message].find((v) => typeof v === 'string')
+  return typeof reason === 'string' && reason ? reason.slice(0, 200) : undefined
 }

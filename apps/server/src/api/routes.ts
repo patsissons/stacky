@@ -378,15 +378,21 @@ export function apiRoutes(ctx: ApiContext) {
   })
 
   // ---- notifications ----
-  const channelInput = z.object({
-    id: z.string().optional(),
-    name: z.string().min(1).max(64),
-    type: z.enum(channelTypes),
-    url: z.string().url(),
-    token: z.string().max(1024).nullable().optional(),
-    events: z.array(z.enum(notifyEvents)),
-    enabled: z.boolean(),
-  })
+  const channelInput = z
+    .object({
+      id: z.string().optional(),
+      name: z.string().min(1).max(64),
+      type: z.enum(channelTypes),
+      url: z.string().url(),
+      token: z.string().max(1024).nullable().optional(),
+      recipient: z.string().trim().max(64).optional(),
+      events: z.array(z.enum(notifyEvents)),
+      enabled: z.boolean(),
+    })
+    .refine((c) => c.type !== 'pushover' || !!c.recipient, {
+      message: 'Pushover channels need a user or group key',
+      path: ['recipient'],
+    })
 
   api.get('/settings/notifications', (c) => c.json(ctx.notifier.list()))
 
