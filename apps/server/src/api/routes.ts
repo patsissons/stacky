@@ -9,6 +9,7 @@ import {
   type ApiErrorBody,
   type ContainerSummary,
   type SystemInfo,
+  type UpdateScheduleSettings,
 } from '@stacky/shared'
 import { OIDC_PROVIDER_ID, type AuthService, type AuthUser } from '../auth'
 import type { AuditLog } from '../auth/audit'
@@ -25,6 +26,7 @@ import type { StackState } from '../stacks/state'
 import type { SelfUpdater } from '../self/updater'
 import type { SettingsStore } from '../db/settings'
 import { WUD_KEY, type UpdateChecker } from '../updates/checker'
+import { ScheduleError } from '../updates/schedule'
 import { WudClient, type WudSettings } from '../updates/wud'
 import type { Notifier } from '../notify/notifier'
 import type { GitSync } from '../git/sync'
@@ -263,6 +265,24 @@ export function apiRoutes(ctx: ApiContext) {
     const input = await body(c, ignoreUpdateBody)
     ctx.updates.ignore(input.ref, input.value)
     return c.json(ctx.updates.summary())
+  })
+
+  const scheduleSettings = (): UpdateScheduleSettings => ({
+    ...ctx.updates.schedule(),
+    nextCheckAt: ctx.updates.summary().nextCheckAt,
+  })
+
+  api.get('/settings/updates', (c) => c.json(scheduleSettings()))
+
+  api.put('/settings/updates', async (c) => {
+    const input = await body(c, z.object({ schedule: z.string().max(100).nullable() }))
+    try {
+      ctx.updates.setSchedule(input.schedule)
+    } catch (err) {
+      if (err instanceof ScheduleError) throw badRequest(err.message)
+      throw err
+    }
+    return c.json(scheduleSettings())
   })
 
   api.post('/stacks/:name/services/:service/image', async (c) => {

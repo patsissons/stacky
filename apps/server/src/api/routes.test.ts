@@ -195,6 +195,26 @@ describe('stacks', () => {
     expect(await json(saved)).toMatchObject([{ type: 'pushover', recipient: 'user-key' }])
   })
 
+  it('saves the update check schedule and rejects invalid ones', async () => {
+    expect(await json(await req('GET', '/api/settings/updates', { cookie }))).toMatchObject({
+      schedule: '6h',
+      default: '6h',
+      saved: false,
+    })
+    const bad = await req('PUT', '/api/settings/updates', { cookie, body: { schedule: 'often' } })
+    expect(bad.status).toBe(400)
+    expect(await json(bad)).toMatchObject({
+      error: { message: expect.stringMatching(/not a schedule/) },
+    })
+    const saved = await req('PUT', '/api/settings/updates', {
+      cookie,
+      body: { schedule: '0 4 * * *' },
+    })
+    expect(await json(saved)).toMatchObject({ schedule: '0 4 * * *', saved: true })
+    const reset = await req('PUT', '/api/settings/updates', { cookie, body: { schedule: null } })
+    expect(await json(reset)).toMatchObject({ schedule: '6h', saved: false })
+  })
+
   it('rejects bad names and paths', async () => {
     const res = await req('POST', '/api/stacks', {
       cookie,

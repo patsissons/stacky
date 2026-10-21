@@ -81,6 +81,10 @@ const components: Record<string, Schema> = {
       createdAt: time,
       ports: arrayOf(ref('Port')),
       icon: str,
+      updateSchedule: {
+        ...str,
+        description: 'The `stacky.update.schedule` label: how often the image is checked',
+      },
     },
     ['id', 'name', 'service', 'image', 'state', 'statusText', 'ports'],
   ),
@@ -169,6 +173,11 @@ const components: Record<string, Schema> = {
       ignored: bool,
       message: str,
       checkedAt: time,
+      scheduleLabel: {
+        ...str,
+        description: 'The `stacky.update.schedule` label that sets how often this image is checked',
+      },
+      scheduleError: { ...str, description: 'Why that label was ignored' },
     },
     ['ref', 'status', 'checkedAt'],
   ),

@@ -51,7 +51,45 @@ The arrow next to **Update** is always available and has two more options:
 
 ## When checks run
 
-Checks run a minute after stacky starts, then every 6 hours (with some random jitter), whenever you click **Check for updates**, and after you deploy or update a stack. To check a single image, use **Check for updates** in that container's menu (on the containers page or a service card), or the telescope button in the update dialog; a notification reports the result. Set `STACKY_UPDATE_INTERVAL` (in hours) to change the schedule; `0` turns off scheduled checks.
+Images are checked a minute after stacky starts if they've never been checked, then on a schedule. They're also checked whenever you click **Check for updates**, and after you deploy or update a stack. To check a single image, use **Check for updates** in that container's menu (on the containers page or a service card), or the telescope button in the update dialog; a notification reports the result.
+
+### The global schedule
+
+Set how often images are checked under **Settings → Image update checks**. The default is every 6 hours; set `STACKY_UPDATE_SCHEDULE` to change the default (the older `STACKY_UPDATE_INTERVAL`, in hours, still works). The Settings card shows when the next check is due.
+
+| Schedule                | Checks                                                                |
+| ----------------------- | --------------------------------------------------------------------- |
+| `hourly`                | At the top of every hour                                              |
+| `daily` or `nightly`    | Every day at 3 AM                                                     |
+| `weekly`                | Every Sunday at 3 AM                                                  |
+| `monthly`               | On the 1st of every month at 3 AM                                     |
+| `30m`, `6h`, `2d`, `1w` | That long after the image was last checked (5 minutes at least)       |
+| A cron pattern          | Whenever the pattern matches, e.g. `0 4 * * 1-5` for 4 AM on weekdays |
+| `never` (or `off`, `0`) | Only when you ask, or after a deploy                                  |
+
+Times use stacky's time zone; set `TZ` on the stacky container (e.g. `TZ: Europe/Berlin`) to change it. The presets and intervals start up to five minutes late, so many stacky instances don't all hit registries at the same moment; cron patterns run on time. If stacky was down when a check was due, the check runs right after it starts.
+
+### Per-container schedules
+
+Give a service a `stacky.update.schedule` label to check its image on its own schedule, using any value from the table above:
+
+```yaml
+services:
+  postgres:
+    image: postgres:17.6
+    labels:
+      stacky.update.schedule: weekly
+  traefik:
+    image: traefik:v3.5
+    labels:
+      stacky.update.schedule: '0 */2 * * *'
+  my-app:
+    image: ghcr.io/me/my-app:latest
+    labels:
+      stacky.update.schedule: never
+```
+
+Containers without the label use the global schedule. Updates are tracked per image, so when several containers run the same image with different schedules, the soonest one wins. An invalid label is ignored in favour of the global schedule, and the update dialog says why. Labels apply once the container has been recreated (deploy the stack).
 
 ## Rate limits
 

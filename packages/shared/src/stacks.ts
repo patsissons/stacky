@@ -68,6 +68,8 @@ export interface ContainerSummary {
   ports: PortMapping[]
   /** Icon name served by `/api/icons/:name`. */
   icon?: string
+  /** The `stacky.update.schedule` label: how often this container's image is checked for updates. */
+  updateSchedule?: string
 }
 
 export interface ServiceSummary {

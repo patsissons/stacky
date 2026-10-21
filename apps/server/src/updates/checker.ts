@@ -7,17 +7,36 @@ import type { SettingsStore } from '../db/settings'
 import type { Logger } from '../lib/logger'
 import type { StackState } from '../stacks/state'
 import { parseImageRef, RegistryError, type RegistryClient } from './registry'
+import {
+  MAX_JITTER_MS,
+  nextRun,
+  parseSchedule,
+  SCHEDULE_LABEL,
+  ScheduleError,
+  type Schedule,
+} from './schedule'
 import { isVersionTag, newestTag } from './tags'
 import { WudClient, type WudSettings } from './wud'
 
 const IGNORED_KEY = 'updates.ignored'
 export const WUD_KEY = 'integrations.wud'
+export const SCHEDULE_KEY = 'updates.schedule'
 const CONCURRENCY = 4
+const TICK_MS = 60_000
 
 interface InUse {
   ref: string
   imageIds: Set<string>
   containers: Set<string>
+  /** `stacky.update.schedule` of each container; undefined for containers without the label. */
+  schedules: Set<string | undefined>
+}
+
+/** When an image is next due, and which schedule decided it. */
+interface Due {
+  at: number | undefined
+  label?: string
+  labelError?: string
 }
 
 interface CheckerEvents {
@@ -27,13 +46,15 @@ interface CheckerEvents {
 /**
  * Checks the images of running containers for updates: a new digest for the
  * same tag, and newer version tags of the same shape. Results persist across
- * restarts; checks run on a schedule and on demand.
+ * restarts; checks run on demand and on a schedule, set globally and per
+ * container with the `stacky.update.schedule` label.
  */
 export class UpdateChecker extends EventEmitter<CheckerEvents> {
   private checking = false
   private lastCheckAt: number | undefined
-  private nextCheckAt: number | undefined
   private timer: NodeJS.Timeout | undefined
+  private parsed = new Map<string, Schedule | ScheduleError>()
+  private warned = new Set<string>()
 
   constructor(
     private readonly state: StackState,
@@ -42,28 +63,111 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
     private readonly db: Db,
     private readonly settings: SettingsStore,
     private readonly logger: Logger,
-    private readonly intervalMs = 6 * 60 * 60 * 1000,
+    /** Schedule used until one is saved in Settings (from `STACKY_UPDATE_SCHEDULE`). */
+    private readonly defaultSchedule = '6h',
     private readonly wudFactory: (s: WudSettings) => WudClient = (s) => new WudClient(s),
+    private readonly now: () => number = Date.now,
+    // spreads checks so many stacky instances don't hit registries at once
+    private readonly jitterMs = Math.floor(Math.random() * MAX_JITTER_MS),
   ) {
     super()
   }
 
   start(initialDelayMs = 60_000) {
-    if (this.intervalMs <= 0) return
-    const schedule = (delay: number) => {
-      // jitter spreads checks so many stacky instances don't hit registries at once
-      const jittered = delay + Math.floor(Math.random() * Math.min(delay / 10, 5 * 60_000))
-      this.nextCheckAt = Date.now() + jittered
+    const tick = (delay: number) => {
       this.timer = setTimeout(() => {
-        void this.checkAll().finally(() => schedule(this.intervalMs))
-      }, jittered)
+        void this.checkDue().finally(() => tick(TICK_MS))
+      }, delay)
       this.timer.unref()
     }
-    schedule(initialDelayMs)
+    tick(initialDelayMs)
   }
 
   stop() {
     clearTimeout(this.timer)
+  }
+
+  // ---- schedules ----
+
+  /** The global schedule: saved in Settings, else the configured default. */
+  schedule(): { schedule: string; default: string; saved: boolean } {
+    const saved = this.settings.get<string>(SCHEDULE_KEY)
+    return {
+      schedule: saved ?? this.defaultSchedule,
+      default: this.defaultSchedule,
+      saved: !!saved,
+    }
+  }
+
+  /** Saves the global schedule; `null` goes back to the default. Throws `ScheduleError`. */
+  setSchedule(text: string | null) {
+    if (text === null) this.settings.delete(SCHEDULE_KEY)
+    else {
+      parseSchedule(text)
+      this.settings.set(SCHEDULE_KEY, text.trim())
+    }
+    this.emit('change', this.summary())
+  }
+
+  private parse(text: string): Schedule | ScheduleError {
+    let hit = this.parsed.get(text)
+    if (!hit) {
+      try {
+        hit = parseSchedule(text)
+      } catch (err) {
+        if (!(err instanceof ScheduleError)) throw err
+        hit = err
+      }
+      this.parsed.set(text, hit)
+    }
+    return hit
+  }
+
+  /** When each image in use is next due; the earliest of its containers' schedules wins. */
+  private dueTimes(inUse: Map<string, InUse>): Map<string, Due> {
+    const now = this.now()
+    const checkedAt = new Map(
+      this.db
+        .select({ ref: imageUpdates.ref, checkedAt: imageUpdates.checkedAt })
+        .from(imageUpdates)
+        .all()
+        .map((r) => [r.ref, r.checkedAt]),
+    )
+    const global = this.parse(this.schedule().schedule)
+    const result = new Map<string, Due>()
+    for (const target of inUse.values()) {
+      let best: Due | undefined
+      for (const label of target.schedules) {
+        const parsed = label === undefined ? global : this.parse(label)
+        const labelError = parsed instanceof ScheduleError ? parsed.message : undefined
+        if (labelError && !this.warned.has(label!)) {
+          this.warned.add(label!)
+          this.logger.warn(`invalid ${SCHEDULE_LABEL} label; using the global schedule`, {
+            label,
+            err: labelError,
+          })
+        }
+        const schedule = parsed instanceof ScheduleError ? global : parsed
+        const at =
+          schedule instanceof ScheduleError
+            ? undefined
+            : nextRun(schedule, checkedAt.get(target.ref), now, this.jitterMs)
+        const due: Due = { at, label: labelError ? undefined : label, labelError }
+        if (!best || (at !== undefined && (best.at === undefined || at < best.at))) best = due
+        else if (labelError) best.labelError ??= labelError
+      }
+      if (best) result.set(target.ref, best)
+    }
+    return result
+  }
+
+  /** Checks the images whose schedule says they're due. */
+  async checkDue() {
+    const now = this.now()
+    const due = [...this.dueTimes(this.inUse())]
+      .filter(([, d]) => d.at !== undefined && d.at <= now)
+      .map(([ref]) => ref)
+    if (due.length > 0) await this.checkAll(due)
   }
 
   /** Distinct image references used by containers right now. */
@@ -74,9 +178,15 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
         for (const c of service.containers) {
           const ref = c.image.startsWith('sha256:') ? service.image : c.image
           if (!ref || ref.includes('${')) continue
-          const entry = map.get(ref) ?? { ref, imageIds: new Set(), containers: new Set() }
+          const entry = map.get(ref) ?? {
+            ref,
+            imageIds: new Set(),
+            containers: new Set(),
+            schedules: new Set(),
+          }
           entry.imageIds.add(c.imageId)
           entry.containers.add(c.name)
+          entry.schedules.add(c.updateSchedule?.trim() || undefined)
           map.set(ref, entry)
         }
       }
@@ -87,19 +197,30 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
   summary(): UpdatesSummary {
     const ignored = this.settings.get<Record<string, string>>(IGNORED_KEY) ?? {}
     const inUse = this.inUse()
+    const due = this.dueTimes(inUse)
     const rows = this.db.select().from(imageUpdates).all()
     const updates = rows
       .filter((r) => inUse.has(r.ref))
       .map((r) => {
-        const u = r.data
+        const d = due.get(r.ref)
+        const u = {
+          ...r.data,
+          ...(d?.label ? { scheduleLabel: d.label } : {}),
+          ...(d?.labelError ? { scheduleError: d.labelError } : {}),
+        }
         const value = u.newerTag ?? u.remoteDigest
         return value && ignored[u.ref] === value ? { ...u, ignored: true } : u
       })
+    const next = [...due.values()]
+      .map((d) => d.at)
+      .filter((at) => at !== undefined)
+      .sort((a, b) => a - b)[0]
     return {
       updates,
       checking: this.checking,
       lastCheckAt: this.lastCheckAt,
-      nextCheckAt: this.nextCheckAt,
+      // a never-checked image is due "now"; the next tick picks it up
+      nextCheckAt: next === undefined ? undefined : Math.max(next, this.now()),
     }
   }
 
@@ -128,7 +249,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
         }
       })
       await Promise.all(workers)
-      this.lastCheckAt = Date.now()
+      this.lastCheckAt = this.now()
     } finally {
       this.checking = false
       this.emit('change', this.summary())
@@ -153,7 +274,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
       registry: parsed.registry,
       repository: parsed.repository,
       tag: parsed.tag,
-      checkedAt: Date.now(),
+      checkedAt: this.now(),
       source: 'native' as const,
     }
     if (parsed.digest) return { ...base, status: 'skipped', message: 'pinned to a digest' }

@@ -5,7 +5,7 @@ A modern, compose-first Docker stack manager for your home lab: a better-looking
 - **Compose files are the source of truth.** Each stack is a plain directory (`/opt/stacks/<name>/compose.yaml` plus an optional `.env`). Stacky reads Dockge's layout as-is, so migrating means pointing it at the same directory.
 - **Modern UI.** Covers stacks, a cross-stack containers table, logs, container shells and a real editor with schema completion and a diff before every deploy. Click any container to inspect or edit just its service.
 - **Clear errors.** Failed operations explain what went wrong and how to fix it.
-- **Image updates.** Native registry digest and version-tag checks, with no extra containers to run. Apply updates per service, per stack (including pinned versions), or all at once. [What's Up Docker](https://github.com/getwud/wud) can optionally fill in images stacky can't check itself.
+- **Image updates.** Native registry digest and version-tag checks, with no extra containers to run. Checked on a global schedule, or per container with a `stacky.update.schedule` label (`nightly`, `weekly`, `6h`, cron…). Apply updates per service, per stack (including pinned versions), or all at once. [What's Up Docker](https://github.com/getwud/wud) can optionally fill in images stacky can't check itself.
 - **Notifications.** Pushover, ntfy, Gotify, Discord, Apprise or webhooks, for failed deploys, new image updates, unhealthy containers and self-updates.
 - **File browser.** A read-only view of the stacks directory and stacky's data directory, with a text viewer and an image viewer.
 - **App icons.** Matched by image name from the selfh.st set, or picked with a `stacky.display.icon` label: any of What's Up Docker's icon sets, or an image URL.
@@ -51,7 +51,8 @@ Open `http://<host>:5005` and create the admin account. From then on, stacky app
 | `STACKY_TRUSTED_PROXIES`                      | (none)         | Comma-separated proxy addresses/CIDRs whose `X-Forwarded-*` is trusted    |
 | `STACKY_ADMIN_USER` / `STACKY_ADMIN_PASSWORD` | (none)         | Seed the admin account instead of using the setup page                    |
 | `STACKY_UPDATE_CHECK`                         | `true`         | Check GitHub for newer stacky releases                                    |
-| `STACKY_UPDATE_INTERVAL`                      | `6`            | Hours between image update checks (`0` = only on demand)                  |
+| `STACKY_UPDATE_SCHEDULE`                      | `6h`           | Default update check schedule: `nightly`, `weekly`, `12h`, cron, `never`  |
+| `STACKY_UPDATE_INTERVAL`                      | `6`            | Legacy hours between update checks, if `STACKY_UPDATE_SCHEDULE` is unset  |
 | `STACKY_BASE_URL`                             | (none)         | Public URL, used for links and OIDC callbacks                             |
 | `STACKY_DOCKER_HOST`                          | host of the UI | Host (name or IP) that port links point at, when it differs from stacky's |
 

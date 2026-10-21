@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { z } from 'zod'
+import { intervalSchedule, parseSchedule, ScheduleError } from './updates/schedule'
 
 const booleanish = z
   .string()
@@ -19,6 +20,7 @@ const envSchema = z.object({
   STACKY_ADMIN_PASSWORD: z.string().optional(),
   STACKY_CONTAINER_ID: z.string().optional(),
   STACKY_UPDATE_CHECK: z.string().optional(),
+  STACKY_UPDATE_SCHEDULE: z.string().optional(),
   STACKY_UPDATE_INTERVAL: z.coerce.number().min(0).default(6),
   STACKY_OIDC_ISSUER: z.string().url().optional(),
   STACKY_OIDC_CLIENT_ID: z.string().optional(),
@@ -49,8 +51,8 @@ export interface Config {
   containerId: string | undefined
   /** Check GitHub for newer stacky releases. */
   updateCheck: boolean
-  /** Hours between image update checks; 0 disables scheduled checks. */
-  updateIntervalHours: number
+  /** Default image update check schedule (see `updates/schedule.ts`), until changed in Settings. */
+  updateSchedule: string
   logLevel: 'debug' | 'info' | 'warn' | 'error'
   oidc: OidcConfig | undefined
   /** Base URL of the selfh.st icon set; empty disables fetching icons. */
@@ -95,6 +97,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 
   const dockerHost = parseDockerHost(e.STACKY_DOCKER_HOST)
 
+  const updateSchedule =
+    e.STACKY_UPDATE_SCHEDULE?.trim() || intervalSchedule(e.STACKY_UPDATE_INTERVAL)
+  try {
+    parseSchedule(updateSchedule)
+  } catch (err) {
+    if (!(err instanceof ScheduleError)) throw err
+    throw new ConfigError(`STACKY_UPDATE_SCHEDULE: ${err.message}`)
+  }
+
   return {
     port: e.STACKY_PORT,
     hostname: e.STACKY_HOSTNAME,
@@ -113,7 +124,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         : undefined,
     containerId: e.STACKY_CONTAINER_ID,
     updateCheck: !['0', 'false', 'no', 'off'].includes((e.STACKY_UPDATE_CHECK ?? '').toLowerCase()),
-    updateIntervalHours: e.STACKY_UPDATE_INTERVAL,
+    updateSchedule,
     logLevel: e.STACKY_LOG_LEVEL,
     iconCdn: e.STACKY_ICON_CDN || undefined,
     dockerHost,

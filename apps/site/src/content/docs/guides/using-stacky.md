@@ -46,6 +46,8 @@ services:
 
 When several labels are set, `stacky.display.icon` wins over the older `dev.stacky.icon`, which wins over `wud.display.icon`. Single-color sets (Material Design, Font Awesome, Simple Icons) are inverted in dark mode.
 
+To check a container's image for updates on its own schedule, add a `stacky.update.schedule` label (for example `weekly`, `6h` or a cron pattern). See [Image updates](/guides/image-updates/#per-container-schedules).
+
 Containers are grouped under a heading per stack by default; turn **Group by stack** off for one flat, paginated list. Search, the stack and status filters, sorting, grouping and pagination are all stored in the URL, so you can bookmark a view. On a phone the table turns into cards, grouped the same way.
 
 ## Stack pages
