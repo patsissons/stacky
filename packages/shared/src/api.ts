@@ -22,6 +22,21 @@ export interface ValidationResult {
   issues: ValidationIssue[]
 }
 
+/** What `docker compose up` would do to one container (from a `--dry-run`). */
+export type PreviewAction = 'create' | 'recreate' | 'start' | 'remove' | 'unchanged'
+
+export interface DeployPreview {
+  ok: boolean
+  containers: { name: string; action: PreviewAction }[]
+  /** Why the dry run failed; a failed preview never blocks a deploy. */
+  message?: string
+  /**
+   * Set when the stack's containers were created by another Docker Compose version: compose
+   * then can't match their config hashes, so it recreates them even if nothing changed.
+   */
+  composeMismatch?: { deployedWith: string[]; current: string }
+}
+
 export interface PreflightCheck {
   id: string
   ok: boolean

@@ -52,7 +52,8 @@ export interface TaskContext {
   write(text: string): void
 }
 
-function upArgs(options: ActionOptions): string[] {
+/** `up` arguments for a deploy; the deploy preview dry-runs the same ones. */
+export function upArgs(options: ActionOptions): string[] {
   const args = ['up', '-d', '--remove-orphans']
   if (options.build) args.push('--build')
   if (options.pull) args.push('--pull', options.pull)

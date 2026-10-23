@@ -3,7 +3,7 @@
 A modern, compose-first Docker stack manager for your home lab: a better-looking, easier-to-use, more robust take on [Dockge](https://github.com/louislam/dockge).
 
 - **Compose files are the source of truth.** Each stack is a plain directory (`/opt/stacks/<name>/compose.yaml` plus an optional `.env`). Stacky reads Dockge's layout as-is, so migrating means pointing it at the same directory.
-- **Modern UI.** Covers stacks, a cross-stack containers table, logs, container shells and a real editor with schema completion and a diff before every deploy. Click any container to inspect or edit just its service.
+- **Modern UI.** Covers stacks, a cross-stack containers table, logs, container shells and a real editor with schema completion and a diff and dry-run preview before every deploy. Click any container to inspect or edit just its service.
 - **Clear errors.** Failed operations explain what went wrong and how to fix it.
 - **Image updates.** Native registry digest and version-tag checks, with no extra containers to run. Checked on a global schedule, or per container with a `stacky.update.schedule` label (`nightly`, `weekly`, `6h`, cron…). Apply updates per service, per stack (including pinned versions), or all at once. [What's Up Docker](https://github.com/getwud/wud) can optionally fill in images stacky can't check itself.
 - **Notifications.** Pushover, ntfy, Gotify, Discord, Apprise or webhooks, for failed deploys, new image updates, unhealthy containers and self-updates.

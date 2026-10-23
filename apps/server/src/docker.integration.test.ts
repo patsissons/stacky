@@ -75,6 +75,17 @@ describe.runIf(enabled)('docker integration', () => {
     )
     expect(services).toEqual({ init: 'completed', app: 'running' })
 
+    // the dry run must hash the stdin copy like the deploy did, or it would claim recreates
+    const unchanged = await runtime.stacks.preview(name, {})
+    expect(unchanged.ok, unchanged.message).toBe(true)
+    expect(unchanged.containers.map((c) => c.action)).not.toContain('recreate')
+    const withoutApp = await runtime.stacks.preview(name, {
+      compose: COMPOSE.slice(0, COMPOSE.indexOf('  app:')),
+    })
+    expect(withoutApp.containers).toContainEqual({ name: `${name}-app-1`, action: 'remove' })
+    expect(withoutApp.containers.map((c) => c.action)).not.toContain('recreate')
+    expect(unchanged.composeMismatch).toBeUndefined()
+
     await run('stop')
     await waitFor('stopped')
 

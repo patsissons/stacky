@@ -24,6 +24,12 @@ export const validateBody = z.object({
   env: text.optional(),
 })
 
+export const previewBody = z.object({
+  compose: text.optional().describe('Unsaved compose.yaml contents; the saved file when omitted'),
+  env: text.optional().describe('Unsaved .env contents; the saved file when omitted'),
+  options: actionOptionsSchema.optional(),
+})
+
 export const stackActionBody = z.object({
   options: actionOptionsSchema.optional(),
   compose: text.optional().describe('deploy only: save these contents first (validated)'),

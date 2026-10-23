@@ -49,6 +49,7 @@ import { FileButton } from '@/features/files/file-button'
 import { runStackAction } from '@/features/operations/actions'
 import { api, ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { DeployPreviewSummary } from './deploy-preview'
 import { hasSecrets, languageFor, maskEnv } from './language'
 import { editorStore } from './store'
 import { IssueList, ValidationStatus } from './validation'
@@ -600,7 +601,8 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
             <DialogTitle>Review changes to {name}</DialogTitle>
             <DialogDescription>
               Saved files on the left, your edits on the right. Deploying saves them and runs
-              <code className="mx-1">docker compose up -d</code>.
+              <code className="mx-1">docker compose up -d</code>; below is what that will do to each
+              container.
             </DialogDescription>
           </DialogHeader>
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
@@ -619,11 +621,18 @@ export function StackEditor({ stack }: { stack: StackSummary }) {
               </DiffBlock>
             )}
           </div>
-          {errors.length > 0 && (
+          {errors.length > 0 ? (
             <p className="text-destructive text-sm">
               {errors.length} validation error{errors.length > 1 ? 's' : ''}; the deploy will be
               rejected.
             </p>
+          ) : (
+            <DeployPreviewSummary
+              stack={name}
+              compose={dirtyCompose ? compose : undefined}
+              env={dirtyEnv ? env : undefined}
+              options={deployOptions}
+            />
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDiffOpen(false)}>

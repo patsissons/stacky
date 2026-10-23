@@ -13,6 +13,7 @@ export const LABELS = {
   configFiles: 'com.docker.compose.project.config_files',
   envFile: 'com.docker.compose.project.environment_file',
   image: 'com.docker.compose.image',
+  composeVersion: 'com.docker.compose.version',
 } as const
 
 /**

@@ -279,6 +279,28 @@ test('edits with live validation and reviews a diff before deploying', async () 
   await review.first().click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByText('Review changes to e2e-app')).toBeVisible()
+  // a compose dry run shows what the deploy will do: the new command recreates the container
+  await expect(dialog.getByTestId('deploy-preview')).toContainText('Recreate e2e-app-app-1', {
+    timeout: 30_000,
+  })
+
+  // containers made by another compose version come with an explanation
+  await dialog.getByRole('button', { name: 'Keep editing' }).click()
+  await page.route('**/api/stacks/e2e-app/preview', (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        containers: [{ name: 'e2e-app-app-1', action: 'recreate' }],
+        composeMismatch: { deployedWith: ['2.29.1'], current: '5.6.0' },
+      },
+    }),
+  )
+  await review.first().click()
+  await expect(dialog.getByTestId('deploy-preview')).toContainText(
+    'created by Docker Compose 2.29.1',
+  )
+  await page.unroute('**/api/stacks/e2e-app/preview')
+
   await dialog.getByRole('button', { name: 'Save & deploy' }).click()
   await expect(page.getByText('Deployed e2e-app').last()).toBeVisible({ timeout: 120_000 })
   await page.keyboard.press('Escape')

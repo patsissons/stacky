@@ -144,6 +144,22 @@ describe('stacks', () => {
     expect(ok).toEqual({ ok: true, issues: [] })
   })
 
+  it('previews a deploy of unsaved edits, reporting a failed dry run instead of throwing', async () => {
+    await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
+    const res = await req('POST', '/api/stacks/app/preview', {
+      cookie,
+      body: { compose: 'services: {}\n# edited\n', options: { pull: 'never' } },
+    })
+    expect(res.status).toBe(200)
+    // compose refuses to `up` a project without services, dry run or not
+    expect(await json(res)).toMatchObject({
+      ok: false,
+      containers: [],
+      message: expect.stringContaining('no service'),
+    })
+    expect((await req('POST', '/api/stacks/nope/preview', { cookie })).status).toBe(404)
+  })
+
   it('reads logs once and long-polls operations', async () => {
     await req('POST', '/api/stacks', { cookie, body: { name: 'app', compose: 'services: {}\n' } })
     const logs = await req('GET', '/api/stacks/app/logs?tail=10', { cookie })

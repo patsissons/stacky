@@ -180,3 +180,75 @@ describe('update actions', () => {
     })
   })
 })
+
+describe('deploy preview', () => {
+  const compose = 'services:\n  web:\n    image: nginx\n'
+  const container = (id: string, labels: Record<string, string>) => ({
+    id,
+    name: `app-web-${id}`,
+    project: 'app',
+    service: 'web',
+    number: 1,
+    image: 'nginx',
+    imageId: 'sha256:nginx',
+    state: 'running' as const,
+    statusText: 'Up',
+    createdAt: 0,
+    ports: [],
+    labels,
+  })
+
+  let bin: string
+  let st: StackState
+  let svc: StackService
+  let containers: ReturnType<typeof container>[]
+
+  beforeEach(async () => {
+    // records its arguments and stdin, and answers like compose would
+    bin = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'stacky-bin-')), 'docker')
+    const dir = path.dirname(bin)
+    fs.writeFileSync(
+      bin,
+      `#!/bin/sh
+case "$*" in
+  *"version --short"*) echo 5.6.0 ;;
+  *--dry-run*) echo "$*" > ${dir}/args; cat > ${dir}/stdin
+    echo " Container app-web-1 Recreate"; echo " Container app-web-1 Recreated" ;;
+esac
+exit 0
+`,
+      { mode: 0o755 },
+    )
+    const repo = new StackRepository(tmp)
+    containers = [container('a', { 'com.docker.compose.version': '2.29.1' })]
+    st = new StackState(repo, {} as never, { list: async () => containers } as never, silentLogger)
+    svc = new StackService(repo, st, engine, bin)
+    await svc.create('app', compose)
+  })
+
+  afterEach(() => st.stop())
+
+  it('dry-runs the unsaved files with the deploy options', async () => {
+    const preview = await svc.preview(
+      'app',
+      { compose: `${compose}# edited\n` },
+      { pull: 'always' },
+    )
+    expect(preview.containers).toEqual([{ name: 'app-web-1', action: 'recreate' }])
+    const dir = path.dirname(bin)
+    expect(fs.readFileSync(path.join(dir, 'stdin'), 'utf8')).toContain('# edited')
+    expect(fs.readFileSync(path.join(dir, 'args'), 'utf8')).toContain(
+      '--dry-run up -d --remove-orphans --pull always',
+    )
+  })
+
+  it('explains that containers made by another compose version get recreated', async () => {
+    expect((await svc.preview('app', {})).composeMismatch).toEqual({
+      deployedWith: ['2.29.1'],
+      current: '5.6.0',
+    })
+    containers = [container('b', { 'com.docker.compose.version': '5.6.0' })]
+    await st.refreshNow()
+    expect((await svc.preview('app', {})).composeMismatch).toBeUndefined()
+  })
+})
