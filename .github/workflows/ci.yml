@@ -29,8 +29,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # no --with-deps: the runner image already has Chrome's libraries, and
+      # the apt install it adds crawls when the Ubuntu mirror is slow
       - name: Install Playwright browsers
-        run: pnpm --filter @stacky/web exec playwright install --with-deps chromium
+        run: pnpm --filter @stacky/web exec playwright install chromium
       - run: pnpm validate
         env:
           # also run the Docker integration tests (the runner has a Docker engine)
