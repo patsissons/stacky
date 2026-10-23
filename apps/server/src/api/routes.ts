@@ -41,6 +41,7 @@ import {
   checkUpdatesBody,
   createStackBody,
   ignoreUpdateBody,
+  previewBody,
   saveStackBody,
   stackActionBody,
   stackFileBody,
@@ -475,6 +476,12 @@ export function apiRoutes(ctx: ApiContext) {
     const name = assertStackName(c.req.param('name'))
     const input = await body(c, validateBody)
     return c.json(await ctx.stacks.validate(name, input.compose, input.env))
+  })
+
+  api.post('/stacks/:name/preview', async (c) => {
+    const name = assertStackName(c.req.param('name'))
+    const input = await optionalBody(c, previewBody)
+    return c.json(await ctx.stacks.preview(name, input, input.options))
   })
 
   api.post('/stacks/:name/actions/:action', async (c) => {

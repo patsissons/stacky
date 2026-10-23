@@ -3,6 +3,7 @@ import path from 'node:path'
 import type {
   StackFiles,
   ActionOptions,
+  DeployPreview,
   OperationError,
   OperationSummary,
   ServiceAction,
@@ -10,7 +11,9 @@ import type {
   StackSummary,
   ValidationResult,
 } from '@stacky/shared'
+import { LABELS } from '../docker/client'
 import { AppError, badRequest, notFound } from '../lib/errors'
+import { runCapture } from '../lib/run'
 import type { ComposeTarget, Step } from '../ops/compose'
 import { planServiceAction, planStackAction, planUpdateAction } from '../ops/compose'
 import type { OperationEngine } from '../ops/engine'
@@ -22,6 +25,7 @@ import { setServiceImage } from '../self/compose-edit'
 import { withTag } from '../self/image-ref'
 import { parseDocument } from 'yaml'
 import { composeTags } from './compose-file'
+import { composeMismatch, previewDeploy } from './preview'
 import { planServices, planStackUpdates, TAG_PATTERN } from './update-plan'
 import { validateCompose } from './validate'
 
@@ -108,32 +112,78 @@ export class StackService {
 
   async target(name: string): Promise<ComposeTarget> {
     const files = await this.repo.read(name)
-    const globalEnv = path.join(this.repo.stacksDir, GLOBAL_ENV_FILE)
-    const hasGlobal = await fs
-      .access(globalEnv)
-      .then(() => true)
-      .catch(() => false)
     return {
       dir: this.repo.dir(name),
       composeFile: files.composeFile,
       hasEnv: files.hasEnv,
-      globalEnv: hasGlobal ? globalEnv : undefined,
+      globalEnv: await this.globalEnv(),
     }
   }
 
+  /** `global.env` at the root of the stacks directory, when it exists. */
+  private async globalEnv(): Promise<string | undefined> {
+    const globalEnv = path.join(this.repo.stacksDir, GLOBAL_ENV_FILE)
+    return fs
+      .access(globalEnv)
+      .then(() => globalEnv)
+      .catch(() => undefined)
+  }
+
   async validate(name: string, compose: string, env?: string): Promise<ValidationResult> {
-    const globalEnvPath = path.join(this.repo.stacksDir, GLOBAL_ENV_FILE)
-    const hasGlobal = await fs
-      .access(globalEnvPath)
-      .then(() => true)
-      .catch(() => false)
     return validateCompose({
       dir: this.repo.dir(name),
       compose,
       env,
-      globalEnv: hasGlobal ? globalEnvPath : undefined,
+      globalEnv: await this.globalEnv(),
       dockerBin: this.dockerBin,
     })
+  }
+
+  /**
+   * What deploying these (possibly unsaved) files would do to each container, from a compose
+   * dry run, plus a note when the containers were made by another compose version.
+   */
+  async preview(
+    name: string,
+    files: { compose?: string; env?: string },
+    options: ActionOptions = {},
+  ): Promise<DeployPreview> {
+    const stack = this.requireManaged(name)
+    const current = await this.repo.read(name)
+    const [preview, version] = await Promise.all([
+      previewDeploy({
+        dir: this.repo.dir(name),
+        compose: files.compose ?? current.compose,
+        env: files.env ?? (current.hasEnv ? current.env : undefined),
+        globalEnv: await this.globalEnv(),
+        dockerBin: this.dockerBin,
+        options,
+      }),
+      this.composeVersion(),
+    ])
+    const ids = new Set(stack.services.flatMap((s) => s.containers.map((c) => c.id)))
+    const mismatch = composeMismatch(
+      this.state
+        .allContainers()
+        .filter((c) => ids.has(c.id))
+        .map((c) => c.labels[LABELS.composeVersion]),
+      version,
+    )
+    return mismatch ? { ...preview, composeMismatch: mismatch } : preview
+  }
+
+  private composeVersionLookup: Promise<string | undefined> | undefined
+
+  /** The Docker Compose version stacky runs; a failed lookup is retried next time. */
+  composeVersion(): Promise<string | undefined> {
+    this.composeVersionLookup ??= runCapture(this.dockerBin, ['compose', 'version', '--short'], {
+      timeoutMs: 10_000,
+    }).then((r) => {
+      const version = r.code === 0 ? r.stdout.trim() : ''
+      if (!version) this.composeVersionLookup = undefined
+      return version || undefined
+    })
+    return this.composeVersionLookup
   }
 
   /** Throws a 422 `invalid_compose` (with the issues as details) unless the files validate. */

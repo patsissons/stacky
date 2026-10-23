@@ -12,6 +12,7 @@ import {
   checkUpdatesBody,
   createStackBody,
   ignoreUpdateBody,
+  previewBody,
   saveStackBody,
   stackActionBody,
   stackFileBody,
@@ -153,6 +154,29 @@ const components: Record<string, Schema> = {
     },
     ['ok', 'issues'],
   ),
+  DeployPreview: obj(
+    {
+      ok: bool,
+      containers: arrayOf(
+        obj(
+          {
+            name: str,
+            action: {
+              type: 'string',
+              enum: ['create', 'recreate', 'start', 'remove', 'unchanged'],
+            },
+          },
+          ['name', 'action'],
+        ),
+      ),
+      message: str,
+      composeMismatch: obj({ deployedWith: arrayOf(str), current: str }, [
+        'deployedWith',
+        'current',
+      ]),
+    },
+    ['ok', 'containers'],
+  ),
   LogLine: obj(
     {
       container: str,
@@ -271,6 +295,17 @@ export const routes: Route[] = [
     summary: 'Validate compose text with `docker compose config`',
     body: validateBody,
     response: ref('ValidationResult'),
+  },
+  {
+    method: 'post',
+    path: '/stacks/{name}/preview',
+    tag: 'stacks',
+    summary: 'Preview a deploy with `docker compose up --dry-run`',
+    description:
+      'Lists what deploying the given (or saved) files would do to each container. `composeMismatch` is set when the containers were created by another Docker Compose version, which makes compose recreate them.',
+    body: previewBody,
+    bodyRequired: false,
+    response: ref('DeployPreview'),
   },
   {
     method: 'post',

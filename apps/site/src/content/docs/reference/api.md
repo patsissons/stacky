@@ -61,6 +61,7 @@ A failed operation includes an `error` with a `code`, a `message` and usually a 
 | Create a stack                          | `POST /api/stacks` with `{ "name", "compose", "env"?, "deploy"? }`                    |
 | Save edits without deploying            | `PUT /api/stacks/{name}` with `{ "compose"?, "env"? }`                                |
 | Validate compose text                   | `POST /api/stacks/{name}/validate` with `{ "compose", "env"? }`                       |
+| Preview what a deploy would change      | `POST /api/stacks/{name}/preview` with `{ "compose"?, "env"?, "options"? }`           |
 | Deploy, start, stop, restart, update, … | `POST /api/stacks/{name}/actions/{action}`                                            |
 | Deploy new compose text in one step     | `POST /api/stacks/{name}/actions/deploy` with `{ "compose" }` (validated, then saved) |
 | Restart one service                     | `POST /api/stacks/{name}/services/{service}/restart`                                  |

@@ -19,6 +19,12 @@ Stacky reads Dockge's stack layout unchanged, so there is nothing to convert:
 3. Deploy a non-critical stack from stacky to confirm everything works.
 4. Stop Dockge from stacky and remove its stack when you're ready.
 
+## The first deploy recreates every container
+
+The first time stacky deploys a stack that Dockge started, compose recreates **all** of its containers, even if you changed only one service or nothing at all. Compose labels each container with a hash of its configuration and recreates any container whose hash doesn't match. Containers created by Dockge's (older) Docker Compose carry hashes that stacky's compose computes differently. The way stacky layers `global.env` and `.env` can also change interpolated values. This happens once per stack. After that, deploys only recreate the services you change.
+
+When you edit a stack, **Review & deploy** previews the deploy and names the Docker Compose version that created the containers. Plan the first deploy of a busy stack for a quiet moment.
+
 Compose projects outside the stacks directory (Dockge called them "not managed by Dockge") appear in stacky as **external** projects. Stacky shows their status, logs and shells, but doesn't edit or deploy them. To manage one from stacky:
 
 1. Stop it where it lives: `docker compose down` in its directory.

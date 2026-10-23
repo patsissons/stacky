@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import type { ValidationIssue, ValidationResult } from '@stacky/shared'
-import { runCapture } from '../lib/run'
+import { runCapture, type RunResult } from '../lib/run'
 import { stripAnsi } from '../ops/errors'
 import { parseCompose } from './compose-file'
 
@@ -37,6 +37,23 @@ export async function validateCompose(input: ValidateInput): Promise<ValidationR
     }
   }
 
+  const result = await runComposeInput(input, ['config', '--quiet'], 20_000)
+  if (result.code === 0) {
+    const warnings = parseWarnings(result.stderr)
+    return { ok: true, issues: warnings }
+  }
+  return { ok: false, issues: [composeIssue(result.stderr || result.stdout, input.compose)] }
+}
+
+/**
+ * Runs `docker compose <args>` against unsaved files: the compose text goes in on stdin and an
+ * unsaved `.env` is written to a temp file, layered after `global.env` like a deploy does.
+ */
+export async function runComposeInput(
+  input: ValidateInput,
+  composeArgs: string[],
+  timeoutMs: number,
+): Promise<RunResult> {
   let tmpDir: string | undefined
   try {
     const args = ['compose', '--ansi', 'never', '--project-directory', input.dir, '-f', '-']
@@ -52,18 +69,13 @@ export async function validateCompose(input: ValidateInput): Promise<ValidationR
       if (await exists(stackEnv)) envFiles.push(stackEnv)
     }
     for (const f of envFiles) args.push('--env-file', f)
-    args.push('config', '--quiet')
+    args.push(...composeArgs)
 
-    const result = await runCapture(input.dockerBin ?? 'docker', args, {
+    return await runCapture(input.dockerBin ?? 'docker', args, {
       cwd: (await exists(input.dir)) ? input.dir : undefined,
       stdin: input.compose,
-      timeoutMs: 20_000,
+      timeoutMs,
     })
-    if (result.code === 0) {
-      const warnings = parseWarnings(result.stderr)
-      return { ok: true, issues: warnings }
-    }
-    return { ok: false, issues: [composeIssue(result.stderr || result.stdout, input.compose)] }
   } finally {
     if (tmpDir) await fs.rm(tmpDir, { recursive: true, force: true })
   }

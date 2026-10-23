@@ -7,7 +7,6 @@ import { createDockerClient } from './docker/client'
 import { ContainerLister } from './docker/containers'
 import { AppError } from './lib/errors'
 import { createLogger, type Logger } from './lib/logger'
-import { runCapture } from './lib/run'
 import { OperationEngine } from './ops/engine'
 import { detectSelf, type SelfIdentity } from './self/identity'
 import { runPreflight } from './self/preflight'
@@ -143,16 +142,10 @@ export async function createRuntime(
       project: self.project,
     })
 
-  let composeVersion: string | undefined
   const system = async (): Promise<SystemInfo> => {
     let dockerInfo: SystemInfo['docker']
     let dockerError: string | undefined
-    if (!composeVersion) {
-      const r = await runCapture(dockerBin, ['compose', 'version', '--short'], {
-        timeoutMs: 10_000,
-      })
-      if (r.code === 0) composeVersion = r.stdout.trim()
-    }
+    const composeVersion = await stacks.composeVersion()
     try {
       const v = await docker.version()
       dockerInfo = {

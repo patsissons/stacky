@@ -82,6 +82,7 @@ Each successful deploy or update saves the compose file and `.env` it used, keep
 - **Schema-aware:** completion and hover documentation come from the official Compose specification.
 - **Validated as you type:** your unsaved text goes through `docker compose config` (with your `.env` and `global.env`), and problems are highlighted on the right line.
 - **Diff before deploy:** with unsaved changes, **Review & deploy** shows a side-by-side diff of what will change. Invalid files are never saved by a deploy.
+- **Deploy preview:** the review also dry-runs the deploy (`docker compose up --dry-run`) and lists which containers it will recreate, remove, create or start, and how many stay untouched. When the stack's containers were created by another Docker Compose version (for example by Dockge), it explains why compose recreates them all once. See [Migrating from Dockge](/getting-started/migrating-from-dockge/#the-first-deploy-recreates-every-container).
 - **Your text is kept exactly:** comments, anchors, `!reset` and your formatting are never rewritten.
 - **Secrets are masked:** values in `.env` whose names look secret (`PASSWORD`, `TOKEN`, `KEY`, ...) are hidden until you click **Reveal**.
 - **Shortcuts:** <kbd>⌘/Ctrl</kbd>+<kbd>S</kbd> saves; <kbd>⌘/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> deploys from inside the editor.
