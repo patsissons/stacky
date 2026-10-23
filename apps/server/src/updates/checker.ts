@@ -53,6 +53,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
   private checking = false
   private lastCheckAt: number | undefined
   private timer: NodeJS.Timeout | undefined
+  private stopped = false
   private parsed = new Map<string, Schedule | ScheduleError>()
   private warned = new Set<string>()
 
@@ -83,7 +84,9 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
     tick(initialDelayMs)
   }
 
+  /** Also ends a running check before its next database write: the database closes next. */
   stop() {
+    this.stopped = true
     clearTimeout(this.timer)
   }
 
@@ -234,7 +237,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
 
   /** Checks every image in use (or just `only`). Returns immediately if a check is running. */
   async checkAll(only?: string[]): Promise<void> {
-    if (this.checking) return
+    if (this.checking || this.stopped) return
     this.checking = true
     this.emit('change', this.summary())
     try {
@@ -244,6 +247,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
       const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
         for (let t = queue.shift(); t; t = queue.shift()) {
           const result = this.mergeWud(await this.check(t), t, wud)
+          if (this.stopped) return
           this.save(result)
           this.emit('change', this.summary())
         }
@@ -252,7 +256,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
       this.lastCheckAt = this.now()
     } finally {
       this.checking = false
-      this.emit('change', this.summary())
+      if (!this.stopped) this.emit('change', this.summary())
     }
   }
 
