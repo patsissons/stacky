@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/patsissons/stacky/compare/v0.10.0...v0.10.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* don't let a running image check outlive shutdown ([#24](https://github.com/patsissons/stacky/issues/24)) ([8d174da](https://github.com/patsissons/stacky/commit/8d174da2a26e0acd93f8468c6e4e6da2cd024b6e))
+
 ## [0.10.0](https://github.com/patsissons/stacky/compare/v0.9.0...v0.10.0) (2026-10-23)
 
 
