@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/patsissons/stacky/compare/v0.9.0...v0.10.0) (2026-10-23)
+
+
+### Features
+
+* preview what a deploy will change before it runs ([#22](https://github.com/patsissons/stacky/issues/22)) ([26737ef](https://github.com/patsissons/stacky/commit/26737ef00186021067ae7fbc1bcf837d403667f9))
+
 ## [0.9.0](https://github.com/patsissons/stacky/compare/v0.8.0...v0.9.0) (2026-10-21)
 
 
