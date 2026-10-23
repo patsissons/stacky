@@ -193,6 +193,29 @@ describe('UpdateChecker', () => {
       newerTag: '1.28.0',
     })
   })
+
+  it('stops a running check before it touches the closed database', async () => {
+    let release!: () => void
+    const pending = new Promise<void>((r) => (release = r))
+    const c = checker(
+      [stack([{ service: 'web', image: 'nginx:1.27.3', imageId: 'i1' }])],
+      {},
+      {
+        manifestDigest: async () => {
+          await pending
+          return 'sha256:a'
+        },
+        listTags: async () => [],
+      },
+    )
+    const check = c.checkAll()
+    c.stop()
+    close()
+    release()
+    await expect(check).resolves.toBeUndefined()
+    await expect(c.checkAll()).resolves.toBeUndefined()
+    // afterEach closes again; better-sqlite3 allows that
+  })
 })
 
 describe('UpdateChecker schedules', () => {
