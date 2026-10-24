@@ -16,13 +16,15 @@ function stack(
     tagInclude?: string
     tagExclude?: string
     linkTemplate?: string
+    createdAt?: number
   }[],
+  isSelf = false,
 ): StackSummary {
   return {
     name: 'app',
     managed: true,
     status: 'running',
-    isSelf: false,
+    isSelf,
     urls: [],
     services: images.map((i) => ({
       name: i.service,
@@ -39,7 +41,7 @@ function stack(
           imageId: i.imageId,
           state: 'running',
           statusText: 'Up',
-          createdAt: 0,
+          createdAt: i.createdAt ?? 0,
           ports: [],
           updateSchedule: i.updateSchedule,
           tagInclude: i.tagInclude,
@@ -420,6 +422,75 @@ describe('UpdateChecker schedules', () => {
     expect(checked).toHaveLength(2)
     await c.checkDue()
     expect(checked).toHaveLength(2)
+  })
+
+  it('checks an image again once a container is recreated after its check', async () => {
+    const stacks = [stack([{ service: 'web', image: 'nginx:1.26.0', imageId: 'i1' }])]
+    const c = checker(stacks, { i1: ['sha256:a'] }, tracking, undefined, 'weekly')
+    await c.checkDue()
+    await c.checkDue()
+    expect(checked).toHaveLength(1)
+    now += 60_000
+    stacks[0]!.services[0]!.containers[0]!.createdAt = now - 1000
+    await c.checkDue()
+    expect(checked).toHaveLength(2)
+    await c.checkDue()
+    expect(checked).toHaveLength(2)
+  })
+
+  it("re-checks stacky's own image while a newer release isn't reflected yet", async () => {
+    let remote = 'sha256:a'
+    const registry = {
+      manifestDigest: async (r: { tag: string }) => {
+        checked.push(r.tag)
+        return remote
+      },
+      listTags: async () => [],
+    }
+    const c = checker(
+      [
+        stack(
+          [{ service: 'stacky', image: 'ghcr.io/patsissons/stacky:latest', imageId: 'i1' }],
+          true,
+        ),
+      ],
+      { i1: ['sha256:a'] },
+      registry,
+      undefined,
+      'weekly',
+    )
+    let release = false
+    c.selfRelease = () => release
+    await c.checkDue()
+    expect(checked).toHaveLength(1)
+    release = true
+    now += 10 * 60_000
+    await c.checkDue()
+    expect(checked).toHaveLength(1)
+    now += 6 * 60_000
+    // the image is in the registry now
+    remote = 'sha256:b'
+    await c.checkDue()
+    expect(checked).toHaveLength(2)
+    expect(c.summary().updates[0]?.status).toBe('update_available')
+    now += 60 * 60_000
+    await c.checkDue()
+    expect(checked).toHaveLength(2)
+  })
+
+  it('only re-checks often for the image of stacky itself', async () => {
+    const c = checker(
+      [stack([{ service: 'web', image: 'nginx:latest', imageId: 'i1' }])],
+      { i1: ['sha256:a'] },
+      tracking,
+      undefined,
+      'weekly',
+    )
+    c.selfRelease = () => true
+    await c.checkDue()
+    now += 60 * 60_000
+    await c.checkDue()
+    expect(checked).toHaveLength(1)
   })
 
   it('saves the global schedule in settings and can reset it', () => {

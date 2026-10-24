@@ -90,4 +90,19 @@ describe('ReleaseChecker', () => {
     expect(await checker.available('dev')).toBeUndefined()
     expect(await new ReleaseChecker(false, fetchImpl).latest()).toBeUndefined()
   })
+
+  it('peeks at the fetched release without fetching', async () => {
+    let fetches = 0
+    const fetchImpl = (async () => {
+      fetches++
+      return new Response(JSON.stringify({ tag_name: 'v0.3.0', html_url: 'https://x' }))
+    }) as typeof fetch
+    const checker = new ReleaseChecker(true, fetchImpl)
+    expect(checker.peek('0.2.0')).toBeUndefined()
+    expect(fetches).toBe(0)
+    await checker.latest()
+    expect(checker.peek('0.2.0')?.version).toBe('0.3.0')
+    expect(checker.peek('0.3.0')).toBeUndefined()
+    expect(fetches).toBe(1)
+  })
 })

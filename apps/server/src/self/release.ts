@@ -47,6 +47,13 @@ export class ReleaseChecker {
     }
   }
 
+  /** The newer release already fetched, if the running version is behind it; never fetches. */
+  peek(current: string): ReleaseInfo | undefined {
+    const latest = this.cached?.release
+    if (!latest || !/^\d/.test(current)) return undefined
+    return compareVersions(latest.version, current) > 0 ? latest : undefined
+  }
+
   /** The newer release, if the running version is behind it. */
   async available(current: string): Promise<ReleaseInfo | undefined> {
     const latest = await this.latest()

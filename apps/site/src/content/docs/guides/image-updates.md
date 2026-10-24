@@ -51,7 +51,7 @@ The arrow next to **Update** is always available and has two more options:
 
 ## When checks run
 
-Images are checked a minute after stacky starts if they've never been checked, then on a schedule. They're also checked whenever you click **Check for updates**, and after you deploy or update a stack. To check a single image, use **Check for updates** in that container's menu (on the containers page or a service card), or the telescope button in the update dialog; a notification reports the result.
+Images are checked a minute after stacky starts if they've never been checked, then on a schedule. They're also checked whenever you click **Check for updates**, after you deploy or update a stack, and whenever one of their containers was recreated since the last check. When a new stacky release comes out, stacky re-checks its own image every 15 minutes until the update shows, since the image reaches the registry a little after the release. To check a single image, use **Check for updates** in that container's menu (on the containers page or a service card), or the telescope button in the update dialog; a notification reports the result.
 
 ### The global schedule
 
