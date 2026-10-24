@@ -70,6 +70,12 @@ export interface ContainerSummary {
   icon?: string
   /** The `stacky.update.schedule` label: how often this container's image is checked for updates. */
   updateSchedule?: string
+  /** The `stacky.tag.include` (or `wud.tag.include`) label: a regex newer tags must match. */
+  tagInclude?: string
+  /** The `stacky.tag.exclude` (or `wud.tag.exclude`) label: a regex that rules tags out. */
+  tagExclude?: string
+  /** The `stacky.link.template` (or `wud.link.template`) label: a release link per tag. */
+  linkTemplate?: string
 }
 
 export interface ServiceSummary {

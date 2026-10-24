@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { firstLabel } from '../docker/labels'
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/
 const HASH_RE = /^[0-9a-f]{24}$/
@@ -80,11 +81,7 @@ export const iconUrls = new IconUrls()
 
 /** The icon label a container sets, if any. */
 export function iconLabel(labels: Record<string, string> = {}): string | undefined {
-  for (const key of ICON_LABELS) {
-    const value = labels[key]?.trim()
-    if (value) return value
-  }
-  return undefined
+  return firstLabel(labels, ICON_LABELS)
 }
 
 /** Parses an icon label: `name`, `<set>:name`, `stacky` or an http(s) URL. */

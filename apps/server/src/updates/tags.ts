@@ -1,5 +1,16 @@
 import type { UpdateKind } from '@stacky/shared'
 
+/** Labels with a regex a tag must match to count as a newer version, highest priority first. */
+export const TAG_INCLUDE_LABELS = ['stacky.tag.include', 'wud.tag.include'] as const
+/** Labels with a regex that rules a tag out, highest priority first. */
+export const TAG_EXCLUDE_LABELS = ['stacky.tag.exclude', 'wud.tag.exclude'] as const
+
+/** Narrows the candidate tags; both still have to pass the shape rule. */
+export interface TagFilter {
+  include?: RegExp
+  exclude?: RegExp
+}
+
 /**
  * Tags are compared by "shape": the tag with every number replaced by `#`.
  * `1.27.3-alpine` only competes with other `#.#.#-alpine` tags and
@@ -9,7 +20,7 @@ export function tagShape(tag: string): string {
   return tag.replace(/\d+/g, '#')
 }
 
-function numbers(tag: string): number[] {
+export function numbers(tag: string): number[] {
   return (tag.match(/\d+/g) ?? []).map(Number)
 }
 
@@ -37,16 +48,19 @@ export function updateKind(from: string, to: string): UpdateKind {
   return 'prerelease'
 }
 
-/** The newest tag with the same shape as `current`, if it is newer. */
+/** The newest tag with the same shape as `current` that passes `filter`, if it is newer. */
 export function newestTag(
   current: string,
   tags: string[],
+  filter: TagFilter = {},
 ): { tag: string; kind: UpdateKind } | undefined {
   if (!isVersionTag(current)) return undefined
   const shape = tagShape(current)
   const mine = numbers(current)
   let best: { tag: string; nums: number[] } | undefined
   for (const tag of tags) {
+    if (filter.include && !filter.include.test(tag)) continue
+    if (filter.exclude?.test(tag)) continue
     if (tagShape(tag) !== shape) continue
     const nums = numbers(tag)
     if (compare(nums, mine) <= 0) continue

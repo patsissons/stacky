@@ -13,6 +13,9 @@ function stack(
     imageId: string
     name?: string
     updateSchedule?: string
+    tagInclude?: string
+    tagExclude?: string
+    linkTemplate?: string
   }[],
 ): StackSummary {
   return {
@@ -39,6 +42,9 @@ function stack(
           createdAt: 0,
           ports: [],
           updateSchedule: i.updateSchedule,
+          tagInclude: i.tagInclude,
+          tagExclude: i.tagExclude,
+          linkTemplate: i.linkTemplate,
         },
       ],
     })),
@@ -194,6 +200,106 @@ describe('UpdateChecker', () => {
     })
   })
 
+  it('only considers tags that pass the include and exclude labels', async () => {
+    const c = checker(
+      [
+        stack([
+          { service: 'web', image: 'nginx:1.26.0', imageId: 'i1', tagInclude: '^1\\.26\\.' },
+          { service: 'db', image: 'postgres:17.1', imageId: 'i2', tagExclude: '^18\\.' },
+        ]),
+      ],
+      { i1: ['sha256:a'], i2: ['sha256:a'] },
+      {
+        manifestDigest: async () => 'sha256:a',
+        listTags: async () => ['1.26.0', '1.26.3', '1.28.0', '17.1', '17.4', '18.0'],
+      },
+    )
+    await c.checkAll()
+    const byRef = Object.fromEntries(c.summary().updates.map((u) => [u.ref, u]))
+    expect(byRef['nginx:1.26.0']).toMatchObject({ newerTag: '1.26.3', tagInclude: '^1\\.26\\.' })
+    expect(byRef['postgres:17.1']).toMatchObject({ newerTag: '17.4', tagExclude: '^18\\.' })
+  })
+
+  it('ignores invalid or conflicting tag filter labels', async () => {
+    const c = checker(
+      [
+        stack([
+          { service: 'web', image: 'nginx:1.26.0', imageId: 'i1', tagInclude: '(' },
+          { service: 'a', image: 'redis:7.0', imageId: 'i1', tagInclude: '^7\\.' },
+          { service: 'b', image: 'redis:7.0', imageId: 'i1', tagInclude: '^8\\.' },
+        ]),
+      ],
+      { i1: ['sha256:a'] },
+      { manifestDigest: async () => 'sha256:a', listTags: async () => ['1.28.0', '7.2', '8.0'] },
+    )
+    await c.checkAll()
+    const byRef = Object.fromEntries(c.summary().updates.map((u) => [u.ref, u]))
+    expect(byRef['nginx:1.26.0']).toMatchObject({ newerTag: '1.28.0' })
+    expect(byRef['nginx:1.26.0']?.tagInclude).toBeUndefined()
+    expect(byRef['nginx:1.26.0']?.tagFilterError).toMatch(/not a valid regular expression/)
+    expect(byRef['redis:7.0']).toMatchObject({ newerTag: '8.0' })
+    expect(byRef['redis:7.0']?.tagFilterError).toMatch(/different stacky.tag.include labels/)
+  })
+
+  it('builds release links from the link template label', async () => {
+    const template =
+      'https://github.com/nginx/nginx/releases/tag/release-${major}.${minor}.${patch}'
+    const c = checker(
+      [
+        stack([
+          { service: 'web', image: 'nginx:1.27.3', imageId: 'i1', linkTemplate: template },
+          { service: 'db', image: 'postgres:17.1', imageId: 'i1', linkTemplate: 'see ${original}' },
+        ]),
+      ],
+      { i1: ['sha256:a'] },
+      { manifestDigest: async () => 'sha256:a', listTags: async () => ['1.28.0'] },
+    )
+    await c.checkAll()
+    const byRef = Object.fromEntries(c.summary().updates.map((u) => [u.ref, u]))
+    expect(byRef['nginx:1.27.3']).toMatchObject({
+      linkTemplate: template,
+      currentLink: 'https://github.com/nginx/nginx/releases/tag/release-1.27.3',
+      newerLink: 'https://github.com/nginx/nginx/releases/tag/release-1.28.0',
+    })
+    expect(byRef['postgres:17.1']?.currentLink).toBeUndefined()
+    expect(byRef['postgres:17.1']?.linkTemplateError).toMatch(/not an http/)
+  })
+
+  it('builds release links for updates reported by WUD', async () => {
+    settings.set(WUD_KEY, { enabled: true, url: 'http://wud:3000', token: 't' })
+    const wud = {
+      watch: async () => {},
+      containers: async () => [
+        { container: 'app-web-1', updateAvailable: true, newerTag: '1.28.0', kind: 'minor' },
+      ],
+    }
+    const c = checker(
+      [
+        stack([
+          {
+            service: 'web',
+            image: 'nginx:1.27.3',
+            imageId: 'i1',
+            linkTemplate: 'https://example.com/v${original}',
+          },
+        ]),
+      ],
+      { i1: ['sha256:a'] },
+      {
+        manifestDigest: async () => {
+          throw new RegistryError('access denied', 401)
+        },
+        listTags: async () => [],
+      },
+      wud,
+    )
+    await c.checkAll()
+    expect(c.summary().updates[0]).toMatchObject({
+      source: 'wud',
+      newerLink: 'https://example.com/v1.28.0',
+    })
+  })
+
   it('stops a running check before it touches the closed database', async () => {
     let release!: () => void
     const pending = new Promise<void>((r) => (release = r))
@@ -299,6 +405,21 @@ describe('UpdateChecker schedules', () => {
     expect(u?.scheduleLabel).toBeUndefined()
     expect(u?.scheduleError).toMatch(/not a schedule/)
     expect(c.summary().nextCheckAt).toBe(now + 2 * HOUR)
+  })
+
+  it('checks an image again once its tag filter labels change', async () => {
+    const stacks = [stack([{ service: 'web', image: 'nginx:1.26.0', imageId: 'i1' }])]
+    const c = checker(stacks, { i1: ['sha256:a'] }, tracking, undefined, 'weekly')
+    await c.checkDue()
+    expect(checked).toEqual(['1.26.0'])
+    await c.checkDue()
+    expect(checked).toHaveLength(1)
+    stacks[0]!.services[0]!.containers[0]!.tagInclude = '^1\\.26\\.'
+    expect(c.summary().nextCheckAt).toBe(now)
+    await c.checkDue()
+    expect(checked).toHaveLength(2)
+    await c.checkDue()
+    expect(checked).toHaveLength(2)
   })
 
   it('saves the global schedule in settings and can reset it', () => {

@@ -16,3 +16,13 @@ export function registryPage(u: Pick<ImageUpdate, 'registry' | 'repository'>): s
   if (u.registry === 'quay.io') return `https://quay.io/repository/${u.repository}?tab=tags`
   return undefined
 }
+
+/** The links an update dialog offers: the release notes from a link template, and the tags page. */
+export function updateLinks(
+  u: Pick<ImageUpdate, 'registry' | 'repository' | 'currentLink' | 'newerLink'>,
+): { label: string; href: string }[] {
+  const page = registryPage(u)
+  const notes = u.newerLink ?? u.currentLink
+  if (!notes) return page ? [{ label: 'Tags and release notes', href: page }] : []
+  return [{ label: 'Release notes', href: notes }, ...(page ? [{ label: 'Tags', href: page }] : [])]
+}

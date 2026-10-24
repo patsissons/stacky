@@ -85,6 +85,27 @@ describe('Notifier', () => {
     expect(JSON.parse(sent[0]!.body).body).toContain('nginx:1.27 → 1.28')
   })
 
+  it('adds the release link to update notifications', async () => {
+    notifier.onUpdates({
+      checking: false,
+      updates: [
+        {
+          ref: 'nginx:1.27',
+          registry: 'docker.io',
+          repository: 'library/nginx',
+          tag: '1.27',
+          status: 'update_available',
+          checkedAt: 0,
+          source: 'native',
+          newerTag: '1.28',
+          newerLink: 'https://example.com/1.28',
+        },
+      ],
+    })
+    await flush()
+    expect(JSON.parse(sent[0]!.body).body).toBe('nginx:1.27 → 1.28 (https://example.com/1.28)')
+  })
+
   it('waits for a container to stay unhealthy before notifying, and only once', async () => {
     const stacks = (state: 'unhealthy' | 'running'): StackSummary[] => [
       {
