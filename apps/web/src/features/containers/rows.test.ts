@@ -6,6 +6,7 @@ import {
   matchesStatus,
   planUpdates,
   portUrl,
+  stackImageRefs,
   type ContainerRow,
 } from './rows'
 
@@ -207,5 +208,45 @@ describe('groupByStack', () => {
       { stack: 'media', services: ['plex', 'sonarr'] },
       { stack: 'db', services: ['postgres'] },
     ])
+  })
+})
+
+describe('stackImageRefs', () => {
+  const container = (id: string, image: string) => ({
+    id,
+    name: id,
+    project: 'app',
+    service: 'web',
+    number: 1,
+    image,
+    imageId: 'sha256:x',
+    state: 'running' as const,
+    statusText: 'Up',
+    createdAt: 1,
+    ports: [],
+  })
+
+  it('lists each image once, preferring the compose image over an image id', () => {
+    expect(
+      stackImageRefs(
+        stack({
+          services: [
+            {
+              name: 'web',
+              image: 'nginx:1.27',
+              state: 'running',
+              containers: [container('c1', 'nginx:1.27'), container('c2', 'sha256:abc')],
+            },
+            {
+              name: 'cache',
+              image: 'redis:7',
+              state: 'running',
+              containers: [container('c3', 'redis:7')],
+            },
+            { name: 'db', image: 'postgres:16', state: 'not_created', containers: [] },
+          ],
+        }),
+      ),
+    ).toEqual(['nginx:1.27', 'redis:7'])
   })
 })

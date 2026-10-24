@@ -11,6 +11,7 @@ import {
   RotateCw,
   Rocket,
   Square,
+  Telescope,
   Trash2,
 } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
@@ -38,11 +39,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { buildRows, planUpdates } from '@/features/containers/rows'
+import { buildRows, planUpdates, stackImageRefs } from '@/features/containers/rows'
 import { useDirtyEditor } from '@/features/editor/store'
 import { helpStore } from '@/features/help/help-dialog'
 import { runStackAction } from '@/features/operations/actions'
 import { operationStore } from '@/features/operations/store'
+import { checkStackNow } from '@/features/updates/check-image'
 import { UpdateAllDialog, type UpdateAllMode } from '@/features/updates/update-all-dialog'
 import { useUpdates } from '@/hooks/use-updates'
 import { ApiError } from '@/lib/api'
@@ -68,10 +70,32 @@ export function useRunAction(stack: string) {
 }
 
 /**
+ * Checks a stack's images for updates. Stack pages without {@link StackActions} (external
+ * stacks and stacky itself) show it on its own; the others have it in the Update menu.
+ */
+export function CheckStackButton({ stack }: { stack: StackSummary }) {
+  const [checking, setChecking] = useState(false)
+  const check = async () => {
+    setChecking(true)
+    try {
+      await checkStackNow(stack.name, stackImageRefs(stack))
+    } finally {
+      setChecking(false)
+    }
+  }
+  return (
+    <Button size="sm" variant="outline" disabled={checking} onClick={() => void check()}>
+      {checking ? <Loader2 className="animate-spin" /> : <Telescope />} Check for updates
+    </Button>
+  )
+}
+
+/**
  * The sticky action bar on a stack page. Destructive actions confirm first. While the editor
  * holds unsaved edits, Deploy goes through its review dialog instead of deploying the files on
  * disk. Update applies the newer versions found by the update check (after a confirmation that
- * lists them) and is disabled when none are known; its menu can still re-pull the current tags.
+ * lists them) and is disabled when none are known; its menu can still check this stack's images or re-pull the
+ * current tags.
  */
 export function StackActions({ stack }: { stack: StackSummary }) {
   const navigate = useNavigate()
@@ -176,6 +200,11 @@ export function StackActions({ stack }: { stack: StackSummary }) {
               Newer versions{' '}
               <span className="text-muted-foreground font-normal">({updatesLabel})</span>
             </DropdownMenuLabel>
+            <DropdownMenuItem
+              onSelect={() => void checkStackNow(stack.name, stackImageRefs(stack))}
+            >
+              <Telescope className="size-4" /> Check for updates
+            </DropdownMenuItem>
             <DropdownMenuItem disabled={updates === 0} onSelect={() => setUpdateMode('deploy')}>
               <ArrowUpCircle className="size-4" /> Apply updates
             </DropdownMenuItem>

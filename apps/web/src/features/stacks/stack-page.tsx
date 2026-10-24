@@ -10,7 +10,7 @@ import { useStack } from '@/hooks/use-stacks'
 import { HistoryTab } from './history-tab'
 import { OverviewTab } from './overview-tab'
 import { SelfActions } from '@/features/self-update/self-actions'
-import { StackActions } from './stack-actions'
+import { CheckStackButton, StackActions } from './stack-actions'
 
 const StackEditor = lazy(() =>
   import('@/features/editor/stack-editor').then((m) => ({ default: m.StackEditor })),
@@ -81,8 +81,14 @@ export function StackPage() {
             </p>
           )}
         </div>
-        {stack.managed && !stack.isSelf && <StackActions stack={stack} />}
-        {stack.isSelf && <SelfActions />}
+        {stack.managed && !stack.isSelf ? (
+          <StackActions stack={stack} />
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <CheckStackButton stack={stack} />
+            {stack.isSelf && <SelfActions />}
+          </div>
+        )}
       </div>
 
       {!stack.managed && (

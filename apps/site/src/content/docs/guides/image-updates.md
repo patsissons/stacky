@@ -42,8 +42,9 @@ It is recorded in the stack's history like a deploy. A service is left out (and 
 
 When no update is known, the **Update** button is disabled. **Re-pull current tags** in its arrow menu still pulls the tags already in the compose file. That helps for moving tags like `latest`, but does nothing for a pinned version such as `nginx:1.27.3`, which is exactly what the check is for. A stopped stack stays stopped.
 
-The arrow next to **Update** is always available and has two more options:
+The arrow next to **Update** is always available and has three more options:
 
+- **Check for updates:** checks this stack's images now, without waiting for the schedule. A notification reports what it found, and the **Update** button picks up any new results.
 - **Pull updates only:** downloads the newer images ahead of time (`docker pull <image>:<new tag>`, and `docker compose pull` for services with only a new digest). The compose file and the running containers are left alone, so nothing changes yet.
 - **Re-pull current tags:** the plain pull of the current tags, for when you want the newest build of your current tags without applying the newer versions.
 
@@ -51,7 +52,7 @@ The arrow next to **Update** is always available and has two more options:
 
 ## When checks run
 
-Images are checked a minute after stacky starts if they've never been checked, then on a schedule. They're also checked whenever you click **Check for updates**, after you deploy or update a stack, and whenever one of their containers was recreated since the last check. When a new stacky release comes out, stacky re-checks its own image every 15 minutes until the update shows, since the image reaches the registry a little after the release. To check a single image, use **Check for updates** in that container's menu (on the containers page or a service card), or the telescope button in the update dialog; a notification reports the result.
+Images are checked a minute after stacky starts if they've never been checked, then on a schedule. They're also checked whenever you click **Check for updates**, after you deploy or update a stack, and whenever one of their containers was recreated since the last check. When a new stacky release comes out, stacky re-checks its own image every 15 minutes until the update shows, since the image reaches the registry a little after the release. To check a single stack, use **Check for updates** in the arrow menu next to its **Update** button; external stacks and stacky's own stack page show a **Check for updates** button instead. To check a single image, use **Check for updates** in that container's menu (on the containers page or a service card), or the telescope button in the update dialog. Either way, a notification reports the result.
 
 ### The global schedule
 

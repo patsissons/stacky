@@ -66,6 +66,11 @@ export function buildRows(stacks: StackSummary[]): ContainerRow[] {
   return rows
 }
 
+/** The distinct image references a stack's containers run, as the update checker keys them. */
+export function stackImageRefs(stack: StackSummary): string[] {
+  return [...new Set(buildRows([stack]).map((r) => r.image))]
+}
+
 /** Base URL for a published port on `host` (see `useDockerHost`). */
 export function portUrl(port: PortMapping, host = window.location.hostname): string | undefined {
   if (!port.hostPort) return undefined

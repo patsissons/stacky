@@ -209,6 +209,16 @@ test('checks one image for updates from the container menu', async () => {
   ).toBeVisible({ timeout: 90_000 })
 })
 
+test("checks a stack's images from the Update menu", async () => {
+  await page.goto('/stacks/e2e-app')
+  await page.getByRole('button', { name: 'Update options' }).click()
+  await page.getByRole('menuitem', { name: 'Check for updates' }).click()
+  await expect(page.getByText('Checking e2e-app…')).toBeVisible()
+  await expect(
+    page.getByText(/e2e-app( is up to date|: .+ available|: check incomplete|: no result yet)/),
+  ).toBeVisible({ timeout: 90_000 })
+})
+
 test('offers the newer-version updates, disabled while there are none', async () => {
   await page.goto('/stacks/e2e-app')
   // nothing to apply: the Update button is off, but its menu still re-pulls the current tags
