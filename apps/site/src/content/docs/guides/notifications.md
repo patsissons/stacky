@@ -33,6 +33,35 @@ Add channels under **Settings → Notifications**. Each channel picks the events
 
 Failures are sent with high priority, so they come through during quiet hours; everything else uses normal priority.
 
+## Choosing which containers notify
+
+Unhealthy containers and new image updates can be turned off for whole stacks or single containers. Failed operations and self-update results always go to your channels. Stacky picks the most specific setting:
+
+1. A `stacky.notify` label on the service: `true` or `false` (`on`/`off`, `yes`/`no` and `1`/`0` work too).
+2. A `stacky.notify.stack.<stack>` label on **stacky's own** service, which sets the default for that stack.
+3. **Notify about containers by default** under **Settings → Notifications**, which is on unless you turn it off.
+
+```yaml
+# stacky's own compose file
+services:
+  stacky:
+    image: ghcr.io/patsissons/stacky:latest
+    labels:
+      stacky.notify.stack.media: false # quiet by default...
+      stacky.notify.stack.infra: true
+```
+
+```yaml
+# the media stack
+services:
+  plex:
+    image: plexinc/pms-docker
+    labels:
+      stacky.notify: true # ...except for Plex
+```
+
+An image update is reported if any container running that image notifies. Updates you weren't told about because notifications were off are reported once you turn them back on. Labels on stacky apply once stacky is redeployed; the Settings card lists the stack overrides it found. An invalid value is ignored, and the next setting down applies.
+
 ## Links back to stacky
 
 When [`STACKY_BASE_URL`](/reference/configuration/) is set, each message links to the stack it's about (or to the containers page for image updates and self-updates). The link shows up as **Open in stacky** in Pushover, opens when you tap an ntfy or Gotify notification, and is the title link of a Discord embed.

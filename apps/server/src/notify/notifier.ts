@@ -9,6 +9,7 @@ import type { SettingsStore } from '../db/settings'
 import type { Logger } from '../lib/logger'
 import type { SelfUpdateJob } from '../self/jobs'
 import { send, type Channel, type Message } from './channels'
+import type { NotifyPolicy } from './policy'
 
 const CHANNELS_KEY = 'notifications.channels'
 const NOTIFIED_UPDATES_KEY = 'notifications.notifiedUpdates'
@@ -25,6 +26,8 @@ export class Notifier {
     string,
     { since: number; notified: boolean; name: string; stack: string; state: string }
   >()
+  /** Decides which containers notify; without one, every container does. */
+  policy: Pick<NotifyPolicy, 'containerEnabled' | 'imageEnabled'> | undefined
 
   constructor(
     private readonly settings: SettingsStore,
@@ -117,6 +120,8 @@ export class Notifier {
       if (u.status !== 'update_available' || u.ignored) return false
       const value = u.newerTag ?? u.remoteDigest ?? ''
       if (notified[u.ref] === value) return false
+      // not marked as notified, so turning notifications back on still reports it
+      if (this.policy && !this.policy.imageEnabled(u.ref)) return false
       notified[u.ref] = value
       return true
     })
@@ -145,6 +150,7 @@ export class Notifier {
       for (const service of stack.services) {
         for (const c of service.containers) {
           if (!BAD.has(c.state)) continue
+          if (this.policy && !this.policy.containerEnabled(c.id)) continue
           seen.add(c.id)
           if (!this.badSince.has(c.id)) {
             this.badSince.set(c.id, {

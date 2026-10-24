@@ -211,6 +211,22 @@ describe('stacks', () => {
     expect(await json(saved)).toMatchObject([{ type: 'pushover', recipient: 'user-key' }])
   })
 
+  it('saves the default for container notifications', async () => {
+    expect(
+      await json(await req('GET', '/api/settings/notifications/containers', { cookie })),
+    ).toEqual({ enabled: true, stacks: [] })
+    const saved = await req('PUT', '/api/settings/notifications/containers', {
+      cookie,
+      body: { enabled: false },
+    })
+    expect(await json(saved)).toEqual({ enabled: false, stacks: [] })
+    const bad = await req('PUT', '/api/settings/notifications/containers', {
+      cookie,
+      body: { enabled: 'nope' },
+    })
+    expect(bad.status).toBe(400)
+  })
+
   it('saves the update check schedule and rejects invalid ones', async () => {
     expect(await json(await req('GET', '/api/settings/updates', { cookie }))).toMatchObject({
       schedule: '6h',
