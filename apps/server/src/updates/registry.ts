@@ -83,6 +83,83 @@ export function loadDockerCredentials(
   return creds
 }
 
+/** Registry hosts of the providers What's Up Docker names in `WUD_REGISTRY_<PROVIDER>_*`. */
+const PROVIDER_HOSTS: Record<string, string | undefined> = {
+  HUB: 'docker.io',
+  GHCR: 'ghcr.io',
+  LSCR: 'lscr.io',
+  QUAY: 'quay.io',
+  GITLAB: 'registry.gitlab.com',
+  CUSTOM: undefined,
+  GITEA: undefined,
+  FORGEJO: undefined,
+}
+// the last segment is the key (USERNAME, TOKEN, URL ...); a name in between is optional
+const ENV_RE = /^(STACKY|WUD)_REGISTRY_([A-Z0-9]+)_(?:([A-Z0-9_]+?)_)?([A-Z]+)$/
+
+/**
+ * Credentials from `STACKY_REGISTRY_<PROVIDER>[_<NAME>]_<KEY>` variables, or What's Up Docker's
+ * `WUD_REGISTRY_*` ones, by registry host. `STACKY_` wins over `WUD_`, then names in order.
+ */
+export function loadEnvCredentials(
+  env: Record<string, string | undefined>,
+  warn: (message: string, meta: Record<string, unknown>) => void = () => {},
+): Map<string, string> {
+  const groups = new Map<
+    string,
+    { prefix: string; provider: string; name: string; values: Record<string, string> }
+  >()
+  for (const [key, value] of Object.entries(env)) {
+    const m = ENV_RE.exec(key)
+    if (!m || !value?.trim()) continue
+    const [, prefix, provider, name = ''] = m
+    const id = `${prefix}_REGISTRY_${provider}${name ? `_${name}` : ''}`
+    const group = groups.get(id) ?? { prefix: prefix!, provider: provider!, name, values: {} }
+    group.values[m[4]!] = value.trim()
+    groups.set(id, group)
+  }
+  const ordered = [...groups.entries()].sort(
+    ([, a], [, b]) =>
+      Number(a.prefix !== 'STACKY') - Number(b.prefix !== 'STACKY') || a.name.localeCompare(b.name),
+  )
+  const creds = new Map<string, string>()
+  for (const [id, { provider, values: v }] of ordered) {
+    if (!(provider in PROVIDER_HOSTS)) {
+      warn('unsupported registry provider; ignoring its variables', { variables: `${id}_*` })
+      continue
+    }
+    let host = PROVIDER_HOSTS[provider]
+    if (v.URL && provider !== 'HUB') {
+      try {
+        host = new URL(v.URL.includes('://') ? v.URL : `https://${v.URL}`).host
+      } catch {
+        host = undefined
+      }
+    }
+    const user =
+      provider === 'QUAY' && v.NAMESPACE && v.ACCOUNT
+        ? `${v.NAMESPACE}+${v.ACCOUNT}`
+        : (v.USERNAME ?? v.LOGIN ?? (provider === 'GITLAB' ? '' : undefined))
+    const secret = v.TOKEN ?? v.PASSWORD
+    const auth =
+      v.AUTH ??
+      (user !== undefined && secret
+        ? Buffer.from(`${user}:${secret}`).toString('base64')
+        : undefined)
+    if (!host || !auth) {
+      warn(
+        host
+          ? 'incomplete registry credentials; ignoring them'
+          : 'registry URL missing or invalid; ignoring its credentials',
+        { variables: `${id}_*` },
+      )
+      continue
+    }
+    if (!creds.has(host)) creds.set(host, auth)
+  }
+  return creds
+}
+
 /**
  * Minimal registry v2 client: manifest digests (HEAD, which Docker Hub does
  * not count against pull limits) and tag lists, with the bearer token flow.

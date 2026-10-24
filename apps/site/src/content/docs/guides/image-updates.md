@@ -153,6 +153,26 @@ volumes:
 
 Credential helpers (`credsStore`) aren't supported. Use `docker login` with a config file that stores the auth inline.
 
+Or set the credentials with environment variables on the stacky container, using What's Up Docker's naming: `STACKY_REGISTRY_<PROVIDER>_<NAME>_<KEY>`, where `<NAME>` is any label you like (it can be left out). Stacky also reads WUD's own `WUD_REGISTRY_*` variables unchanged, so you can copy them over as they are.
+
+```yaml
+environment:
+  # LinuxServer images (lscr.io): a GitHub username and a token with read:packages
+  STACKY_REGISTRY_LSCR_PRIVATE_USERNAME: me
+  STACKY_REGISTRY_LSCR_PRIVATE_TOKEN: ghp_...
+```
+
+| Provider                     | Registry                                      | Keys                                                                  |
+| ---------------------------- | --------------------------------------------- | --------------------------------------------------------------------- |
+| `HUB`                        | Docker Hub                                    | `LOGIN` (or `USERNAME`), and `PASSWORD` or `TOKEN`                    |
+| `GHCR`                       | ghcr.io                                       | `USERNAME`, `TOKEN`                                                   |
+| `LSCR`                       | lscr.io                                       | `USERNAME`, `TOKEN` (a GitHub token, since lscr.io is served by ghcr) |
+| `QUAY`                       | quay.io                                       | `NAMESPACE` and `ACCOUNT` (a robot account), `TOKEN`                  |
+| `GITLAB`                     | registry.gitlab.com, or `URL`                 | `TOKEN`, optionally `USERNAME`                                        |
+| `CUSTOM`, `GITEA`, `FORGEJO` | the host in `URL` (e.g. `registry.home:5000`) | `URL`, `LOGIN` (or `USERNAME`), and `PASSWORD` or `TOKEN`             |
+
+Any provider also takes `AUTH`, a ready-made base64 `user:password`, in place of the username and secret. Variables win over a mounted `config.json` for the same registry, and `STACKY_` variables win over `WUD_` ones. Cloud registries that use cloud credentials (ECR, GCR, ACR) aren't supported; stacky logs a warning (naming the variables, never their values) and checks those images anonymously.
+
 ## What's Up Docker
 
 You don't need [What's Up Docker](https://getwud.app) (WUD) alongside stacky. Stacky checks for updates itself, and [notifications](/guides/notifications/) tell you about new ones on Pushover, ntfy, Gotify, Discord, Apprise or a webhook.

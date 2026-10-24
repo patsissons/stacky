@@ -25,7 +25,7 @@ import { Notifier } from './notify/notifier'
 import { NotifyPolicy } from './notify/policy'
 import { GitSync } from './git/sync'
 import { UpdateChecker } from './updates/checker'
-import { loadDockerCredentials, RegistryClient } from './updates/registry'
+import { loadDockerCredentials, loadEnvCredentials, RegistryClient } from './updates/registry'
 import { VERSION } from './version'
 import { Hub } from './ws/hub'
 
@@ -62,7 +62,13 @@ export async function createRuntime(
   const updates = new UpdateChecker(
     state,
     docker,
-    new RegistryClient(loadDockerCredentials()),
+    // variables win over a mounted docker config.json for the same registry
+    new RegistryClient(
+      new Map([
+        ...loadDockerCredentials(),
+        ...loadEnvCredentials(process.env, (message, meta) => logger.warn(message, meta)),
+      ]),
+    ),
     db,
     settings,
     logger,
