@@ -22,6 +22,7 @@ import { IconCache } from './icons/icons'
 import { AuditLog } from './auth/audit'
 import { ApiTokenStore } from './auth/tokens'
 import { Notifier } from './notify/notifier'
+import { NotifyPolicy } from './notify/policy'
 import { GitSync } from './git/sync'
 import { UpdateChecker } from './updates/checker'
 import { loadDockerCredentials, RegistryClient } from './updates/registry'
@@ -75,6 +76,10 @@ export async function createRuntime(
   repo.onChange = (paths, message) => gitSync.onChange(paths, message)
   gitSync.schedule()
   const notifier = new Notifier(settings, logger, config.baseUrl)
+  const notifyPolicy = new NotifyPolicy(settings, state, logger, (ref) =>
+    updates.containersUsing(ref),
+  )
+  notifier.policy = notifyPolicy
   engine.on('update', (op) => notifier.onOperation(op))
   updates.on('change', (summary) => notifier.onUpdates(summary))
   state.on('change', (list) => notifier.onStacks(list))
@@ -211,6 +216,7 @@ export async function createRuntime(
     settings,
     updates,
     notifier,
+    notifyPolicy,
     tokens,
     audit,
     gitSync,

@@ -7,6 +7,7 @@ import {
   notifyEvents,
   PUSHOVER_URL,
   type ChannelType,
+  type ContainerNotifySettings,
   type NotificationChannel,
   type NotifyEvent,
 } from '@stacky/shared'
@@ -218,6 +219,7 @@ export function NotificationsCard() {
             ))}
           </ul>
         )}
+        <ContainerNotifications />
       </CardContent>
 
       <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(undefined)}>
@@ -339,5 +341,66 @@ export function NotificationsCard() {
         )}
       </Dialog>
     </Card>
+  )
+}
+
+/** The default for container notifications, and the stack overrides set on stacky itself. */
+function ContainerNotifications() {
+  const qc = useQueryClient()
+  const key = ['notifications', 'containers']
+  const { data } = useQuery({
+    queryKey: key,
+    queryFn: () => api.get<ContainerNotifySettings>('/api/settings/notifications/containers'),
+  })
+  const [saving, setSaving] = useState(false)
+  if (!data) return null
+
+  const toggle = async (enabled: boolean) => {
+    setSaving(true)
+    try {
+      qc.setQueryData(
+        key,
+        await api.put<ContainerNotifySettings>('/api/settings/notifications/containers', {
+          enabled,
+        }),
+      )
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 space-y-2 border-t pt-4 text-sm">
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-1">
+          <Label htmlFor="notify-containers">Notify about containers by default</Label>
+          <p className="text-muted-foreground text-xs">
+            Unhealthy containers and image updates. A{' '}
+            <code className="font-mono text-xs">stacky.notify</code> label on a service, or a{' '}
+            <code className="font-mono text-xs">stacky.notify.stack.&lt;stack&gt;</code> label on
+            stacky itself, overrides this.
+          </p>
+        </div>
+        <Switch
+          id="notify-containers"
+          checked={data.enabled}
+          onCheckedChange={(enabled) => void toggle(enabled)}
+          disabled={saving}
+        />
+      </div>
+      {data.stacks.length > 0 && (
+        <p className="text-muted-foreground text-xs">
+          Stack overrides on stacky:{' '}
+          {data.stacks.map((s, i) => (
+            <span key={s.stack}>
+              {i > 0 && ', '}
+              <span className="font-mono">{s.stack}</span> {s.enabled ? 'on' : 'off'}
+            </span>
+          ))}
+        </p>
+      )}
+    </div>
   )
 }

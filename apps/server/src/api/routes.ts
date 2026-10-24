@@ -29,6 +29,7 @@ import { WUD_KEY, type UpdateChecker } from '../updates/checker'
 import { ScheduleError } from '../updates/schedule'
 import { WudClient, type WudSettings } from '../updates/wud'
 import type { Notifier } from '../notify/notifier'
+import type { NotifyPolicy } from '../notify/policy'
 import type { GitSync } from '../git/sync'
 import type { FileBrowser } from '../files/browser'
 import { untrustedImageHeaders, type Icon, type IconCache } from '../icons/icons'
@@ -62,6 +63,7 @@ export interface ApiContext {
   updates: UpdateChecker
   settings: SettingsStore
   notifier: Notifier
+  notifyPolicy: NotifyPolicy
   tokens: ApiTokenStore
   gitSync: GitSync
   icons: IconCache
@@ -420,6 +422,14 @@ export function apiRoutes(ctx: ApiContext) {
   api.put('/settings/notifications', async (c) => {
     const input = await body(c, z.object({ channels: z.array(channelInput).max(20) }))
     return c.json(ctx.notifier.save(input.channels))
+  })
+
+  api.get('/settings/notifications/containers', (c) => c.json(ctx.notifyPolicy.view()))
+
+  api.put('/settings/notifications/containers', async (c) => {
+    const input = await body(c, z.object({ enabled: z.boolean() }))
+    ctx.notifyPolicy.setDefault(input.enabled)
+    return c.json(ctx.notifyPolicy.view())
   })
 
   api.post('/settings/notifications/test', async (c) => {

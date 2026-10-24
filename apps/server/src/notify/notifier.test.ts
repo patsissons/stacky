@@ -155,6 +155,75 @@ describe('Notifier', () => {
     expect(sent).toHaveLength(2)
   })
 
+  it('skips containers and images whose notifications are off', async () => {
+    const muted = new Set(['c1', 'nginx:1.27'])
+    notifier.policy = {
+      containerEnabled: (id) => !muted.has(id),
+      imageEnabled: (ref) => !muted.has(ref),
+    }
+    const update = {
+      ref: 'nginx:1.27',
+      registry: 'docker.io',
+      repository: 'library/nginx',
+      tag: '1.27',
+      status: 'update_available' as const,
+      checkedAt: 0,
+      source: 'native' as const,
+      newerTag: '1.28',
+    }
+    notifier.onUpdates({ checking: false, updates: [update] })
+    notifier.onStacks([
+      {
+        name: 'app',
+        managed: true,
+        status: 'unhealthy',
+        isSelf: false,
+        urls: [],
+        services: [
+          {
+            name: 'web',
+            state: 'unhealthy',
+            containers: [
+              {
+                id: 'c1',
+                name: 'app-web-1',
+                project: 'app',
+                service: 'web',
+                number: 1,
+                image: 'x',
+                imageId: 'y',
+                state: 'unhealthy',
+                statusText: '',
+                createdAt: 0,
+                ports: [],
+              },
+            ],
+          },
+        ],
+      },
+    ])
+    now += UNHEALTHY_GRACE_MS + 1
+    notifier.tick()
+    notifier.onOperation({
+      id: 'op1',
+      stack: 'app',
+      action: 'deploy',
+      services: [],
+      state: 'failed',
+      commands: [],
+      createdAt: 0,
+      error: { code: 'x', message: 'boom' },
+    })
+    await flush()
+    // failed operations aren't scoped
+    expect(sent.map((s) => JSON.parse(s.body).event)).toEqual(['operation_failed'])
+    // a muted update isn't marked as notified, so it's reported once it's back on
+    muted.clear()
+    notifier.onUpdates({ checking: false, updates: [update] })
+    await flush()
+    expect(JSON.parse(sent[1]!.body)).toMatchObject({ event: 'update_available' })
+  })
+
   it('reports a self-update result once', async () => {
     const job = {
       id: 'j1',

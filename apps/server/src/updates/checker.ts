@@ -322,6 +322,11 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
     }
   }
 
+  /** Names of the containers that run an image right now. */
+  containersUsing(ref: string): string[] {
+    return [...(this.inUse().get(ref)?.containers ?? [])]
+  }
+
   summary(): UpdatesSummary {
     const ignored = this.settings.get<Record<string, string>>(IGNORED_KEY) ?? {}
     const inUse = this.inUse()

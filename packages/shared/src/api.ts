@@ -119,6 +119,14 @@ export type ChannelType = (typeof channelTypes)[number]
 /** Pushover's message endpoint; Pushover channels always post here. */
 export const PUSHOVER_URL = 'https://api.pushover.net/1/messages.json'
 
+/** Which containers notify about themselves (unhealthy containers, image updates). */
+export interface ContainerNotifySettings {
+  /** The default for containers without a `stacky.notify` label or a stack override. */
+  enabled: boolean
+  /** Stack defaults from `stacky.notify.stack.<stack>` labels on stacky's own container. */
+  stacks: { stack: string; enabled: boolean }[]
+}
+
 /** A notification channel as the API returns it (secrets are never sent back). */
 export interface NotificationChannel {
   id: string
