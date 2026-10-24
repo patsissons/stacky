@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/patsissons/stacky/compare/v0.13.0...v0.14.0) (2026-10-24)
+
+
+### Features
+
+* set notification defaults per event with stack and container overrides ([#33](https://github.com/patsissons/stacky/issues/33)) ([4d5bad4](https://github.com/patsissons/stacky/commit/4d5bad4e03fa2ede4eacc6a1a134f05da565cd3e))
+
 ## [0.13.0](https://github.com/patsissons/stacky/compare/v0.12.0...v0.13.0) (2026-10-24)
 
 
