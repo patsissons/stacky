@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.0](https://github.com/patsissons/stacky/compare/v0.11.0...v0.12.0) (2026-10-24)
+
+
+### Features
+
+* choose which stacks and containers send notifications ([614d2cd](https://github.com/patsissons/stacky/commit/614d2cd29c1643864595ab280926bee271e63136))
+* read registry credentials from environment variables ([d206bed](https://github.com/patsissons/stacky/commit/d206bed4cc571bf3cf09678ba5d7cd6671a9576e))
+
+
+### Bug Fixes
+
+* re-check stacky's own image after a release or a recreate ([ea23478](https://github.com/patsissons/stacky/commit/ea23478c854827c5b35e79bbbdf818c12bb752bc))
+
 ## [0.11.0](https://github.com/patsissons/stacky/compare/v0.10.1...v0.11.0) (2026-10-24)
 
 
