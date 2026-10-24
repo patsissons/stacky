@@ -26,8 +26,8 @@ export class Notifier {
     string,
     { since: number; notified: boolean; name: string; stack: string; state: string }
   >()
-  /** Decides which containers notify; without one, every container does. */
-  policy: Pick<NotifyPolicy, 'containerEnabled' | 'imageEnabled'> | undefined
+  /** Decides which stacks and containers send each event; without one, all of them do. */
+  policy: Pick<NotifyPolicy, 'containerEnabled' | 'imageEnabled' | 'stackEnabled'> | undefined
 
   constructor(
     private readonly settings: SettingsStore,
@@ -103,6 +103,7 @@ export class Notifier {
 
   onOperation(op: OperationSummary) {
     if (op.state !== 'failed' || !op.error) return
+    if (this.policy && !this.policy.stackEnabled(op.stack, 'operation_failed')) return
     void this.emit({
       event: 'operation_failed',
       level: 'error',
@@ -150,7 +151,7 @@ export class Notifier {
       for (const service of stack.services) {
         for (const c of service.containers) {
           if (!BAD.has(c.state)) continue
-          if (this.policy && !this.policy.containerEnabled(c.id)) continue
+          if (this.policy && !this.policy.containerEnabled(c.id, 'container_unhealthy')) continue
           seen.add(c.id)
           if (!this.badSince.has(c.id)) {
             this.badSince.set(c.id, {

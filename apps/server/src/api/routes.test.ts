@@ -211,20 +211,26 @@ describe('stacks', () => {
     expect(await json(saved)).toMatchObject([{ type: 'pushover', recipient: 'user-key' }])
   })
 
-  it('saves the default for container notifications', async () => {
+  it('saves the default for each notification event', async () => {
+    const all = { operation_failed: true, update_available: true, container_unhealthy: true }
     expect(
-      await json(await req('GET', '/api/settings/notifications/containers', { cookie })),
-    ).toEqual({ enabled: true, stacks: [] })
-    const saved = await req('PUT', '/api/settings/notifications/containers', {
+      await json(await req('GET', '/api/settings/notifications/defaults', { cookie })),
+    ).toEqual({ defaults: all, stacks: [] })
+    const saved = await req('PUT', '/api/settings/notifications/defaults', {
       cookie,
-      body: { enabled: false },
+      body: { defaults: { update_available: false } },
     })
-    expect(await json(saved)).toEqual({ enabled: false, stacks: [] })
-    const bad = await req('PUT', '/api/settings/notifications/containers', {
-      cookie,
-      body: { enabled: 'nope' },
+    expect(await json(saved)).toEqual({
+      defaults: { ...all, update_available: false },
+      stacks: [],
     })
-    expect(bad.status).toBe(400)
+    for (const defaults of [{ update_available: 'nope' }, { self_update: false }]) {
+      const bad = await req('PUT', '/api/settings/notifications/defaults', {
+        cookie,
+        body: { defaults },
+      })
+      expect(bad.status).toBe(400)
+    }
   })
 
   it('saves the update check schedule and rejects invalid ones', async () => {

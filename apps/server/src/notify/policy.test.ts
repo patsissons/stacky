@@ -27,8 +27,11 @@ describe('parseSwitch', () => {
 describe('NotifyPolicy', () => {
   const self = container('self', 'stacky', {
     'stacky.notify.stack.media': 'false',
+    'stacky.notify.stack.media.unhealthy': 'true',
     'stacky.notify.stack.infra': 'on',
+    'stacky.notify.stack.infra.failures': 'off',
     'stacky.notify.stack.bad': 'sometimes',
+    'stacky.notify.stack.typo.updatez': 'true',
     'stacky.update.schedule': 'weekly',
   })
 
@@ -41,42 +44,115 @@ describe('NotifyPolicy', () => {
       container('db', 'infra', { 'stacky.notify': 'no' }),
       container('web', 'app'),
     ])
-    expect(p.containerEnabled('plex')).toBe(false)
-    expect(p.containerEnabled('arr')).toBe(true)
-    expect(p.containerEnabled('dns')).toBe(true)
-    expect(p.containerEnabled('db')).toBe(false)
-    expect(p.containerEnabled('web')).toBe(true)
-    p.setDefault(false)
-    expect(p.containerEnabled('web')).toBe(false)
-    expect(p.containerEnabled('dns')).toBe(true)
+    const updates = (name: string) => p.containerEnabled(name, 'update_available')
+    expect(updates('plex')).toBe(false)
+    expect(updates('arr')).toBe(true)
+    expect(updates('dns')).toBe(true)
+    expect(updates('db')).toBe(false)
+    expect(updates('web')).toBe(true)
+    p.setDefaults({ update_available: false })
+    expect(updates('web')).toBe(false)
+    expect(updates('dns')).toBe(true)
     // by name too, and unknown containers follow the default
-    expect(p.containerEnabled('media-arr-1')).toBe(true)
-    expect(p.containerEnabled('gone')).toBe(false)
+    expect(updates('media-arr-1')).toBe(true)
+    expect(updates('gone')).toBe(false)
+    expect(p.containerEnabled('gone', 'container_unhealthy')).toBe(true)
   })
 
-  it('lists the stack overrides on stacky, skipping invalid values', () => {
+  it('resolves each event on its own, most specific label first', () => {
+    const p = policy([
+      self,
+      container('plex', 'media', { 'stacky.notify.updates': 'yes' }),
+      container('arr', 'media', { 'stacky.notify': 'on', 'stacky.notify.unhealthy': 'off' }),
+      container('sonarr', 'media'),
+      container('web', 'app', { 'stacky.notify.updates': 'true' }),
+      container('api', 'app'),
+    ])
+    p.setDefaults({ update_available: false })
+    // container event label > container label > stack event label > stack label > default
+    expect(p.containerEnabled('plex', 'update_available')).toBe(true)
+    expect(p.containerEnabled('plex', 'container_unhealthy')).toBe(true)
+    expect(p.containerEnabled('arr', 'update_available')).toBe(true)
+    expect(p.containerEnabled('arr', 'container_unhealthy')).toBe(false)
+    expect(p.containerEnabled('sonarr', 'update_available')).toBe(false)
+    expect(p.containerEnabled('sonarr', 'container_unhealthy')).toBe(true)
+    expect(p.containerEnabled('web', 'update_available')).toBe(true)
+    expect(p.containerEnabled('api', 'update_available')).toBe(false)
+    expect(p.containerEnabled('api', 'container_unhealthy')).toBe(true)
+  })
+
+  it('decides failures per stack, ignoring container labels', () => {
+    const p = policy([self, container('db', 'infra', { 'stacky.notify.failures': 'on' })])
+    expect(p.stackEnabled('infra', 'operation_failed')).toBe(false)
+    expect(p.stackEnabled('media', 'operation_failed')).toBe(false)
+    expect(p.stackEnabled('app', 'operation_failed')).toBe(true)
+    p.setDefaults({ operation_failed: false })
+    expect(p.stackEnabled('app', 'operation_failed')).toBe(false)
+    expect(p.containerEnabled('db', 'container_unhealthy')).toBe(true)
+  })
+
+  it('lists the stack overrides on stacky, skipping invalid labels', () => {
     expect(policy([self]).view()).toEqual({
-      enabled: true,
+      defaults: { operation_failed: true, update_available: true, container_unhealthy: true },
       stacks: [
-        { stack: 'infra', enabled: true },
-        { stack: 'media', enabled: false },
+        { stack: 'infra', all: true, events: { operation_failed: false } },
+        { stack: 'media', all: false, events: { container_unhealthy: true } },
       ],
     })
     expect(policy([container('x', 'app')]).stackOverrides()).toEqual([])
   })
 
-  it('ignores an invalid container label', () => {
-    const p = policy([self, container('plex', 'media', { 'stacky.notify': 'loud' })])
-    expect(p.containerEnabled('plex')).toBe(false)
+  it('ignores invalid container labels', () => {
+    const p = policy([
+      self,
+      container('plex', 'media', { 'stacky.notify': 'loud', 'stacky.notify.updatez': 'true' }),
+    ])
+    expect(p.containerEnabled('plex', 'update_available')).toBe(false)
+  })
+
+  it('reads the old single default until per-event defaults are saved', () => {
+    const { db } = openDatabase(':memory:')
+    const settings = new SettingsStore(db)
+    settings.set('notifications.containers', false)
+    const p = new NotifyPolicy(
+      settings,
+      { allContainers: () => [], selfContainerId: undefined },
+      silentLogger,
+    )
+    expect(p.defaults()).toEqual({
+      operation_failed: true,
+      update_available: false,
+      container_unhealthy: false,
+    })
+    p.setDefaults({ container_unhealthy: true })
+    expect(settings.get('notifications.containers')).toBeUndefined()
+    expect(p.defaults()).toEqual({
+      operation_failed: true,
+      update_available: false,
+      container_unhealthy: true,
+    })
   })
 
   it('notifies about an image if any container running it notifies', () => {
-    const p = policy([self, container('plex', 'media'), container('web', 'app')], {
-      'nginx:1': ['media-plex-1', 'app-web-1'],
-      'plex:1': ['media-plex-1'],
-    })
+    const p = policy(
+      [
+        self,
+        container('plex', 'media'),
+        container('web', 'app'),
+        container('jelly', 'media', { 'stacky.notify.updates': 'on' }),
+      ],
+      {
+        'nginx:1': ['media-plex-1', 'app-web-1'],
+        'plex:1': ['media-plex-1'],
+        'jelly:1': ['media-jelly-1'],
+      },
+    )
     expect(p.imageEnabled('nginx:1')).toBe(true)
     expect(p.imageEnabled('plex:1')).toBe(false)
+    expect(p.imageEnabled('jelly:1')).toBe(true)
     expect(p.imageEnabled('unknown:1')).toBe(true)
+    p.setDefaults({ update_available: false })
+    expect(p.imageEnabled('nginx:1')).toBe(false)
+    expect(p.imageEnabled('unknown:1')).toBe(false)
   })
 })

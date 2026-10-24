@@ -5,11 +5,15 @@ import { toast } from 'sonner'
 import {
   channelTypes,
   notifyEvents,
+  notifyLabelAliases,
   PUSHOVER_URL,
+  scopedNotifyEvents,
   type ChannelType,
-  type ContainerNotifySettings,
   type NotificationChannel,
   type NotifyEvent,
+  type NotifyPolicySettings,
+  type ScopedNotifyEvent,
+  type StackNotifyOverride,
 } from '@stacky/shared'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -219,7 +223,7 @@ export function NotificationsCard() {
             ))}
           </ul>
         )}
-        <ContainerNotifications />
+        <NotifyDefaults />
       </CardContent>
 
       <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(undefined)}>
@@ -344,24 +348,24 @@ export function NotificationsCard() {
   )
 }
 
-/** The default for container notifications, and the stack overrides set on stacky itself. */
-function ContainerNotifications() {
+/** Whether stacky sends each event by default, and the stack overrides set on stacky itself. */
+function NotifyDefaults() {
   const qc = useQueryClient()
-  const key = ['notifications', 'containers']
+  const key = ['notifications', 'defaults']
   const { data } = useQuery({
     queryKey: key,
-    queryFn: () => api.get<ContainerNotifySettings>('/api/settings/notifications/containers'),
+    queryFn: () => api.get<NotifyPolicySettings>('/api/settings/notifications/defaults'),
   })
   const [saving, setSaving] = useState(false)
   if (!data) return null
 
-  const toggle = async (enabled: boolean) => {
+  const toggle = async (event: ScopedNotifyEvent, enabled: boolean) => {
     setSaving(true)
     try {
       qc.setQueryData(
         key,
-        await api.put<ContainerNotifySettings>('/api/settings/notifications/containers', {
-          enabled,
+        await api.put<NotifyPolicySettings>('/api/settings/notifications/defaults', {
+          defaults: { [event]: enabled },
         }),
       )
     } catch (err) {
@@ -371,32 +375,45 @@ function ContainerNotifications() {
     }
   }
 
+  const code = (text: string) => <code className="font-mono text-xs">{text}</code>
+  const describe = (o: StackNotifyOverride) =>
+    [
+      ...(o.all === undefined ? [] : [`all ${o.all ? 'on' : 'off'}`]),
+      ...scopedNotifyEvents
+        .filter((ev) => o.events[ev] !== undefined)
+        .map((ev) => `${notifyLabelAliases[ev]} ${o.events[ev] ? 'on' : 'off'}`),
+    ].join(', ')
+
   return (
-    <div className="mt-4 space-y-2 border-t pt-4 text-sm">
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-1">
-          <Label htmlFor="notify-containers">Notify about containers by default</Label>
-          <p className="text-muted-foreground text-xs">
-            Unhealthy containers and image updates. A{' '}
-            <code className="font-mono text-xs">stacky.notify</code> label on a service, or a{' '}
-            <code className="font-mono text-xs">stacky.notify.stack.&lt;stack&gt;</code> label on
-            stacky itself, overrides this.
-          </p>
-        </div>
-        <Switch
-          id="notify-containers"
-          checked={data.enabled}
-          onCheckedChange={(enabled) => void toggle(enabled)}
-          disabled={saving}
-        />
+    <div className="mt-4 space-y-3 border-t pt-4 text-sm">
+      <div className="space-y-1">
+        <p className="font-medium">Send by default</p>
+        <p className="text-muted-foreground text-xs">
+          Channels still pick the events they receive. Override these per container with{' '}
+          {code('stacky.notify.updates')} or {code('stacky.notify.unhealthy')} labels (
+          {code('stacky.notify')} sets both), or per stack with{' '}
+          {code('stacky.notify.stack.<stack>[.<event>]')} labels on stacky itself, where the event
+          is {code('failures')}, {code('updates')} or {code('unhealthy')}.
+        </p>
       </div>
+      {scopedNotifyEvents.map((ev) => (
+        <div key={ev} className="flex items-center justify-between gap-4">
+          <Label htmlFor={`notify-default-${ev}`}>{EVENT_LABELS[ev]}</Label>
+          <Switch
+            id={`notify-default-${ev}`}
+            checked={data.defaults[ev]}
+            onCheckedChange={(enabled) => void toggle(ev, enabled)}
+            disabled={saving}
+          />
+        </div>
+      ))}
       {data.stacks.length > 0 && (
         <p className="text-muted-foreground text-xs">
           Stack overrides on stacky:{' '}
-          {data.stacks.map((s, i) => (
-            <span key={s.stack}>
-              {i > 0 && ', '}
-              <span className="font-mono">{s.stack}</span> {s.enabled ? 'on' : 'off'}
+          {data.stacks.map((o, i) => (
+            <span key={o.stack}>
+              {i > 0 && '; '}
+              <span className="font-mono">{o.stack}</span> {describe(o)}
             </span>
           ))}
         </p>

@@ -6,6 +6,7 @@ import {
   stackActions,
   channelTypes,
   notifyEvents,
+  scopedNotifyEvents,
   type ApiErrorBody,
   type ContainerSummary,
   type SystemInfo,
@@ -417,6 +418,11 @@ export function apiRoutes(ctx: ApiContext) {
       path: ['recipient'],
     })
 
+  const notifyDefaultsInput = z
+    .object(Object.fromEntries(scopedNotifyEvents.map((e) => [e, z.boolean()])))
+    .partial()
+    .strict()
+
   api.get('/settings/notifications', (c) => c.json(ctx.notifier.list()))
 
   api.put('/settings/notifications', async (c) => {
@@ -424,11 +430,11 @@ export function apiRoutes(ctx: ApiContext) {
     return c.json(ctx.notifier.save(input.channels))
   })
 
-  api.get('/settings/notifications/containers', (c) => c.json(ctx.notifyPolicy.view()))
+  api.get('/settings/notifications/defaults', (c) => c.json(ctx.notifyPolicy.view()))
 
-  api.put('/settings/notifications/containers', async (c) => {
-    const input = await body(c, z.object({ enabled: z.boolean() }))
-    ctx.notifyPolicy.setDefault(input.enabled)
+  api.put('/settings/notifications/defaults', async (c) => {
+    const input = await body(c, z.object({ defaults: notifyDefaultsInput }))
+    ctx.notifyPolicy.setDefaults(input.defaults)
     return c.json(ctx.notifyPolicy.view())
   })
 

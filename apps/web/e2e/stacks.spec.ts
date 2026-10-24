@@ -100,9 +100,9 @@ test('sets the image update check schedule', async () => {
   await expect(schedule).toHaveText('Every 6 hours')
 })
 
-test('turns container notifications off by default and back on', async () => {
+test('turns image update notifications off by default and back on', async () => {
   await page.goto('/settings')
-  const toggle = page.getByRole('switch', { name: 'Notify about containers by default' })
+  const toggle = page.getByRole('switch', { name: 'New image updates are found' })
   await expect(toggle).toBeChecked()
   await toggle.click()
   await expect(toggle).not.toBeChecked()
