@@ -493,6 +493,68 @@ describe('UpdateChecker schedules', () => {
     expect(checked).toHaveLength(1)
   })
 
+  it("re-checks stacky's own image after a release even when its schedule is never", async () => {
+    const c = checker(
+      [
+        stack(
+          [{ service: 'stacky', image: 'ghcr.io/patsissons/stacky:latest', imageId: 'i1' }],
+          true,
+        ),
+      ],
+      { i1: ['sha256:a'] },
+      tracking,
+      undefined,
+      'never',
+    )
+    await c.checkAll()
+    expect(checked).toHaveLength(1)
+    now += 60 * 60_000
+    await c.checkDue()
+    expect(checked).toHaveLength(1)
+    c.selfRelease = () => true
+    await c.checkDue()
+    expect(checked).toHaveLength(2)
+    await c.checkDue()
+    expect(checked).toHaveLength(2)
+    now += 16 * 60_000
+    await c.checkDue()
+    expect(checked).toHaveLength(3)
+  })
+
+  it("checks only stacky's own image on request and reports its results", async () => {
+    const c = checker(
+      [
+        stack([{ service: 'web', image: 'nginx:latest', imageId: 'i1' }]),
+        stack(
+          [{ service: 'stacky', image: 'ghcr.io/patsissons/stacky:latest', imageId: 'i2' }],
+          true,
+        ),
+      ],
+      { i1: ['sha256:a'], i2: ['sha256:old'] },
+      tracking,
+    )
+    const reported: string[] = []
+    c.onSelfChecked = (u) => reported.push(`${u.ref} ${u.status}`)
+    await c.checkSelf()
+    expect(checked).toEqual(['latest'])
+    expect(reported).toEqual(['ghcr.io/patsissons/stacky:latest update_available'])
+    await c.checkAll()
+    expect(checked).toHaveLength(3)
+    expect(reported).toHaveLength(2)
+  })
+
+  it('does nothing on a self check without a stacky container', async () => {
+    const c = checker(
+      [stack([{ service: 'web', image: 'nginx:latest', imageId: 'i1' }])],
+      {
+        i1: ['sha256:a'],
+      },
+      tracking,
+    )
+    await c.checkSelf()
+    expect(checked).toHaveLength(0)
+  })
+
   it('saves the global schedule in settings and can reset it', () => {
     const c = checker([], {}, registry, undefined, '6h')
     expect(c.schedule()).toEqual({ schedule: '6h', default: '6h', saved: false })

@@ -105,4 +105,47 @@ describe('ReleaseChecker', () => {
     expect(checker.peek('0.3.0')).toBeUndefined()
     expect(fetches).toBe(1)
   })
+
+  it('refreshes past the cache, but not more than every few minutes', async () => {
+    let now = 0
+    let tag = 'v0.3.0'
+    let fetches = 0
+    const fetchImpl = (async () => {
+      fetches++
+      return new Response(JSON.stringify({ tag_name: tag, html_url: 'https://x' }))
+    }) as typeof fetch
+    const checker = new ReleaseChecker(true, fetchImpl, () => now)
+    await checker.latest()
+    tag = 'v0.4.0'
+    now += 60_000
+    expect((await checker.latest())?.version).toBe('0.3.0')
+    expect((await checker.refresh())?.version).toBe('0.3.0')
+    expect(fetches).toBe(1)
+    now += 5 * 60_000
+    expect((await checker.refresh())?.version).toBe('0.4.0')
+    expect(fetches).toBe(2)
+    // concurrent refreshes share one request
+    now += 10 * 60_000
+    await Promise.all([checker.refresh(), checker.refresh(), checker.latest()])
+    expect(fetches).toBe(3)
+    expect(await new ReleaseChecker(false, fetchImpl).refresh()).toBeUndefined()
+  })
+
+  it('announces a different release, not a repeat of the same one', async () => {
+    let now = 0
+    let tag = 'v0.3.0'
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ tag_name: tag, html_url: 'https://x' }))) as typeof fetch
+    const checker = new ReleaseChecker(true, fetchImpl, () => now)
+    const seen: (string | undefined)[] = []
+    checker.on('change', (r) => seen.push(r?.version))
+    await checker.latest()
+    now += 60 * 60_000
+    await checker.latest()
+    expect(seen).toEqual(['0.3.0'])
+    tag = 'v0.4.0'
+    now += 60 * 60_000
+    await checker.latest()
+    expect(seen).toEqual(['0.3.0', '0.4.0'])
+  })
 })

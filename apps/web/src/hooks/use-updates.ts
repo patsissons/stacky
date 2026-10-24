@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import type { ImageUpdate, UpdatesSummary } from '@stacky/shared'
+import { selfQuery } from '@/hooks/use-self'
 import { api } from '@/lib/api'
 import { liveSocket } from '@/lib/ws'
 
@@ -17,6 +18,8 @@ export function useLiveUpdatesBridge() {
     () =>
       liveSocket.subscribe('updates', (msg) => {
         if (msg.type === 'updates') qc.setQueryData(updatesQuery.queryKey, msg.summary)
+        // a newer stacky release was found: refresh the banner along with the image badge
+        else if (msg.type === 'self') void qc.invalidateQueries({ queryKey: selfQuery.queryKey })
       }),
     [qc],
   )

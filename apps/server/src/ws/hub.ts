@@ -4,6 +4,7 @@ import { openExec, type ExecSession } from '../docker/exec'
 import { streamLogs } from '../docker/logs'
 import { streamStats } from '../docker/stats'
 import type { Logger } from '../lib/logger'
+import type { ReleaseChecker } from '../self/release'
 import type { OperationEngine } from '../ops/engine'
 import { logTargets } from '../stacks/log-targets'
 import type { StackState } from '../stacks/state'
@@ -36,6 +37,7 @@ export class Hub {
     private readonly docker: Docker,
     private readonly logger: Logger,
     private readonly updates?: UpdateChecker,
+    private readonly releases?: ReleaseChecker,
   ) {}
 
   connect(peer: Peer) {
@@ -115,7 +117,13 @@ export class Hub {
     const onChange = (summary: ReturnType<UpdateChecker['summary']>) =>
       send({ type: 'updates', topic: 'updates', summary })
     updates.on('change', onChange)
-    return () => updates.off('change', onChange)
+    // the newer stacky release changed: the UI fetches `/api/self` again
+    const onRelease = () => send({ type: 'self', topic: 'updates' })
+    this.releases?.on('change', onRelease)
+    return () => {
+      updates.off('change', onChange)
+      this.releases?.off('change', onRelease)
+    }
   }
 
   private subOperation(topic: string, id: string, send: (m: ServerMessage) => void): Dispose {
