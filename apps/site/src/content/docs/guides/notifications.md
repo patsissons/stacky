@@ -33,23 +33,30 @@ Add channels under **Settings → Notifications**. Each channel picks the events
 
 Failures are sent with high priority, so they come through during quiet hours; everything else uses normal priority.
 
-## Choosing which containers notify
+## Choosing what notifies
 
-Unhealthy containers and new image updates can be turned off for whole stacks or single containers. Failed operations and self-update results always go to your channels. Stacky picks the most specific setting:
+Each channel picks the events it receives. On top of that, stacky decides which stacks and containers send failures, image updates and unhealthy-container alerts. Self-update results only depend on the channel.
 
-1. A `stacky.notify` label on the service: `true` or `false` (`on`/`off`, `yes`/`no` and `1`/`0` work too).
-2. A `stacky.notify.stack.<stack>` label on **stacky's own** service, which sets the default for that stack.
-3. **Notify about containers by default** under **Settings → Notifications**, which is on unless you turn it off.
+**Send by default** under **Settings → Notifications** has a switch for each of the three events. All of them are on until you turn them off. Labels override a default for a whole stack or a single container. Each label takes `true` or `false` (`on`/`off`, `yes`/`no` and `1`/`0` work too) and names the event by a short alias:
 
-```yaml
-# stacky's own compose file
-services:
-  stacky:
-    image: ghcr.io/patsissons/stacky:latest
-    labels:
-      stacky.notify.stack.media: false # quiet by default...
-      stacky.notify.stack.infra: true
-```
+| Event                       | Alias       | Container label           | Stack label (on stacky's own service)   |
+| --------------------------- | ----------- | ------------------------- | --------------------------------------- |
+| A deploy or operation fails | `failures`  | —                         | `stacky.notify.stack.<stack>.failures`  |
+| New image updates are found | `updates`   | `stacky.notify.updates`   | `stacky.notify.stack.<stack>.updates`   |
+| A container stays unhealthy | `unhealthy` | `stacky.notify.unhealthy` | `stacky.notify.stack.<stack>.unhealthy` |
+| Every event above           | —           | `stacky.notify`           | `stacky.notify.stack.<stack>`           |
+
+Stacky picks the most specific setting for each event:
+
+1. The container's label for that event, e.g. `stacky.notify.updates`.
+2. The container's `stacky.notify` label.
+3. The stack's label for that event on stacky, e.g. `stacky.notify.stack.media.updates`.
+4. The stack's `stacky.notify.stack.<stack>` label on stacky.
+5. The event's default under **Send by default**.
+
+Operations act on a whole stack, so failures skip the container labels and only follow steps 3–5.
+
+For example, to hear about every failure and unhealthy container but only a few image updates, turn off **New image updates are found** under **Send by default**, then opt in the containers you care about:
 
 ```yaml
 # the media stack
@@ -57,10 +64,22 @@ services:
   plex:
     image: plexinc/pms-docker
     labels:
-      stacky.notify: true # ...except for Plex
+      stacky.notify.updates: true # updates for Plex only
 ```
 
-An image update is reported if any container running that image notifies. Updates you weren't told about because notifications were off are reported once you turn them back on. Labels on stacky apply once stacky is redeployed; the Settings card lists the stack overrides it found. An invalid value is ignored, and the next setting down applies.
+To quiet a whole stack except for one event, label stacky's own service:
+
+```yaml
+# stacky's own compose file
+services:
+  stacky:
+    image: ghcr.io/patsissons/stacky:latest
+    labels:
+      stacky.notify.stack.sandbox: false # nothing from the sandbox stack...
+      stacky.notify.stack.sandbox.failures: true # ...except failed deploys
+```
+
+An image update is reported if any container running that image sends updates. Updates you weren't told about because notifications were off are reported once you turn them back on. Labels on stacky apply once stacky is redeployed, and the Settings card lists the stack overrides it found. An invalid value or an unknown event is ignored (with a warning in stacky's log), and the next setting down applies.
 
 ## Links back to stacky
 

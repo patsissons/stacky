@@ -2,12 +2,15 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { StackSummary } from '@stacky/shared'
 import { openDatabase } from '../db'
 import { SettingsStore } from '../db/settings'
+import type { ComposeContainer } from '../docker/containers'
 import { silentLogger } from '../lib/logger'
 import { Notifier, UNHEALTHY_GRACE_MS } from './notifier'
+import { NotifyPolicy } from './policy'
 
 let sent: { url: string; body: string }[]
 let now: number
 let notifier: Notifier
+let settings: SettingsStore
 
 const fetchImpl = (async (url: string, init?: RequestInit) => {
   sent.push({ url, body: String(init?.body) })
@@ -18,7 +21,8 @@ beforeEach(() => {
   sent = []
   now = 1_000_000
   const { db } = openDatabase(':memory:')
-  notifier = new Notifier(new SettingsStore(db), silentLogger, undefined, fetchImpl, () => now)
+  settings = new SettingsStore(db)
+  notifier = new Notifier(settings, silentLogger, undefined, fetchImpl, () => now)
   notifier.save([
     {
       name: 'hook',
@@ -160,6 +164,7 @@ describe('Notifier', () => {
     notifier.policy = {
       containerEnabled: (id) => !muted.has(id),
       imageEnabled: (ref) => !muted.has(ref),
+      stackEnabled: (stack) => !muted.has(stack),
     }
     const update = {
       ref: 'nginx:1.27',
@@ -215,13 +220,115 @@ describe('Notifier', () => {
       error: { code: 'x', message: 'boom' },
     })
     await flush()
-    // failed operations aren't scoped
+    // failures follow the stack, not the container
     expect(sent.map((s) => JSON.parse(s.body).event)).toEqual(['operation_failed'])
     // a muted update isn't marked as notified, so it's reported once it's back on
     muted.clear()
     notifier.onUpdates({ checking: false, updates: [update] })
     await flush()
     expect(JSON.parse(sent[1]!.body)).toMatchObject({ event: 'update_available' })
+  })
+
+  it('skips failed operations in stacks whose failures are off', async () => {
+    notifier.policy = {
+      containerEnabled: () => true,
+      imageEnabled: () => true,
+      stackEnabled: (stack, event) => !(stack === 'quiet' && event === 'operation_failed'),
+    }
+    for (const stack of ['quiet', 'loud']) {
+      notifier.onOperation({
+        id: stack,
+        stack,
+        action: 'deploy',
+        services: [],
+        state: 'failed',
+        commands: [],
+        createdAt: 0,
+        error: { code: 'x', message: 'boom' },
+      })
+    }
+    await flush()
+    expect(sent.map((s) => JSON.parse(s.body).title)).toEqual(['deploy loud failed'])
+  })
+
+  it('sends updates only for opted-in containers when updates are off by default', async () => {
+    const containers = [
+      {
+        id: 'c1',
+        name: 'media-plex-1',
+        project: 'media',
+        labels: { 'stacky.notify.updates': 'true' },
+      },
+      { id: 'c2', name: 'media-arr-1', project: 'media', labels: {} },
+    ] as ComposeContainer[]
+    const policy = new NotifyPolicy(
+      settings,
+      { allContainers: () => containers, selfContainerId: undefined },
+      silentLogger,
+      (ref) => (ref === 'plex:1' ? ['media-plex-1'] : ['media-arr-1']),
+    )
+    policy.setDefaults({ update_available: false })
+    notifier.policy = policy
+    const update = (ref: string) => ({
+      ref,
+      registry: 'docker.io',
+      repository: ref.split(':')[0]!,
+      tag: '1',
+      status: 'update_available' as const,
+      checkedAt: 0,
+      source: 'native' as const,
+      newerTag: '2',
+    })
+    notifier.onUpdates({ checking: false, updates: [update('plex:1'), update('arr:1')] })
+    notifier.onStacks(
+      containers.map((c) => ({
+        name: c.project,
+        managed: true,
+        status: 'unhealthy',
+        isSelf: false,
+        urls: [],
+        services: [
+          {
+            name: c.name,
+            state: 'unhealthy',
+            containers: [
+              {
+                id: c.id,
+                name: c.name,
+                project: c.project,
+                service: c.name,
+                number: 1,
+                image: 'x',
+                imageId: 'y',
+                state: 'unhealthy',
+                statusText: '',
+                createdAt: 0,
+                ports: [],
+              },
+            ],
+          },
+        ],
+      })),
+    )
+    now += UNHEALTHY_GRACE_MS + 1
+    notifier.tick()
+    notifier.onOperation({
+      id: 'op',
+      stack: 'media',
+      action: 'deploy',
+      services: [],
+      state: 'failed',
+      commands: [],
+      createdAt: 0,
+      error: { code: 'x', message: 'boom' },
+    })
+    await flush()
+    expect(sent.map((s) => JSON.parse(s.body)).map((b) => [b.event, b.title])).toEqual([
+      ['update_available', 'Update available: plex:1'],
+      ['container_unhealthy', 'media-plex-1 is unhealthy'],
+      ['container_unhealthy', 'media-arr-1 is unhealthy'],
+      ['operation_failed', 'deploy media failed'],
+    ])
   })
 
   it('reports a self-update result once', async () => {

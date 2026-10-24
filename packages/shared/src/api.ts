@@ -119,12 +119,35 @@ export type ChannelType = (typeof channelTypes)[number]
 /** Pushover's message endpoint; Pushover channels always post here. */
 export const PUSHOVER_URL = 'https://api.pushover.net/1/messages.json'
 
-/** Which containers notify about themselves (unhealthy containers, image updates). */
-export interface ContainerNotifySettings {
-  /** The default for containers without a `stacky.notify` label or a stack override. */
-  enabled: boolean
-  /** Stack defaults from `stacky.notify.stack.<stack>` labels on stacky's own container. */
-  stacks: { stack: string; enabled: boolean }[]
+/** Events that can be turned on or off per stack (and, except failures, per container). */
+export const scopedNotifyEvents = [
+  'operation_failed',
+  'update_available',
+  'container_unhealthy',
+] as const
+export type ScopedNotifyEvent = (typeof scopedNotifyEvents)[number]
+
+/** The short names used in `stacky.notify.<alias>` labels. */
+export const notifyLabelAliases: Record<ScopedNotifyEvent, string> = {
+  operation_failed: 'failures',
+  update_available: 'updates',
+  container_unhealthy: 'unhealthy',
+}
+
+/** A stack's overrides from labels on stacky's own container. */
+export interface StackNotifyOverride {
+  stack: string
+  /** From `stacky.notify.stack.<stack>`: every event. */
+  all?: boolean
+  /** From `stacky.notify.stack.<stack>.<alias>`: one event. */
+  events: Partial<Record<ScopedNotifyEvent, boolean>>
+}
+
+/** Which events stacky sends, before each channel picks the events it wants. */
+export interface NotifyPolicySettings {
+  /** The default for each event when no label overrides it. */
+  defaults: Record<ScopedNotifyEvent, boolean>
+  stacks: StackNotifyOverride[]
 }
 
 /** A notification channel as the API returns it (secrets are never sent back). */
