@@ -15,7 +15,8 @@ import {
   ScheduleError,
   type Schedule,
 } from './schedule'
-import { isVersionTag, newestTag } from './tags'
+import { renderLink } from './links'
+import { isVersionTag, newestTag, type TagFilter } from './tags'
 import { WudClient, type WudSettings } from './wud'
 
 const IGNORED_KEY = 'updates.ignored'
@@ -30,6 +31,25 @@ interface InUse {
   containers: Set<string>
   /** `stacky.update.schedule` of each container; undefined for containers without the label. */
   schedules: Set<string | undefined>
+  /** The distinct tag filter and link template labels set by its containers. */
+  tagIncludes: Set<string>
+  tagExcludes: Set<string>
+  linkTemplates: Set<string>
+}
+
+/** The tag filter an image's labels ask for; invalid or conflicting labels are left out. */
+interface ResolvedFilter {
+  include?: string
+  exclude?: string
+  filter: TagFilter
+  error?: string
+}
+
+/** The one label value containers sharing an image agree on, or why there isn't one. */
+function agreed(values: Set<string>, label: string): { value?: string; error?: string } {
+  if (values.size > 1)
+    return { error: `containers using this image have different ${label} labels` }
+  return { value: [...values][0] }
 }
 
 /** When an image is next due, and which schedule decided it. */
@@ -55,6 +75,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
   private timer: NodeJS.Timeout | undefined
   private stopped = false
   private parsed = new Map<string, Schedule | ScheduleError>()
+  private regexes = new Map<string, RegExp | SyntaxError>()
   private warned = new Set<string>()
 
   constructor(
@@ -129,16 +150,27 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
   /** When each image in use is next due; the earliest of its containers' schedules wins. */
   private dueTimes(inUse: Map<string, InUse>): Map<string, Due> {
     const now = this.now()
-    const checkedAt = new Map(
+    const stored = new Map(
       this.db
-        .select({ ref: imageUpdates.ref, checkedAt: imageUpdates.checkedAt })
+        .select({
+          ref: imageUpdates.ref,
+          checkedAt: imageUpdates.checkedAt,
+          data: imageUpdates.data,
+        })
         .from(imageUpdates)
         .all()
-        .map((r) => [r.ref, r.checkedAt]),
+        .map((r) => [r.ref, r]),
     )
     const global = this.parse(this.schedule().schedule)
     const result = new Map<string, Due>()
     for (const target of inUse.values()) {
+      const last = stored.get(target.ref)
+      const filter = this.filterFor(target)
+      // a result found with other tag filters is stale: check again as if never checked
+      const lastCheckedAt =
+        last && last.data.tagInclude === filter.include && last.data.tagExclude === filter.exclude
+          ? last.checkedAt
+          : undefined
       let best: Due | undefined
       for (const label of target.schedules) {
         const parsed = label === undefined ? global : this.parse(label)
@@ -154,7 +186,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
         const at =
           schedule instanceof ScheduleError
             ? undefined
-            : nextRun(schedule, checkedAt.get(target.ref), now, this.jitterMs)
+            : nextRun(schedule, lastCheckedAt, now, this.jitterMs)
         const due: Due = { at, label: labelError ? undefined : label, labelError }
         if (!best || (at !== undefined && (best.at === undefined || at < best.at))) best = due
         else if (labelError) best.labelError ??= labelError
@@ -186,15 +218,82 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
             imageIds: new Set(),
             containers: new Set(),
             schedules: new Set(),
+            tagIncludes: new Set(),
+            tagExcludes: new Set(),
+            linkTemplates: new Set(),
           }
           entry.imageIds.add(c.imageId)
           entry.containers.add(c.name)
           entry.schedules.add(c.updateSchedule?.trim() || undefined)
+          if (c.tagInclude?.trim()) entry.tagIncludes.add(c.tagInclude.trim())
+          if (c.tagExclude?.trim()) entry.tagExcludes.add(c.tagExclude.trim())
+          if (c.linkTemplate?.trim()) entry.linkTemplates.add(c.linkTemplate.trim())
           map.set(ref, entry)
         }
       }
     }
     return map
+  }
+
+  private regex(source: string): RegExp | SyntaxError {
+    let hit = this.regexes.get(source)
+    if (!hit) {
+      try {
+        hit = new RegExp(source)
+      } catch (err) {
+        if (!(err instanceof SyntaxError)) throw err
+        hit = err
+      }
+      this.regexes.set(source, hit)
+    }
+    return hit
+  }
+
+  /** The tag filter from an image's `stacky.tag.include` / `stacky.tag.exclude` labels. */
+  private filterFor(target: InUse): ResolvedFilter {
+    const result: ResolvedFilter = { filter: {} }
+    const labels = [
+      ['include', target.tagIncludes, 'stacky.tag.include'],
+      ['exclude', target.tagExcludes, 'stacky.tag.exclude'],
+    ] as const
+    for (const [key, values, label] of labels) {
+      const { value, error } = agreed(values, label)
+      const re = value === undefined ? undefined : this.regex(value)
+      const problem =
+        error ??
+        (re instanceof SyntaxError ? `${label} is not a valid regular expression` : undefined)
+      if (problem) {
+        result.error ??= problem
+        const warning = `${target.ref}: ${problem}`
+        if (!this.warned.has(warning)) {
+          this.warned.add(warning)
+          this.logger.warn(`${problem}; ignoring it`, { ref: target.ref, value })
+        }
+      } else if (value && re instanceof RegExp) {
+        result[key] = value
+        result.filter[key] = re
+      }
+    }
+    return result
+  }
+
+  /** Release links for an update, from its containers' `stacky.link.template` label. */
+  private links(u: ImageUpdate, target: InUse): Partial<ImageUpdate> {
+    const { value: template, error } = agreed(target.linkTemplates, 'stacky.link.template')
+    if (error) return { linkTemplateError: error }
+    if (!template) return {}
+    const current = renderLink(template, u.tag)
+    const newer = u.newerTag ? renderLink(template, u.newerTag) : undefined
+    const failed = [current, newer].find((r) => r && 'error' in r)
+    return {
+      linkTemplate: template,
+      ...(failed && 'error' in failed
+        ? { linkTemplateError: failed.error }
+        : {
+            ...(current && 'url' in current ? { currentLink: current.url } : {}),
+            ...(newer && 'url' in newer ? { newerLink: newer.url } : {}),
+          }),
+    }
   }
 
   summary(): UpdatesSummary {
@@ -206,10 +305,14 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
       .filter((r) => inUse.has(r.ref))
       .map((r) => {
         const d = due.get(r.ref)
+        const target = inUse.get(r.ref)!
+        const filterError = this.filterFor(target).error
         const u = {
           ...r.data,
           ...(d?.label ? { scheduleLabel: d.label } : {}),
           ...(d?.labelError ? { scheduleError: d.labelError } : {}),
+          ...(filterError ? { tagFilterError: filterError } : {}),
+          ...this.links(r.data, target),
         }
         const value = u.newerTag ?? u.remoteDigest
         return value && ignored[u.ref] === value ? { ...u, ignored: true } : u
@@ -273,6 +376,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
 
   async check(target: InUse): Promise<ImageUpdate> {
     const parsed = parseImageRef(target.ref)
+    const filter = this.filterFor(target)
     const base = {
       ref: target.ref,
       registry: parsed.registry,
@@ -280,6 +384,8 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
       tag: parsed.tag,
       checkedAt: this.now(),
       source: 'native' as const,
+      ...(filter.include ? { tagInclude: filter.include } : {}),
+      ...(filter.exclude ? { tagExclude: filter.exclude } : {}),
     }
     if (parsed.digest) return { ...base, status: 'skipped', message: 'pinned to a digest' }
 
@@ -301,7 +407,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
       const digestChanged = !local.has(remote)
       let newer: ReturnType<typeof newestTag>
       if (isVersionTag(parsed.tag)) {
-        newer = newestTag(parsed.tag, await this.registry.listTags(parsed, 10))
+        newer = newestTag(parsed.tag, await this.registry.listTags(parsed, 10), filter.filter)
       }
       const available = digestChanged || !!newer
       return {

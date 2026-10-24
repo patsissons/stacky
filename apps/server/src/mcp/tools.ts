@@ -282,7 +282,7 @@ export function registerTools(server: McpServer, env: ToolEnv) {
     {
       title: 'List image updates',
       description:
-        'Returns the latest image update check: which image references have newer tags or digests.',
+        'Returns the latest image update check: which image references have newer tags or digests, with release links when a `stacky.link.template` label sets them.',
       annotations: readOnly,
       input: {
         onlyAvailable: z.boolean().default(true).describe('Only images with an update available'),

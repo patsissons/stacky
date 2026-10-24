@@ -91,6 +91,53 @@ services:
 
 Containers without the label use the global schedule. Updates are tracked per image, so when several containers run the same image with different schedules, the soonest one wins. An invalid label is ignored in favour of the global schedule, and the update dialog says why. Labels apply once the container has been recreated (deploy the stack).
 
+## Choosing which tags count
+
+The shape rule handles most images. To narrow the candidates further, give a service a `stacky.tag.include` label, a `stacky.tag.exclude` label, or both. Each takes a JavaScript regular expression. A tag counts as a newer version only if it has the same shape as the one you run, matches the include pattern and doesn't match the exclude pattern. The filters narrow the shape rule rather than replace it, so a loose pattern still can't jump to another variant.
+
+```yaml
+services:
+  nginx:
+    image: nginx:1.26.3
+    labels:
+      # stay on 1.26.x
+      stacky.tag.include: '^1\.26\.'
+  postgres:
+    image: postgres:17.6
+    labels:
+      # skip the next major version
+      stacky.tag.exclude: '^18\.'
+```
+
+Compose treats `$` as the start of a variable, so a pattern that ends with `$` has to write it as `$$` (for example `'^\d+\.\d+$$'`).
+
+Stacky also reads What's Up Docker's `wud.tag.include` and `wud.tag.exclude`, so services already labelled for WUD keep their filters. If both are set, the `stacky.*` label wins. When several containers run the same image, they have to agree: if they set different filters, the label is ignored and the update dialog says why, as it does for an invalid pattern. Changing a filter (and recreating the container) makes the image due for a check right away, so the result never reflects an old filter.
+
+## Release links
+
+A `stacky.link.template` label turns each version into a link to its release notes. The update dialog links both tags and shows a **Release notes** link next to the registry's tags page; update notifications and the API include the newer version's link too.
+
+```yaml
+services:
+  nginx:
+    image: nginx:1.26.3
+    labels:
+      stacky.link.template: https://github.com/nginx/nginx/releases/tag/release-$${major}.$${minor}.$${patch}
+```
+
+Write `$${major}` rather than `${major}` in a compose file; otherwise Compose replaces it with an environment variable before stacky sees it. The template uses What's Up Docker's variables, filled in from the tag (here `v2.8.3-ls364`):
+
+| Variable                  | Value                                                     |
+| ------------------------- | --------------------------------------------------------- |
+| `${original}` or `${raw}` | The whole tag: `v2.8.3-ls364`                             |
+| `${transformed}`          | The same as `${original}` (stacky doesn't transform tags) |
+| `${major}`                | The first number: `2`                                     |
+| `${minor}`                | The second number: `8` (`0` if there isn't one)           |
+| `${patch}`                | The third number: `3` (`0` if there isn't one)            |
+| `${prerelease}`           | Whatever follows the first `-` after the numbers: `ls364` |
+
+Stacky also reads `wud.link.template`, and `stacky.link.template` wins if both are set. The template is only filled in, never run as code, and must give an `http(s)` URL. A tag without numbers, such as `latest`, gets no link from a template that uses `${major}`. An unknown variable, or containers of one image with different templates, give no links, and the update dialog says why.
+
 ## Rate limits
 
 Stacky only sends `HEAD` requests for manifests, which Docker Hub doesn't count toward its pull limit. Tag lists are fetched only for version tags. If a registry still rate-limits stacky, the badge shows **check failed** with the reason instead of a misleading "up to date".

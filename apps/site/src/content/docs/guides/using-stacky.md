@@ -48,6 +48,8 @@ When several labels are set, `stacky.display.icon` wins over the older `dev.stac
 
 To check a container's image for updates on its own schedule, add a `stacky.update.schedule` label (for example `weekly`, `6h` or a cron pattern). See [Image updates](/guides/image-updates/#per-container-schedules).
 
+To choose which version tags count as updates, add `stacky.tag.include` or `stacky.tag.exclude` regex labels. To link each version to its release notes, add a `stacky.link.template` label. Both read What's Up Docker's `wud.*` labels too. See [Choosing which tags count](/guides/image-updates/#choosing-which-tags-count) and [Release links](/guides/image-updates/#release-links).
+
 Containers are grouped under a heading per stack by default; turn **Group by stack** off for one flat, paginated list. Search, the stack and status filters, sorting, grouping and pagination are all stored in the URL, so you can bookmark a view. On a phone the table turns into cards, grouped the same way.
 
 ## Stack pages

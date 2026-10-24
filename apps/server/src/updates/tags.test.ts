@@ -54,6 +54,26 @@ describe('newestTag', () => {
     })
   })
 
+  it('narrows candidates with include and exclude filters', () => {
+    expect(newestTag('1.26.0', tags, { include: /^1\.27\./ })).toEqual({
+      tag: '1.27.4',
+      kind: 'minor',
+    })
+    expect(newestTag('1.26.0', tags, { exclude: /^1\.28\./ })).toEqual({
+      tag: '1.27.4',
+      kind: 'minor',
+    })
+    expect(newestTag('1.26.0', tags, { include: /^1\.2/, exclude: /\.4$|^1\.28/ })).toEqual({
+      tag: '1.27.3',
+      kind: 'minor',
+    })
+    expect(newestTag('1.26.0', tags, { include: /^1\.26\./ })).toBeUndefined()
+  })
+
+  it('keeps the shape rule when a filter matches other variants', () => {
+    expect(newestTag('1.27.3', tags, { include: /alpine|rc/ })).toBeUndefined()
+  })
+
   it('knows version tags', () => {
     expect(isVersionTag('1.2')).toBe(true)
     expect(isVersionTag('latest')).toBe(false)

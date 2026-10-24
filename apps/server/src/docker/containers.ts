@@ -1,8 +1,11 @@
 import type Docker from 'dockerode'
 import { containerState, type ContainerSummary, type PortMapping } from '@stacky/shared'
 import { iconName } from '../icons/icons'
+import { LINK_TEMPLATE_LABELS } from '../updates/links'
 import { SCHEDULE_LABEL } from '../updates/schedule'
+import { TAG_EXCLUDE_LABELS, TAG_INCLUDE_LABELS } from '../updates/tags'
 import { LABELS } from './client'
+import { firstLabel } from './labels'
 
 export interface ComposeContainer extends ContainerSummary {
   workingDir?: string
@@ -49,6 +52,9 @@ export class ContainerLister {
             ports: ports(c.Ports ?? []),
             icon: iconName(c.Image, labels),
             updateSchedule: labels[SCHEDULE_LABEL],
+            tagInclude: firstLabel(labels, TAG_INCLUDE_LABELS),
+            tagExclude: firstLabel(labels, TAG_EXCLUDE_LABELS),
+            linkTemplate: firstLabel(labels, LINK_TEMPLATE_LABELS),
             workingDir: labels[LABELS.workingDir],
             configFiles: labels[LABELS.configFiles],
             labels,

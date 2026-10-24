@@ -129,7 +129,12 @@ export class Notifier {
         fresh.length === 1
           ? `Update available: ${fresh[0]!.ref}`
           : `${fresh.length} image updates available`,
-      body: fresh.map((u) => `${u.ref} → ${u.newerTag ?? 'new image for the same tag'}`).join('\n'),
+      body: fresh
+        .map((u) => {
+          const line = `${u.ref} → ${u.newerTag ?? 'new image for the same tag'}`
+          return u.newerLink ? `${line} (${u.newerLink})` : line
+        })
+        .join('\n'),
     })
   }
 

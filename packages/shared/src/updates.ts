@@ -29,6 +29,20 @@ export interface ImageUpdate {
   scheduleLabel?: string
   /** Why a `stacky.update.schedule` label was ignored in favour of the global schedule. */
   scheduleError?: string
+  /** The `stacky.tag.include` regex newer tags had to match in this check, if any. */
+  tagInclude?: string
+  /** The `stacky.tag.exclude` regex that ruled tags out in this check, if any. */
+  tagExclude?: string
+  /** Why a `stacky.tag.include` or `stacky.tag.exclude` label was ignored. */
+  tagFilterError?: string
+  /** The `stacky.link.template` label release links are built from, if any. */
+  linkTemplate?: string
+  /** Why the `stacky.link.template` label gave no links. */
+  linkTemplateError?: string
+  /** Release link for `tag`, from the link template. */
+  currentLink?: string
+  /** Release link for `newerTag`, from the link template. */
+  newerLink?: string
 }
 
 /** The global image update check schedule, as `GET /api/settings/updates` returns it. */
