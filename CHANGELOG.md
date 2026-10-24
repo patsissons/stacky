@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/patsissons/stacky/compare/v0.10.1...v0.11.0) (2026-10-24)
+
+
+### Features
+
+* filter version tags and link release notes with container labels ([#27](https://github.com/patsissons/stacky/issues/27)) ([482d58a](https://github.com/patsissons/stacky/commit/482d58a9719cd361bb1ef8f7955eddc7f8740df8))
+
 ## [0.10.1](https://github.com/patsissons/stacky/compare/v0.10.0...v0.10.1) (2026-10-23)
 
 
