@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/patsissons/stacky/compare/v0.14.0...v0.14.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* keep stacky's image badge and release banner in sync ([#35](https://github.com/patsissons/stacky/issues/35)) ([a91b0fd](https://github.com/patsissons/stacky/commit/a91b0fd7d118c223053f5d38b4b0cce22ed592cf))
+
 ## [0.14.0](https://github.com/patsissons/stacky/compare/v0.13.0...v0.14.0) (2026-10-24)
 
 
