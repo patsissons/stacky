@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/patsissons/stacky/compare/v0.12.0...v0.13.0) (2026-10-24)
+
+
+### Features
+
+* check a single stack's images for updates ([#31](https://github.com/patsissons/stacky/issues/31)) ([ab38131](https://github.com/patsissons/stacky/commit/ab381312591d6a710c4e3fa9905638afecca3d26))
+
 ## [0.12.0](https://github.com/patsissons/stacky/compare/v0.11.0...v0.12.0) (2026-10-24)
 
 
