@@ -85,6 +85,8 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
   private warned = new Set<string>()
   /** True while a newer stacky release is known; stacky's own image is then re-checked often. */
   selfRelease: (() => boolean) | undefined
+  /** Called with each new result for stacky's own image, so the release check can follow it. */
+  onSelfChecked: ((result: ImageUpdate) => void) | undefined
 
   constructor(
     private readonly state: StackState,
@@ -203,15 +205,12 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
         if (!best || (at !== undefined && (best.at === undefined || at < best.at))) best = due
         else if (labelError) best.labelError ??= labelError
       }
-      // the GitHub release goes out before its image reaches the registry: keep looking
-      if (
-        best?.at !== undefined &&
-        target.self &&
-        last?.data.status !== 'update_available' &&
-        this.selfRelease?.()
-      ) {
+      // the GitHub release goes out before its image reaches the registry: keep looking, even
+      // on a `never` schedule, so the image badge catches up with the release banner
+      if (target.self && last?.data.status !== 'update_available' && this.selfRelease?.()) {
         const soon = lastCheckedAt === undefined ? now : lastCheckedAt + SELF_RECHECK_MS
-        best.at = Math.min(best.at, soon)
+        best ??= { at: undefined }
+        best.at = best.at === undefined ? soon : Math.min(best.at, soon)
       }
       if (best) result.set(target.ref, best)
     }
@@ -225,6 +224,12 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
       .filter(([, d]) => d.at !== undefined && d.at <= now)
       .map(([ref]) => ref)
     if (due.length > 0) await this.checkAll(due)
+  }
+
+  /** Checks stacky's own image now (e.g. when a new release is found). */
+  async checkSelf() {
+    const refs = [...this.inUse().values()].filter((t) => t.self).map((t) => t.ref)
+    if (refs.length > 0) await this.checkAll(refs)
   }
 
   /** Distinct image references used by containers right now. */
@@ -384,6 +389,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
           if (this.stopped) return
           this.save(result)
           this.emit('change', this.summary())
+          if (t.self) this.onSelfChecked?.(result)
         }
       })
       await Promise.all(workers)
