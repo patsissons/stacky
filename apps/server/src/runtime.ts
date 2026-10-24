@@ -109,6 +109,11 @@ export async function createRuntime(
   state.selfContainerId = self?.containerId
 
   const releases = new ReleaseChecker(config.updateCheck && /^\d/.test(VERSION))
+  // known without anyone opening the UI, so stacky's own image is re-checked after a release
+  const refreshRelease = () => void releases.available(VERSION)
+  refreshRelease()
+  setInterval(refreshRelease, 60 * 60_000).unref()
+  updates.selfRelease = () => !!releases.peek(VERSION)
   const selfUpdater = new SelfUpdater(
     docker,
     engine,

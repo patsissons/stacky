@@ -24,11 +24,17 @@ export const WUD_KEY = 'integrations.wud'
 export const SCHEDULE_KEY = 'updates.schedule'
 const CONCURRENCY = 4
 const TICK_MS = 60_000
+/** How often stacky's own image is re-checked while a newer release isn't reflected yet. */
+const SELF_RECHECK_MS = 15 * 60_000
 
 interface InUse {
   ref: string
   imageIds: Set<string>
   containers: Set<string>
+  /** When the newest of its containers was created; a check from before that is out of date. */
+  createdAt: number
+  /** Used by stacky's own stack. */
+  self: boolean
   /** `stacky.update.schedule` of each container; undefined for containers without the label. */
   schedules: Set<string | undefined>
   /** The distinct tag filter and link template labels set by its containers. */
@@ -77,6 +83,8 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
   private parsed = new Map<string, Schedule | ScheduleError>()
   private regexes = new Map<string, RegExp | SyntaxError>()
   private warned = new Set<string>()
+  /** True while a newer stacky release is known; stacky's own image is then re-checked often. */
+  selfRelease: (() => boolean) | undefined
 
   constructor(
     private readonly state: StackState,
@@ -166,9 +174,13 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
     for (const target of inUse.values()) {
       const last = stored.get(target.ref)
       const filter = this.filterFor(target)
-      // a result found with other tag filters is stale: check again as if never checked
+      // a result from before a container was recreated, or found with other tag filters, is
+      // stale (a deploy that restarted stacky loses its follow-up check): check as if never checked
       const lastCheckedAt =
-        last && last.data.tagInclude === filter.include && last.data.tagExclude === filter.exclude
+        last &&
+        last.checkedAt >= target.createdAt &&
+        last.data.tagInclude === filter.include &&
+        last.data.tagExclude === filter.exclude
           ? last.checkedAt
           : undefined
       let best: Due | undefined
@@ -190,6 +202,16 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
         const due: Due = { at, label: labelError ? undefined : label, labelError }
         if (!best || (at !== undefined && (best.at === undefined || at < best.at))) best = due
         else if (labelError) best.labelError ??= labelError
+      }
+      // the GitHub release goes out before its image reaches the registry: keep looking
+      if (
+        best?.at !== undefined &&
+        target.self &&
+        last?.data.status !== 'update_available' &&
+        this.selfRelease?.()
+      ) {
+        const soon = lastCheckedAt === undefined ? now : lastCheckedAt + SELF_RECHECK_MS
+        best.at = Math.min(best.at, soon)
       }
       if (best) result.set(target.ref, best)
     }
@@ -217,6 +239,8 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
             ref,
             imageIds: new Set(),
             containers: new Set(),
+            createdAt: 0,
+            self: false,
             schedules: new Set(),
             tagIncludes: new Set(),
             tagExcludes: new Set(),
@@ -224,6 +248,8 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
           }
           entry.imageIds.add(c.imageId)
           entry.containers.add(c.name)
+          entry.createdAt = Math.max(entry.createdAt, c.createdAt)
+          if (stack.isSelf) entry.self = true
           entry.schedules.add(c.updateSchedule?.trim() || undefined)
           if (c.tagInclude?.trim()) entry.tagIncludes.add(c.tagInclude.trim())
           if (c.tagExclude?.trim()) entry.tagExcludes.add(c.tagExclude.trim())
