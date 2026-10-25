@@ -5,6 +5,7 @@ import type { Db } from '../db'
 import { imageUpdates } from '../db/schema'
 import type { SettingsStore } from '../db/settings'
 import type { Logger } from '../lib/logger'
+import { compareVersions } from '../self/image-ref'
 import type { StackState } from '../stacks/state'
 import { parseImageRef, RegistryError, type RegistryClient } from './registry'
 import {
@@ -85,8 +86,8 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
   private parsed = new Map<string, Schedule | ScheduleError>()
   private regexes = new Map<string, RegExp | SyntaxError>()
   private warned = new Set<string>()
-  /** True while a newer stacky release is known; stacky's own image is then re-checked often. */
-  selfRelease: (() => boolean) | undefined
+  /** The newer stacky release, if one is known; stacky's own image is re-checked often until it shows it. */
+  selfRelease: (() => string | undefined) | undefined
   /** Called with each new result for stacky's own image, so the release check can follow it. */
   onSelfChecked: ((result: ImageUpdate) => void) | undefined
 
@@ -208,8 +209,14 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
         else if (labelError) best.labelError ??= labelError
       }
       // the GitHub release goes out before its image reaches the registry: keep looking, even
-      // on a `never` schedule, so the image badge catches up with the release banner
-      if (target.self && last?.data.status !== 'update_available' && this.selfRelease?.()) {
+      // on a `never` schedule, so the image badge catches up with the release banner (also when it
+      // already shows an older version than the release)
+      const release = target.self ? this.selfRelease?.() : undefined
+      const behind =
+        release !== undefined &&
+        (last?.data.status !== 'update_available' ||
+          (last.data.newerTag !== undefined && compareVersions(release, last.data.newerTag) > 0))
+      if (behind) {
         const soon = lastCheckedAt === undefined ? now : lastCheckedAt + SELF_RECHECK_MS
         best ??= { at: undefined }
         best.at = best.at === undefined ? soon : Math.min(best.at, soon)
