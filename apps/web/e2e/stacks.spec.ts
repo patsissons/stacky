@@ -458,6 +458,20 @@ test('inspects, edits and deploys one service from its container', async () => {
   })
 })
 
+test("opens a container's logs from its service sheet", async () => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'e2e-app-app-1', exact: true }).click()
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByText('Service app in')).toBeVisible()
+  await sheet.getByRole('link', { name: 'Logs' }).click()
+  await expect(page).toHaveURL(/\/stacks\/e2e-app\?.*tab=logs/)
+  await expect(page).toHaveURL(/service=app/)
+  await expect(sheet).toBeHidden()
+  await expect(page.getByTestId('log-lines')).toContainText('hello-again-from-sheet', {
+    timeout: 20_000,
+  })
+})
+
 test('browses the stacks and data directories read-only', async () => {
   await page.goto('/')
   await page.getByRole('link', { name: 'Files' }).click()
