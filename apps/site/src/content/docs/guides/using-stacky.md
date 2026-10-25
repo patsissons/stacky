@@ -18,7 +18,7 @@ The home page lists every container from every compose project on the host, much
 
 ### Inspecting one container
 
-Click a container (a table row, a card on a phone, or a service card on a stack page) to open its service's definition from the compose file in a panel at the bottom. That is the quickest way to check one container's settings without opening the whole file.
+Click a container (a table row, a card on a phone, or a service card on a stack page) to open its service's definition from the compose file in a panel at the bottom. That is the quickest way to check one container's settings without opening the whole file. **Logs** in the panel opens that service's live logs on its stack page, and **Open in editor** opens the whole file.
 
 Turn on **Edit** to change it there. The edit is checked live against the whole compose file. **Save** writes it into the compose file, changing only that service's lines, so comments and formatting elsewhere stay as they were. **Review & deploy** shows the change first, then saves and deploys the stack, just like the editor. If the compose file changed on disk while you were editing, stacky stops and offers to load the new version instead. Containers of external stacks and of stacky itself are view-only here.
 

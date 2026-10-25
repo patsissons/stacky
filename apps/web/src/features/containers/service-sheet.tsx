@@ -1,6 +1,15 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, FileCode2, Info, Loader2, Rocket, Save, Undo2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  FileCode2,
+  Info,
+  Loader2,
+  Rocket,
+  Save,
+  ScrollText,
+  Undo2,
+} from 'lucide-react'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { blockLine, extractService, replaceService } from '@stacky/shared/compose-service'
@@ -255,6 +264,16 @@ function ManagedService({
         )}
         {dirty && <ValidationStatus validating={validating} issues={issues} />}
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="ghost" asChild>
+            <Link
+              to="/stacks/$name"
+              params={{ name }}
+              search={{ tab: 'logs', service: target.service }}
+              onClick={() => serviceSheetStore.close()}
+            >
+              <ScrollText /> Logs
+            </Link>
+          </Button>
           <Button size="sm" variant="ghost" asChild>
             <Link
               to="/stacks/$name"
