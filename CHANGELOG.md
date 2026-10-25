@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/patsissons/stacky/compare/v0.15.0...v0.15.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* keep stacky's release banner in step when its image gets ahead ([#41](https://github.com/patsissons/stacky/issues/41)) ([f2e7e94](https://github.com/patsissons/stacky/commit/f2e7e9422609671420be0a87ad7bcfa2d9fe62e5))
+
 ## [0.15.0](https://github.com/patsissons/stacky/compare/v0.14.2...v0.15.0) (2026-10-25)
 
 
