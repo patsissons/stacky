@@ -1,7 +1,9 @@
 import { ArrowUp, EyeOff, TriangleAlert } from 'lucide-react'
 import type { ImageUpdate, UpdateKind } from '@stacky/shared'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useNow } from '@/hooks/use-now'
 import { cn } from '@/lib/utils'
+import { checkedLabel } from './checked'
 
 const KIND: Record<UpdateKind, { label: string; className: string }> = {
   major: { label: 'Major update', className: 'bg-update-major text-white' },
@@ -74,5 +76,26 @@ export function UpdateBadge({
       <ArrowUp className="size-3" strokeWidth={3} />
       {update.newerTag ?? 'new digest'}
     </button>
+  )
+}
+
+/** "checked 3h ago" for an image, with the exact time on hover. */
+export function CheckedAt({
+  update,
+  className,
+}: {
+  update: ImageUpdate | undefined
+  className?: string
+}) {
+  const now = useNow()
+  const label = checkedLabel(update, now)
+  if (!label) return null
+  return (
+    <span
+      className={cn('text-muted-foreground text-xs whitespace-nowrap', className)}
+      title={update ? `Last checked ${new Date(update.checkedAt).toLocaleString()}` : undefined}
+    >
+      {label}
+    </span>
   )
 }

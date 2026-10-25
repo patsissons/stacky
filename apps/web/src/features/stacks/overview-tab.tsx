@@ -24,7 +24,7 @@ import type {
   StackSummary,
 } from '@stacky/shared'
 import { checkImageNow } from '@/features/updates/check-image'
-import { UpdateBadge } from '@/features/updates/update-badge'
+import { CheckedAt, UpdateBadge } from '@/features/updates/update-badge'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
 import { useUpdates } from '@/hooks/use-updates'
 import { AppIcon } from '@/components/icons'
@@ -185,11 +185,16 @@ function ServiceCard({
               </span>
             )}
           </div>
-          <div
-            className="text-muted-foreground mt-0.5 truncate font-mono text-xs"
-            title={service.image}
-          >
-            {service.image ?? 'built locally'}
+          <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs">
+            <span className="text-muted-foreground truncate font-mono" title={service.image}>
+              {service.image ?? 'built locally'}
+            </span>
+            {imageRef(service) && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <CheckedAt update={update} />
+              </>
+            )}
           </div>
         </div>
         <ServiceMenu stack={stack} service={service} update={update} />
@@ -448,10 +453,13 @@ function ServiceTable({
                   </span>
                 </TableCell>
                 <TableCell>
-                  <UpdateBadge
-                    update={update}
-                    onClick={() => update && onUpdate(service, update)}
-                  />
+                  <div className="flex flex-col items-start gap-0.5">
+                    <UpdateBadge
+                      update={update}
+                      onClick={() => update && onUpdate(service, update)}
+                    />
+                    {imageRef(service) && <CheckedAt update={update} />}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="space-y-0.5 text-xs">

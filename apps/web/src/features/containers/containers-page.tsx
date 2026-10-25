@@ -34,7 +34,7 @@ import {
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { ImageUpdate, StackSummary } from '@stacky/shared'
-import { UpdateBadge } from '@/features/updates/update-badge'
+import { CheckedAt, UpdateBadge } from '@/features/updates/update-badge'
 import { UpdateAllDialog, type UpdateAllMode } from '@/features/updates/update-all-dialog'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
 import { checkForUpdates, isActionable, useUpdates } from '@/hooks/use-updates'
@@ -223,7 +223,13 @@ function makeColumns(
       cell: ({ row }) => {
         const update = byRef.get(row.original.image)
         return (
-          <UpdateBadge update={update} onClick={() => update && openUpdate(row.original, update)} />
+          <div className="flex flex-col items-start gap-0.5">
+            <UpdateBadge
+              update={update}
+              onClick={() => update && openUpdate(row.original, update)}
+            />
+            <CheckedAt update={update} />
+          </div>
         )
       },
     },
@@ -871,6 +877,7 @@ function ContainerCard({
             update && onUpdate({ update, stack: r.stack, service: r.service, managed: r.managed })
           }
         />
+        <CheckedAt update={update} />
       </div>
       <RowActions row={r} />
     </div>

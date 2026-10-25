@@ -240,6 +240,8 @@ test('checks one image for updates from the container menu', async () => {
   await expect(
     page.getByText(/is up to date|is available|check (failed|skipped)|no result yet/),
   ).toBeVisible({ timeout: 90_000 })
+  // the row says how fresh its update status is
+  await expect(page.locator('table').getByText(/^checked (just now|\d+s ago)$/)).toBeVisible()
 })
 
 test("checks a stack's images from the Update menu", async () => {
