@@ -10,7 +10,7 @@ Stacky reads Dockge's stack layout unchanged, so there is nothing to convert:
 - one directory per stack in `/opt/stacks` (or wherever `DOCKGE_STACKS_DIR` pointed)
 - a compose file named `compose.yaml`, `docker-compose.yaml`, `docker-compose.yml` or `compose.yml`
 - an optional `.env` per stack, plus an optional `global.env` at the root of the stacks directory
-- `x-dockge.urls` entries, which stacky shows as links
+- `x-dockge.urls` entries, which stacky shows as links (stacky's own `x-stacky.urls` works the same way)
 
 ## Steps
 

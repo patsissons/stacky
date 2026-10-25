@@ -10,6 +10,7 @@ import {
   Settings,
   Square,
   FolderTree,
+  Tags,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -81,8 +82,11 @@ export function CommandPalette({
           <CommandItem onSelect={() => go(() => void navigate({ to: '/settings' }))}>
             <Settings /> Settings
           </CommandItem>
-          <CommandItem onSelect={() => go(helpStore.open)}>
+          <CommandItem onSelect={() => go(() => helpStore.open())}>
             <CircleHelp /> Help: what the operations do
+          </CommandItem>
+          <CommandItem onSelect={() => go(() => helpStore.open('reference'))}>
+            <Tags /> Help: labels and environment variables
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />

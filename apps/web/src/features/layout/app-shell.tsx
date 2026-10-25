@@ -106,9 +106,9 @@ export function AppShell() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={helpStore.open}
+              onClick={() => helpStore.open()}
               aria-label="Help"
-              title="What the operations do"
+              title="Help"
             >
               <CircleHelp className="size-4" />
             </Button>

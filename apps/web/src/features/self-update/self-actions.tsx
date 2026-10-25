@@ -69,7 +69,7 @@ export function SelfActions() {
       <Button
         size="icon-sm"
         variant="ghost"
-        onClick={helpStore.open}
+        onClick={() => helpStore.open()}
         aria-label="What these actions do"
         title="What these actions do"
       >
