@@ -57,6 +57,8 @@ Open `http://<host>:5005` and create the admin account. From then on, stacky app
 | `STACKY_DOCKER_HOST`                          | host of the UI | Host (name or IP) that port links point at, when it differs from stacky's |
 | `STACKY_DISPLAY_NAME`                         | Docker host    | Name of this stacky in notifications (defaults to the Docker host's name) |
 
+Every variable is listed under [Configuration](https://stacky.lgtm.page/reference/configuration/), and every compose label under [Labels](https://stacky.lgtm.page/reference/labels/). The in-app help (**?**) lists both too.
+
 ## Integrations
 
 - **REST API.** Scripts and other apps can drive stacky with an API token (**Settings → API tokens**): `curl -H "Authorization: Bearer stk_…" http://<host>:5005/api/stacks`. Each instance serves an OpenAPI 3.1 document at `/api/openapi.json`. See the [REST API reference](https://stacky.lgtm.page/reference/api/).

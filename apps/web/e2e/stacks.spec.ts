@@ -277,7 +277,7 @@ test('offers the newer-version updates, disabled while there are none', async ()
 test('explains every operation in the help modal', async () => {
   await page.goto('/stacks/e2e-app')
   await page.getByRole('button', { name: 'What these actions do' }).click()
-  const dialog = page.getByRole('dialog', { name: 'What the operations do' })
+  const dialog = page.getByRole('dialog', { name: 'Help' })
   await expect(dialog.getByText('More → Down')).toBeVisible()
   await expect(dialog.getByText('Update → Pull updates only', { exact: true })).toBeVisible()
   await expect(dialog.getByText('Update → Re-pull current tags')).toBeVisible()
@@ -287,9 +287,18 @@ test('explains every operation in the help modal', async () => {
     'href',
     'https://stacky.lgtm.page',
   )
+  await dialog.getByRole('tab', { name: 'Labels & environment' }).click()
+  await expect(dialog.getByText('stacky.update.schedule', { exact: true })).toBeVisible()
+  await dialog.getByLabel('Filter labels and variables').fill('base_url')
+  await expect(dialog.getByText('STACKY_BASE_URL', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('stacky.update.schedule', { exact: true })).toBeHidden()
   await page.keyboard.press('Escape')
+  // the header button opens the operations again
   await page.getByRole('button', { name: 'Help', exact: true }).click()
-  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('tab', { name: 'Operations' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
   await page.keyboard.press('Escape')
 })
 

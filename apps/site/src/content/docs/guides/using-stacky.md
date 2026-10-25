@@ -64,7 +64,7 @@ Each stack page has an action bar:
 - **Restart**, **Stop** / **Start**
 - **More:** pull only, **Down** (remove containers, optionally named volumes), and **Delete** (removes the stack directory; you type the name to confirm)
 
-Not sure what an action does? The **?** button at the end of the action bar (also in the top bar, and **Help** in the command palette) opens a short explanation of every operation and the `docker compose` command behind it, with links back to these docs.
+Not sure what an action does? The **?** button at the end of the action bar (also in the top bar, and **Help** in the command palette) opens a short explanation of every operation and the `docker compose` command behind it, with links back to these docs. Its **Labels & environment** tab lists every label and environment variable stacky understands, with a filter (also **Help: labels and environment variables** in the command palette).
 
 Every action streams its output in a drawer at the bottom of the screen. An action that covers several stacks, such as **Update all**, shows a tab for each stack. When it finishes, a notification tells you whether it worked. If it failed, you get a plain explanation and a suggested fix (see [Errors](/how-it-works/errors/)).
 

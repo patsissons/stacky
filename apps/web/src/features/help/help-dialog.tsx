@@ -1,5 +1,5 @@
-import { ExternalLink } from 'lucide-react'
-import { useSyncExternalStore } from 'react'
+import { ExternalLink, Search } from 'lucide-react'
+import { useState, useSyncExternalStore } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -8,201 +8,186 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { OPERATIONS } from './operations'
+import { filterReference, type RefEntry } from './reference'
 
 export const DOCS_URL = 'https://stacky.lgtm.page'
 
-let open = false
+export type HelpTab = 'operations' | 'reference'
+
+let state: { open: boolean; tab: HelpTab } = { open: false, tab: 'operations' }
 const listeners = new Set<() => void>()
-function setOpen(next: boolean) {
-  open = next
+function setState(next: Partial<typeof state>) {
+  state = { ...state, ...next }
   for (const l of listeners) l()
 }
 
-/** Opens the operations help from anywhere (header, action bars, command palette). */
+/** Opens the help from anywhere (header, action bars, command palette), on the given tab. */
 export const helpStore = {
-  open: () => setOpen(true),
-  close: () => setOpen(false),
-  get: () => open,
+  open: (tab: HelpTab = 'operations') => setState({ open: true, tab }),
+  close: () => setState({ open: false }),
+  setTab: (tab: HelpTab) => setState({ tab }),
+  get: () => state,
   subscribe: (l: () => void) => {
     listeners.add(l)
     return () => listeners.delete(l)
   },
 }
 
-interface Entry {
-  name: string
-  what: string
-  command?: string
-}
+const SCROLL = '-mx-6 min-h-0 space-y-5 overflow-y-auto px-6'
 
-const SECTIONS: { title: string; entries: Entry[] }[] = [
-  {
-    title: 'Stack actions',
-    entries: [
-      {
-        name: 'Deploy',
-        what: 'Checks the compose file, then creates or updates the containers so they match it. Removes containers for services you deleted.',
-        command: 'docker compose up -d --remove-orphans',
-      },
-      {
-        name: 'Deploy → Pull images, then deploy',
-        what: 'Pulls every image before deploying, so tags like latest move to the newest build.',
-        command: 'docker compose up -d --pull always',
-      },
-      {
-        name: 'Deploy → Rebuild images, then deploy',
-        what: 'Rebuilds services that have a build: section (Dockerfile) before deploying.',
-        command: 'docker compose up -d --build',
-      },
-      {
-        name: 'Deploy → Recreate all containers',
-        what: 'Replaces every container even if nothing changed. Useful after changing files a container reads only at start.',
-        command: 'docker compose up -d --force-recreate',
-      },
-      {
-        name: 'Update',
-        what: 'Applies the newer versions found by Check for updates, after you confirm the list: newer tags are written into the compose file (only the image: lines), then those services are pulled and recreated and dangling images are removed. A stopped stack stays stopped. The button is disabled while no update is known; its menu still has Re-pull current tags, which pulls the tags already in the compose file again.',
-        command: 'docker compose pull → up -d → docker image prune',
-      },
-      {
-        name: 'Update → Pull updates only',
-        what: 'Downloads the newer versions found by Check for updates, ahead of time. The compose file and the running containers are left alone.',
-        command: 'docker pull <image>:<new tag> · docker compose pull <rebuilt services>',
-      },
-      {
-        name: 'Update → Re-pull current tags',
-        what: 'Pulls the tags already in the compose file again and recreates the containers whose image changed, even when the stack has newer versions you have not applied.',
-        command: 'docker compose pull → up -d → docker image prune',
-      },
-      {
-        name: 'Restart',
-        what: 'Restarts the existing containers without recreating them. Compose file changes are not applied; use Deploy for that.',
-        command: 'docker compose restart',
-      },
-      {
-        name: 'Stop / Start',
-        what: 'Stop halts the containers but keeps them. Start brings the stack up again from its compose file.',
-        command: 'docker compose stop · docker compose up -d',
-      },
-      {
-        name: 'More → Pull images only',
-        what: 'Pulls the tags already in the compose file again, without touching the running containers. They switch over on the next deploy. For newer versions use Update → Pull updates only.',
-        command: 'docker compose pull',
-      },
-      {
-        name: 'More → Down',
-        what: 'Stops and removes the containers and networks. Files and named volumes stay, unless you tick the option to remove volumes, which deletes their data.',
-        command: 'docker compose down --remove-orphans [--volumes]',
-      },
-      {
-        name: 'More → Delete stack',
-        what: 'Takes the stack down, then deletes its directory and every file in it. This cannot be undone.',
-      },
-    ],
-  },
-  {
-    title: 'Containers and updates',
-    entries: [
-      {
-        name: 'Start / Stop / Restart (one service)',
-        what: 'The same as the stack actions, for a single service only.',
-        command: 'docker compose up -d --no-deps <service> · stop · restart',
-      },
-      {
-        name: 'Recreate (one service)',
-        what: 'Replaces that service’s container with a fresh one from the same image, without touching the rest of the stack.',
-        command: 'docker compose up -d --no-deps --force-recreate <service>',
-      },
-      {
-        name: 'Pull & recreate (one service)',
-        what: 'Pulls that service’s tag again and recreates it if the image changed. The same as Pull <tag> in the update dialog.',
-        command: 'docker compose pull <service> → up -d --no-deps <service>',
-      },
-      {
-        name: 'Check for updates',
-        what: 'Asks each image’s registry whether a newer version or a new build of the same tag exists. Nothing is changed. The stack page’s Update menu checks that stack’s images only; a container’s menu (and the telescope in the update dialog) checks that one image only.',
-      },
-      {
-        name: 'Update to <version>',
-        what: 'Changes only the service’s image: line in the compose file to the newer tag, then pulls and recreates that service.',
-      },
-      {
-        name: 'Pull <tag>',
-        what: 'Pulls the rebuilt image behind the same tag and recreates that service.',
-        command: 'docker compose pull <service> → up -d --no-deps <service>',
-      },
-      {
-        name: 'Update all',
-        what: 'Applies every available update above after you confirm the list: one Update per stack.',
-      },
-      {
-        name: 'Update all → Pull all updates',
-        what: 'Downloads every available update without applying it: one Pull updates only per stack.',
-      },
-      {
-        name: 'Ignore this update',
-        what: 'Hides that specific version or digest. The next newer one shows up again. The greyed badge that stays behind opens the same dialog, where Stop ignoring brings it back.',
-      },
-    ],
-  },
-  {
-    title: 'stacky itself',
-    entries: [
-      {
-        name: 'Update stacky',
-        what: 'Pulls the new stacky image, then a short-lived updater container swaps stacky over and rolls back automatically if the new version does not start.',
-      },
-      {
-        name: 'Redeploy / Restart',
-        what: 'Applies edits to stacky’s compose file, or recreates its container, through the same updater.',
-      },
-    ],
-  },
-]
-
-/** Plain explanations of what each operation does, with links to the full docs. */
+/** What each operation does, and every label and environment variable stacky understands. */
 export function HelpDialog() {
-  const isOpen = useSyncExternalStore(helpStore.subscribe, helpStore.get)
+  const { open, tab } = useSyncExternalStore(helpStore.subscribe, helpStore.get)
   return (
-    <Dialog open={isOpen} onOpenChange={(o) => !o && helpStore.close()}>
+    <Dialog open={open} onOpenChange={(o) => !o && helpStore.close()}>
       <DialogContent className="max-h-[85svh] grid-rows-[auto_1fr_auto] sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>What the operations do</DialogTitle>
+          <DialogTitle>Help</DialogTitle>
           <DialogDescription>
-            Every action runs the real <code>docker compose</code> CLI in the stack&apos;s directory
-            and streams its output.
+            {tab === 'operations' ? (
+              <>
+                Every action runs the real <code>docker compose</code> CLI in the stack&apos;s
+                directory and streams its output.
+              </>
+            ) : (
+              <>
+                Set labels under a service&apos;s <code>labels:</code>, and environment variables on
+                stacky&apos;s own container.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
-        <div className="-mx-6 min-h-0 space-y-5 overflow-y-auto px-6">
-          {SECTIONS.map((section) => (
-            <section key={section.title} aria-label={section.title}>
-              <h3 className="text-muted-foreground mb-2 text-xs font-semibold tracking-wider uppercase">
-                {section.title}
-              </h3>
-              <dl className="space-y-2.5">
-                {section.entries.map((e) => (
-                  <div key={e.name} className="text-sm">
-                    <dt className="font-medium">{e.name}</dt>
-                    <dd className="text-muted-foreground">{e.what}</dd>
-                    {e.command && (
-                      <dd className="mt-0.5 font-mono text-xs">
-                        <code className="bg-muted rounded px-1.5 py-0.5">{e.command}</code>
-                      </dd>
-                    )}
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ))}
-        </div>
-        <DialogFooter className="gap-3 sm:justify-start">
-          <DocsLink href={`${DOCS_URL}/guides/using-stacky/`}>Using stacky</DocsLink>
-          <DocsLink href={`${DOCS_URL}/guides/image-updates/`}>Image updates</DocsLink>
-          <DocsLink href={`${DOCS_URL}/how-it-works/errors/`}>Errors</DocsLink>
+        <Tabs
+          value={tab}
+          onValueChange={(v) => helpStore.setTab(v as HelpTab)}
+          className="flex min-h-0 min-w-0 flex-col gap-3"
+        >
+          <TabsList className="shrink-0">
+            <TabsTrigger value="operations">Operations</TabsTrigger>
+            <TabsTrigger value="reference">Labels &amp; environment</TabsTrigger>
+          </TabsList>
+          <TabsContent value="operations" className={SCROLL}>
+            <Operations />
+          </TabsContent>
+          <TabsContent value="reference" className="flex min-h-0 flex-col gap-3">
+            <Reference />
+          </TabsContent>
+        </Tabs>
+        <DialogFooter className="flex-row flex-wrap gap-x-3 gap-y-1 sm:justify-start">
+          {tab === 'operations' ? (
+            <>
+              <DocsLink href={`${DOCS_URL}/guides/using-stacky/`}>Using stacky</DocsLink>
+              <DocsLink href={`${DOCS_URL}/guides/image-updates/`}>Image updates</DocsLink>
+              <DocsLink href={`${DOCS_URL}/how-it-works/errors/`}>Errors</DocsLink>
+            </>
+          ) : (
+            <>
+              <DocsLink href={`${DOCS_URL}/reference/labels/`}>Labels</DocsLink>
+              <DocsLink href={`${DOCS_URL}/reference/configuration/`}>Configuration</DocsLink>
+              <DocsLink href={`${DOCS_URL}/guides/notifications/`}>Notifications</DocsLink>
+            </>
+          )}
           <DocsLink href={DOCS_URL}>Full documentation</DocsLink>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function Operations() {
+  return OPERATIONS.map((section) => (
+    <section key={section.title} aria-label={section.title}>
+      <SectionTitle>{section.title}</SectionTitle>
+      <dl className="space-y-2.5">
+        {section.entries.map((e) => (
+          <div key={e.name} className="text-sm">
+            <dt className="font-medium">{e.name}</dt>
+            <dd className="text-muted-foreground">{e.what}</dd>
+            {e.command && <Code>{e.command}</Code>}
+          </div>
+        ))}
+      </dl>
+    </section>
+  ))
+}
+
+function Reference() {
+  const [query, setQuery] = useState('')
+  const sections = filterReference(query)
+  return (
+    <>
+      <div className="relative shrink-0">
+        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Filter labels and variables"
+          aria-label="Filter labels and variables"
+          className="h-8 pl-8 text-sm"
+        />
+      </div>
+      <div className={SCROLL}>
+        {sections.length === 0 && (
+          <p className="text-muted-foreground py-6 text-center text-sm">Nothing matches.</p>
+        )}
+        {sections.map((section) => (
+          <section key={section.title} aria-label={section.title}>
+            <SectionTitle>{section.title}</SectionTitle>
+            {section.intro && (
+              <p className="text-muted-foreground mb-2.5 text-sm">{section.intro}</p>
+            )}
+            <dl className="space-y-2.5">
+              {section.entries.map((e) => (
+                <ReferenceEntry key={e.name} entry={e} />
+              ))}
+            </dl>
+          </section>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function ReferenceEntry({ entry: e }: { entry: RefEntry }) {
+  return (
+    <div className="text-sm">
+      <dt className="font-mono text-[13px] font-medium [overflow-wrap:anywhere]">
+        {e.name}
+        {e.aliases && (
+          <span className="text-muted-foreground ml-2 font-sans text-xs font-normal">
+            also {e.aliases.join(', ')}
+          </span>
+        )}
+      </dt>
+      <dd className="text-muted-foreground">{e.what}</dd>
+      {e.default && (
+        <dd className="text-muted-foreground mt-0.5 text-xs">
+          Default: <span className="text-foreground">{e.default}</span>
+        </dd>
+      )}
+      {e.example && <Code>{e.example}</Code>}
+    </div>
+  )
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="text-muted-foreground mb-2 text-xs font-semibold tracking-wider uppercase">
+      {children}
+    </h3>
+  )
+}
+
+function Code({ children }: { children: React.ReactNode }) {
+  return (
+    <dd className="mt-0.5 font-mono text-xs">
+      <code className="bg-muted inline-block rounded px-1.5 py-0.5 break-all whitespace-pre-wrap">
+        {children}
+      </code>
+    </dd>
   )
 }
 

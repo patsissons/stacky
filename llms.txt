@@ -15,7 +15,8 @@ Key facts:
 - [Complete documentation](https://stacky.lgtm.page/llms-full.txt): every docs page in one file
 - [Install](https://stacky.lgtm.page/getting-started/install/): one-line installer, manual compose setup
 - [Using stacky](https://stacky.lgtm.page/guides/using-stacky/): stacks, editor, containers, logs, shells
-- [Configuration](https://stacky.lgtm.page/reference/configuration/): every `STACKY_*` environment variable
+- [Configuration](https://stacky.lgtm.page/reference/configuration/): every environment variable (`STACKY_*`, `DOCKER_HOST`, `TZ`…)
+- [Labels](https://stacky.lgtm.page/reference/labels/): every compose label stacky reads (`stacky.display.icon`, `stacky.update.schedule`, `stacky.notify`…) and `x-stacky.urls`
 - [How it works](https://stacky.lgtm.page/how-it-works/overview/): architecture and the operation model
 - [Errors](https://stacky.lgtm.page/how-it-works/errors/): how compose failures become actionable errors
 
