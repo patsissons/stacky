@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.0](https://github.com/patsissons/stacky/compare/v0.15.1...v0.16.0) (2026-10-25)
+
+
+### Features
+
+* document stacky's labels and environment variables in the help modal ([4184ab8](https://github.com/patsissons/stacky/commit/4184ab8f64de36125020af2a1d3f4c722b1489f0))
+* show a stack's total CPU and memory on its overview ([cfa6603](https://github.com/patsissons/stacky/commit/cfa6603683c12d67c9b0f4c34a99ec74980c98da))
+
 ## [0.15.1](https://github.com/patsissons/stacky/compare/v0.15.0...v0.15.1) (2026-10-25)
 
 
