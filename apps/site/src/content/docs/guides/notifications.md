@@ -85,7 +85,7 @@ An image update is reported if any container running that image sends updates. U
 
 Every message names the stacky that sent it, and the stack it's about when there is one, for example `Host: nas · Stack: media` under the text (in the footer of a Discord embed, and as `host` and `stack` fields for webhooks). That tells instances apart when several share a channel.
 
-The host name is [`STACKY_DISPLAY_NAME`](/reference/configuration/) when it's set. Otherwise stacky uses the Docker engine's host name (from `docker info`), which is the machine's name even though stacky runs in a container. If the engine can't be asked, it falls back to the container's own hostname. Image update messages name the stack when every image in them belongs to one stack; when they span several, each line lists the stacks that run that image.
+The host name is [`STACKY_DISPLAY_NAME`](/reference/configuration/) when it's set. Otherwise stacky uses the Docker engine's host name (from `docker info`), which is the machine's name even though stacky runs in a container. Docker Desktop and OrbStack run the engine in a VM, so there the name is the VM's (`docker-desktop` or `orbstack`) and you'll want to set `STACKY_DISPLAY_NAME`. If the engine can't be asked, it falls back to the container's own hostname. Image update messages name the stack when every image in them belongs to one stack; when they span several, each line lists the stacks that run that image.
 
 ## Links back to stacky
 
