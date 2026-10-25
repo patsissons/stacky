@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.2](https://github.com/patsissons/stacky/compare/v0.14.1...v0.14.2) (2026-10-25)
+
+
+### Bug Fixes
+
+* show every stack's output when updating or pulling all containers ([#37](https://github.com/patsissons/stacky/issues/37)) ([84abcfd](https://github.com/patsissons/stacky/commit/84abcfd577ee187f68092729549d4eb665e811cd))
+
 ## [0.14.1](https://github.com/patsissons/stacky/compare/v0.14.0...v0.14.1) (2026-10-24)
 
 
