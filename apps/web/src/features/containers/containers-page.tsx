@@ -61,6 +61,7 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { ViewToggle } from '@/components/view-toggle'
 import {
   Table,
   TableBody,
@@ -72,6 +73,7 @@ import {
 import { runServiceAction } from '@/features/operations/actions'
 import { useStacks } from '@/hooks/use-stacks'
 import { useDockerHost } from '@/hooks/use-system'
+import { useViewMode, type ViewMode } from '@/hooks/use-view-mode'
 import { cn } from '@/lib/utils'
 import {
   buildRows,
@@ -91,6 +93,7 @@ export interface ContainersSearch {
   size?: number
   page?: number
   sort?: string
+  view?: ViewMode
 }
 
 const PAGE_SIZES = [10, 25, 50, 0]
@@ -350,6 +353,11 @@ export function ContainersPage() {
       replace: true,
     })
 
+  const [view, setView] = useViewMode('stacky.view.containers', 'table', search.view, () =>
+    setSearch({ view: undefined }),
+  )
+  // phones always get cards; on wider screens they become a grid
+  const cardGrid = view === 'cards' && 'md:grid md:grid-cols-2 md:gap-3 md:space-y-0 xl:grid-cols-3'
   const { byRef, data: updates } = useUpdates()
   const [updateTarget, setUpdateTarget] = useState<UpdateTarget>()
   const columns = useMemo(
@@ -493,6 +501,7 @@ export function ContainersPage() {
           </SelectContent>
         </Select>
         <div className="ml-auto flex items-center gap-2">
+          <ViewToggle value={view} onChange={setView} className="mr-2" />
           <Switch
             id="group-by-stack"
             checked={grouped}
@@ -505,7 +514,12 @@ export function ContainersPage() {
       </div>
 
       {/* desktop table */}
-      <div className="bg-card hidden overflow-hidden rounded-xl border md:block">
+      <div
+        className={cn(
+          'bg-card hidden overflow-hidden rounded-xl border',
+          view === 'table' && 'md:block',
+        )}
+      >
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
@@ -611,8 +625,11 @@ export function ContainersPage() {
         onClose={() => setUpdateAllMode(undefined)}
       />
 
-      {/* mobile cards */}
-      <div className="space-y-2 md:hidden" data-testid="container-cards">
+      {/* cards: always on phones, and on wider screens in card view */}
+      <div
+        className={cn('space-y-2', view === 'table' ? 'md:hidden' : 'md:space-y-4')}
+        data-testid="container-cards"
+      >
         {grouped
           ? [...byStack].map(([name, list]) => {
               const stack = stackByName.get(`${list[0]!.managed}:${name}`)
@@ -638,25 +655,31 @@ export function ContainersPage() {
                       {plural(list.length, 'container')}
                     </span>
                   </div>
-                  {list.map((r) => (
-                    <ContainerCard
-                      key={r.id}
-                      row={r}
-                      update={byRef.get(r.image)}
-                      onUpdate={setUpdateTarget}
-                    />
-                  ))}
+                  <div className={cn('space-y-2', cardGrid)}>
+                    {list.map((r) => (
+                      <ContainerCard
+                        key={r.id}
+                        row={r}
+                        update={byRef.get(r.image)}
+                        onUpdate={setUpdateTarget}
+                      />
+                    ))}
+                  </div>
                 </section>
               )
             })
-          : visible.map((r) => (
-              <ContainerCard
-                key={r.id}
-                row={r}
-                update={byRef.get(r.image)}
-                onUpdate={setUpdateTarget}
-              />
-            ))}
+          : visible.length > 0 && (
+              <div className={cn('space-y-2', cardGrid)}>
+                {visible.map((r) => (
+                  <ContainerCard
+                    key={r.id}
+                    row={r}
+                    update={byRef.get(r.image)}
+                    onUpdate={setUpdateTarget}
+                  />
+                ))}
+              </div>
+            )}
         {!isLoading && rows.length === 0 && (
           <p className="text-muted-foreground py-8 text-center text-sm">No containers to show.</p>
         )}
@@ -796,7 +819,7 @@ function CheckUpdatesButton({
   )
 }
 
-/** One container on a phone, where the table becomes a list of cards. */
+/** One container as a card: on phones, and in card view on wider screens. */
 function ContainerCard({
   row: r,
   update,

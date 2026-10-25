@@ -50,7 +50,9 @@ To check a container's image for updates on its own schedule, add a `stacky.upda
 
 To choose which version tags count as updates, add `stacky.tag.include` or `stacky.tag.exclude` regex labels. To link each version to its release notes, add a `stacky.link.template` label. Both read What's Up Docker's `wud.*` labels too. See [Choosing which tags count](/guides/image-updates/#choosing-which-tags-count) and [Release links](/guides/image-updates/#release-links).
 
-Containers are grouped under a heading per stack by default; turn **Group by stack** off for one flat, paginated list. Search, the stack and status filters, sorting, grouping and pagination are all stored in the URL, so you can bookmark a view. On a phone the table turns into cards, grouped the same way.
+Containers are grouped under a heading per stack by default; turn **Group by stack** off for one flat, paginated list. Search, the stack and status filters, sorting, grouping and pagination are all stored in the URL, so you can bookmark a view.
+
+The buttons next to **Group by stack** switch between the table and cards. Stacky remembers the choice in your browser, and a `?view=table` or `?view=cards` link opens that view regardless. On a phone you always get cards, grouped the same way.
 
 ## Stack pages
 
@@ -67,13 +69,15 @@ Every action streams its output in a drawer at the bottom of the screen. An acti
 
 The tabs:
 
-| Tab      | What it does                                                                                                                            |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Overview | Service cards with state, image, ports, live CPU and memory, and per-service actions (restart, stop, recreate, pull, check for updates) |
-| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory (create and delete files too)                                     |
-| Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download                                       |
-| Shell    | An interactive shell in any running container (bash if available, otherwise sh)                                                         |
-| History  | Every deployed version of the files (compare or restore one) and every operation with its full output                                   |
+| Tab      | What it does                                                                                                                                         |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview | Service cards (or a table) with state, image, ports, live CPU and memory, and per-service actions (restart, stop, recreate, pull, check for updates) |
+| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory (create and delete files too)                                                  |
+| Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download                                                    |
+| Shell    | An interactive shell in any running container (bash if available, otherwise sh)                                                                      |
+| History  | Every deployed version of the files (compare or restore one) and every operation with its full output                                                |
+
+The buttons at the top of **Overview** switch the services between cards and a table. Like the containers page, the choice is remembered in your browser and `?view=` overrides it; phones always get cards.
 
 ## Rolling back
 

@@ -185,6 +185,39 @@ test('lists the container in the containers table with URL-backed filters', asyn
   await expect(page.getByLabel('Search containers')).toHaveValue('no-such-container')
 })
 
+test('switches the containers page between a table and cards, remembering the choice', async () => {
+  await page.goto('/')
+  const cards = page.getByTestId('container-cards')
+  await expect(page.locator('table')).toBeVisible()
+  await expect(cards).toBeHidden()
+  await page.getByRole('radio', { name: 'Card view' }).click()
+  await expect(cards.getByText('e2e-app-app-1')).toBeVisible()
+  await expect(page.locator('table')).toBeHidden()
+  await page.reload()
+  await expect(cards.getByText('e2e-app-app-1')).toBeVisible()
+  // a link can still ask for the other view
+  await page.goto('/?view=table')
+  await expect(page.locator('table')).toBeVisible()
+  await page.goto('/')
+  await expect(cards).toBeVisible()
+  await page.getByRole('radio', { name: 'Table view' }).click()
+  await expect(page.locator('table')).toBeVisible()
+  await expect(cards).toBeHidden()
+})
+
+test('switches the stack overview between cards and a table', async () => {
+  await page.goto('/stacks/e2e-app')
+  await expect(page.getByTestId('service-app')).toBeVisible()
+  await page.getByRole('radio', { name: 'Table view' }).click()
+  await expect(page.getByTestId('service-row-app')).toBeVisible()
+  await expect(page.getByTestId('service-app')).toBeHidden()
+  await page.reload()
+  await expect(page.getByTestId('service-row-app')).toBeVisible()
+  await page.getByRole('radio', { name: 'Card view' }).click()
+  await expect(page.getByTestId('service-app')).toBeVisible()
+  await expect(page.getByTestId('service-row-app')).toHaveCount(0)
+})
+
 test('streams logs for the stack', async () => {
   await page.goto('/stacks/e2e-app?tab=logs')
   await expect(page.getByTestId('log-lines')).toContainText('hello-from-e2e', { timeout: 20_000 })
