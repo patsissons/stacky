@@ -31,6 +31,8 @@ interface InUse {
   ref: string
   imageIds: Set<string>
   containers: Set<string>
+  /** Names of the stacks those containers belong to. */
+  stacks: Set<string>
   /** When the newest of its containers was created; a check from before that is out of date. */
   createdAt: number
   /** Used by stacky's own stack. */
@@ -244,6 +246,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
             ref,
             imageIds: new Set(),
             containers: new Set(),
+            stacks: new Set(),
             createdAt: 0,
             self: false,
             schedules: new Set(),
@@ -253,6 +256,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
           }
           entry.imageIds.add(c.imageId)
           entry.containers.add(c.name)
+          entry.stacks.add(stack.name)
           entry.createdAt = Math.max(entry.createdAt, c.createdAt)
           if (stack.isSelf) entry.self = true
           entry.schedules.add(c.updateSchedule?.trim() || undefined)
@@ -330,6 +334,11 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
   /** Names of the containers that run an image right now. */
   containersUsing(ref: string): string[] {
     return [...(this.inUse().get(ref)?.containers ?? [])]
+  }
+
+  /** Names of the stacks with a container that runs an image right now. */
+  stacksUsing(ref: string): string[] {
+    return [...(this.inUse().get(ref)?.stacks ?? [])]
   }
 
   summary(): UpdatesSummary {

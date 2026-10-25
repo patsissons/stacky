@@ -302,6 +302,18 @@ describe('UpdateChecker', () => {
     })
   })
 
+  it('knows which containers and stacks run each image', () => {
+    const app = stack([{ service: 'web', image: 'nginx:1.27', imageId: 'sha256:a' }])
+    const web = {
+      ...stack([{ service: 'proxy', image: 'nginx:1.27', imageId: 'sha256:a', name: 'web-1' }]),
+      name: 'web',
+    }
+    const c = checker([app, web], {}, { manifestDigest: async () => '', listTags: async () => [] })
+    expect(c.containersUsing('nginx:1.27').sort()).toEqual(['app-web-1', 'web-1'])
+    expect(c.stacksUsing('nginx:1.27').sort()).toEqual(['app', 'web'])
+    expect(c.stacksUsing('redis:7')).toEqual([])
+  })
+
   it('stops a running check before it touches the closed database', async () => {
     let release!: () => void
     const pending = new Promise<void>((r) => (release = r))

@@ -10,6 +10,7 @@ const booleanish = z
 const envSchema = z.object({
   STACKY_PORT: z.coerce.number().int().min(1).max(65535).default(5005),
   STACKY_HOSTNAME: z.string().optional(),
+  STACKY_DISPLAY_NAME: z.string().optional(),
   STACKY_STACKS_DIR: z.string().default('/opt/stacks'),
   STACKY_DATA_DIR: z.string().default('/app/data'),
   STACKY_WEB_DIR: z.string().optional(),
@@ -37,6 +38,8 @@ const envSchema = z.object({
 export interface Config {
   port: number
   hostname: string | undefined
+  /** Name of this stacky in notifications; undefined uses the Docker host's name. */
+  displayName: string | undefined
   /** Absolute path of the directory holding one sub-directory per stack. */
   stacksDir: string
   /** Absolute path of stacky's own persistent data (database, history, icons). */
@@ -109,6 +112,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     port: e.STACKY_PORT,
     hostname: e.STACKY_HOSTNAME,
+    displayName: e.STACKY_DISPLAY_NAME?.trim() || undefined,
     stacksDir: path.resolve(e.STACKY_STACKS_DIR),
     dataDir: path.resolve(e.STACKY_DATA_DIR),
     webDir: e.STACKY_WEB_DIR ? path.resolve(e.STACKY_WEB_DIR) : undefined,

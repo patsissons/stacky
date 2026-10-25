@@ -21,6 +21,7 @@ import { FileBrowser } from './files/browser'
 import { IconCache } from './icons/icons'
 import { AuditLog } from './auth/audit'
 import { ApiTokenStore } from './auth/tokens'
+import { resolveHostName } from './notify/host-name'
 import { Notifier } from './notify/notifier'
 import { NotifyPolicy } from './notify/policy'
 import { GitSync } from './git/sync'
@@ -86,6 +87,8 @@ export async function createRuntime(
     updates.containersUsing(ref),
   )
   notifier.policy = notifyPolicy
+  notifier.stacksUsing = (ref) => updates.stacksUsing(ref)
+  void resolveHostName(config.displayName, docker).then((name) => (notifier.hostName = name))
   engine.on('update', (op) => notifier.onOperation(op))
   updates.on('change', (summary) => notifier.onUpdates(summary))
   state.on('change', (list) => notifier.onStacks(list))

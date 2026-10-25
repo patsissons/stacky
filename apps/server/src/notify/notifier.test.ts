@@ -89,6 +89,51 @@ describe('Notifier', () => {
     expect(JSON.parse(sent[0]!.body).body).toContain('nginx:1.27 → 1.28')
   })
 
+  it('names the host in every message and the stacks an update is for', async () => {
+    notifier.hostName = 'nas'
+    const using: Record<string, string[]> = {
+      'nginx:1.27': ['web', 'proxy'],
+      'redis:7': ['web'],
+    }
+    notifier.stacksUsing = (ref) => using[ref] ?? []
+    const update = (ref: string, newerTag: string) => ({
+      ref,
+      registry: 'docker.io',
+      repository: ref.split(':')[0]!,
+      tag: ref.split(':')[1]!,
+      status: 'update_available' as const,
+      checkedAt: 0,
+      source: 'native' as const,
+      newerTag,
+    })
+
+    // every image in one stack: the message is about that stack
+    notifier.onUpdates({ checking: false, updates: [update('redis:7', '8')] })
+    await flush()
+    expect(JSON.parse(sent[0]!.body)).toMatchObject({
+      host: 'nas',
+      stack: 'web',
+      body: 'redis:7 → 8',
+    })
+
+    // several stacks: each line says where the image runs
+    notifier.onUpdates({ checking: false, updates: [update('nginx:1.27', '1.28')] })
+    await flush()
+    const several = JSON.parse(sent[1]!.body)
+    expect(several.host).toBe('nas')
+    expect(several).not.toHaveProperty('stack')
+    expect(several.body).toBe('nginx:1.27 → 1.28 in proxy, web')
+
+    await notifier.test({
+      name: 'hook',
+      type: 'webhook',
+      url: 'https://hook.test',
+      enabled: true,
+      events: [],
+    })
+    expect(JSON.parse(sent[2]!.body).host).toBe('nas')
+  })
+
   it('adds the release link to update notifications', async () => {
     notifier.onUpdates({
       checking: false,
