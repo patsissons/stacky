@@ -105,7 +105,7 @@ export const REFERENCE: RefSection[] = [
       },
       {
         name: 'STACKY_DISPLAY_NAME',
-        what: 'Name of this stacky in notifications, to tell instances apart.',
+        what: 'Name of this stacky in notifications, to tell instances apart. Set it on Docker Desktop or OrbStack, where the Docker host’s name is the VM’s (docker-desktop, orbstack).',
         default: 'the Docker host’s name, then the container’s hostname',
       },
       {
