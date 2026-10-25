@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { PUSHOVER_URL } from '@stacky/shared'
-import { buildRequest, errorReason, send, type Channel, type Message } from './channels'
+import {
+  buildRequest,
+  context,
+  errorReason,
+  send,
+  withContext,
+  type Channel,
+  type Message,
+} from './channels'
 
 const msg: Message = {
   event: 'operation_failed',
@@ -26,7 +34,7 @@ describe('buildRequest', () => {
       msg,
     )
     expect(url).toBe('https://ntfy.sh/stacky')
-    expect(init.body).toBe('Port 80 is already in use')
+    expect(init.body).toBe('Port 80 is already in use\n\nStack: app')
     expect(init.headers).toMatchObject({
       title: 'Deploy app failed',
       priority: 'high',
@@ -52,14 +60,42 @@ describe('buildRequest', () => {
     const apprise = JSON.parse(buildRequest(channel({ type: 'apprise' }), msg).init.body as string)
     expect(apprise).toEqual({
       title: 'Deploy app failed',
-      body: 'Port 80 is already in use',
+      body: 'Port 80 is already in use\n\nStack: app',
       type: 'failure',
     })
   })
 
   it('sends the full event to generic webhooks', () => {
-    const body = JSON.parse(buildRequest(channel({}), msg).init.body as string)
-    expect(body).toMatchObject({ event: 'operation_failed', stack: 'app', source: 'stacky' })
+    const body = JSON.parse(buildRequest(channel({}), { ...msg, host: 'nas' }).init.body as string)
+    expect(body).toMatchObject({
+      event: 'operation_failed',
+      stack: 'app',
+      host: 'nas',
+      body: 'Port 80 is already in use',
+      source: 'stacky',
+    })
+  })
+
+  it('names the host and stack under the message', () => {
+    const hosted = { ...msg, host: 'nas' }
+    expect(buildRequest(channel({ type: 'ntfy' }), hosted).init.body).toBe(
+      'Port 80 is already in use\n\nHost: nas · Stack: app',
+    )
+    const gotify = JSON.parse(buildRequest(channel({ type: 'gotify' }), hosted).init.body as string)
+    expect(gotify.message).toBe('Port 80 is already in use\n\nHost: nas · Stack: app')
+    const discord = JSON.parse(
+      buildRequest(channel({ type: 'discord' }), hosted).init.body as string,
+    )
+    expect(discord.embeds[0]).toMatchObject({
+      description: 'Port 80 is already in use',
+      footer: { text: 'Host: nas · Stack: app' },
+    })
+    const bare = { ...msg, stack: undefined }
+    expect(buildRequest(channel({ type: 'ntfy' }), bare).init.body).toBe(
+      'Port 80 is already in use',
+    )
+    const plain = JSON.parse(buildRequest(channel({ type: 'discord' }), bare).init.body as string)
+    expect(plain.embeds[0]).not.toHaveProperty('footer')
   })
 
   it('posts Pushover messages with the app token, user key and a link', () => {
@@ -78,6 +114,7 @@ describe('buildRequest', () => {
       url_title: 'Open in stacky',
     })
     expect(body.message).toHaveLength(1024)
+    expect(body.message).toMatch(/x…\n\nStack: app$/)
     const info = JSON.parse(
       buildRequest(channel({ type: 'pushover', recipient: 'user' }), { ...msg, level: 'info' }).init
         .body as string,
@@ -98,6 +135,22 @@ describe('buildRequest', () => {
     expect(discord.embeds[0].url).toBe('https://stacky.lan/')
     const gotify = JSON.parse(buildRequest(channel({ type: 'gotify' }), linked).init.body as string)
     expect(gotify.extras['client::notification'].click.url).toBe('https://stacky.lan/')
+  })
+})
+
+describe('withContext', () => {
+  it('joins the parts the message has', () => {
+    expect(context({ host: 'nas', stack: 'web' })).toBe('Host: nas · Stack: web')
+    expect(context({ host: 'nas' })).toBe('Host: nas')
+    expect(context({})).toBe('')
+  })
+
+  it('keeps the context line when the body has to be cut', () => {
+    const long = { ...msg, host: 'nas', body: 'y'.repeat(50) }
+    const text = withContext(long, 40)
+    expect(text).toHaveLength(40)
+    expect(text.endsWith('\n\nHost: nas · Stack: app')).toBe(true)
+    expect(withContext({ ...msg, stack: undefined }, 4)).toBe('Port')
   })
 })
 

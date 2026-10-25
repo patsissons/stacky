@@ -17,12 +17,30 @@ export interface Message {
   body: string
   level: 'info' | 'success' | 'warning' | 'error'
   stack?: string
+  /** Which stacky sent it (`STACKY_DISPLAY_NAME`, else the Docker host's name). */
+  host?: string
   /** Where the message should link to in stacky (only when `STACKY_BASE_URL` is set). */
   url?: string
 }
 
 const DISCORD_COLORS = { info: 0x6366f1, success: 0x22c55e, warning: 0xf59e0b, error: 0xef4444 }
 const APPRISE_TYPES = { info: 'info', success: 'success', warning: 'warning', error: 'failure' }
+
+/** "Host: nas · Stack: web", for the parts the message has. */
+export function context(msg: Pick<Message, 'host' | 'stack'>): string {
+  return [msg.host && `Host: ${msg.host}`, msg.stack && `Stack: ${msg.stack}`]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/** The body with the context line under it, cut to `max` characters without losing that line. */
+export function withContext(msg: Message, max = Infinity): string {
+  const footer = context(msg)
+  if (!footer) return msg.body.slice(0, max)
+  const room = Math.max(0, max - footer.length - 2)
+  const body = msg.body.length > room ? `${msg.body.slice(0, Math.max(0, room - 1))}…` : msg.body
+  return body ? `${body}\n\n${footer}` : footer
+}
 
 /** Builds the HTTP request each channel type expects. */
 export function buildRequest(channel: Channel, msg: Message): { url: string; init: RequestInit } {
@@ -54,7 +72,7 @@ export function buildRequest(channel: Channel, msg: Message): { url: string; ini
             ...(msg.url ? { click: msg.url } : {}),
             ...bearer,
           },
-          body: msg.body,
+          body: withContext(msg),
         },
       }
     case 'gotify': {
@@ -64,7 +82,7 @@ export function buildRequest(channel: Channel, msg: Message): { url: string; ini
         url: url.toString(),
         init: json({
           title: msg.title,
-          message: msg.body,
+          message: withContext(msg),
           priority: msg.level === 'error' ? 8 : 4,
           ...(msg.url ? { extras: { 'client::notification': { click: { url: msg.url } } } } : {}),
         }),
@@ -77,7 +95,7 @@ export function buildRequest(channel: Channel, msg: Message): { url: string; ini
           token: channel.token,
           user: channel.recipient,
           title: msg.title.slice(0, 250),
-          message: msg.body.slice(0, 1024),
+          message: withContext(msg, 1024),
           // 1 is "high": it bypasses quiet hours; 2 (emergency) needs acknowledging, so skip it
           priority: msg.level === 'error' ? 1 : 0,
           ...(msg.url ? { url: msg.url, url_title: 'Open in stacky' } : {}),
@@ -93,6 +111,7 @@ export function buildRequest(channel: Channel, msg: Message): { url: string; ini
               title: msg.title,
               description: msg.body.slice(0, 4000),
               color: DISCORD_COLORS[msg.level],
+              ...(context(msg) ? { footer: { text: context(msg) } } : {}),
               ...(msg.url ? { url: msg.url } : {}),
             },
           ],
@@ -101,7 +120,10 @@ export function buildRequest(channel: Channel, msg: Message): { url: string; ini
     case 'apprise':
       return {
         url: channel.url,
-        init: json({ title: msg.title, body: msg.body, type: APPRISE_TYPES[msg.level] }, bearer),
+        init: json(
+          { title: msg.title, body: withContext(msg), type: APPRISE_TYPES[msg.level] },
+          bearer,
+        ),
       }
     case 'webhook':
       return {

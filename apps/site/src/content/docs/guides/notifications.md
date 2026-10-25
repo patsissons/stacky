@@ -81,6 +81,12 @@ services:
 
 An image update is reported if any container running that image sends updates. Updates you weren't told about because notifications were off are reported once you turn them back on. Labels on stacky apply once stacky is redeployed, and the Settings card lists the stack overrides it found. An invalid value or an unknown event is ignored (with a warning in stacky's log), and the next setting down applies.
 
+## What a message says
+
+Every message names the stacky that sent it, and the stack it's about when there is one, for example `Host: nas · Stack: media` under the text (in the footer of a Discord embed, and as `host` and `stack` fields for webhooks). That tells instances apart when several share a channel.
+
+The host name is [`STACKY_DISPLAY_NAME`](/reference/configuration/) when it's set. Otherwise stacky uses the Docker engine's host name (from `docker info`), which is the machine's name even though stacky runs in a container. If the engine can't be asked, it falls back to the container's own hostname. Image update messages name the stack when every image in them belongs to one stack; when they span several, each line lists the stacks that run that image.
+
 ## Links back to stacky
 
 When [`STACKY_BASE_URL`](/reference/configuration/) is set, each message links to the stack it's about (or to the containers page for image updates and self-updates). The link shows up as **Open in stacky** in Pushover, opens when you tap an ntfy or Gotify notification, and is the title link of a Discord embed.
@@ -96,12 +102,13 @@ Generic webhooks receive:
   "body": "Port 8096 is already in use\n\nContainer \"jellyfin\" (stack \"old-media\") already publishes port 8096 ...",
   "level": "error",
   "stack": "media",
+  "host": "nas",
   "url": "https://stacky.example.com/stacks/media",
   "source": "stacky",
   "timestamp": "2026-10-18T21:30:00.000Z"
 }
 ```
 
-`url` is only included when `STACKY_BASE_URL` is set.
+`url` is only included when `STACKY_BASE_URL` is set, and `stack` only when the event is about one stack.
 
 Use **Send test** to check a channel before saving it. If the service rejects the message, the error it gave (such as an invalid Pushover user key) is shown. Tokens are stored in stacky's database and are never sent back to the browser.

@@ -23,3 +23,5 @@ services:
     #   # Host for published-port links when stacky is served on another hostname
     #   # (e.g. https://stacky.docker.lan while the ports live on docker.lan).
     #   STACKY_DOCKER_HOST: docker.lan
+    #   # Name of this stacky in notifications (defaults to the Docker host's name).
+    #   STACKY_DISPLAY_NAME: nas

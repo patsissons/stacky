@@ -6,7 +6,7 @@ A modern, compose-first Docker stack manager for your home lab: a better-looking
 - **Modern UI.** Covers stacks, a cross-stack containers table, logs, container shells and a real editor with schema completion and a diff and dry-run preview before every deploy. Click any container to inspect or edit just its service.
 - **Clear errors.** Failed operations explain what went wrong and how to fix it.
 - **Image updates.** Native registry digest and version-tag checks, with no extra containers to run. Checked on demand (per image, per stack, or everything), on a global schedule, or per container with a `stacky.update.schedule` label (`nightly`, `weekly`, `6h`, cron…). Narrow which version tags count with `stacky.tag.include` / `stacky.tag.exclude` regex labels, and link each version to its release notes with `stacky.link.template` (the `wud.*` equivalents work too). Apply updates per service, per stack (including pinned versions), or all at once. Private registries work with a mounted docker `config.json` or `STACKY_REGISTRY_*` variables (WUD's `WUD_REGISTRY_*` ones too). [What's Up Docker](https://github.com/getwud/wud) can optionally fill in images stacky can't check itself.
-- **Notifications.** Pushover, ntfy, Gotify, Discord, Apprise or webhooks, for failed deploys, new image updates, unhealthy containers and self-updates. Set a default for each event, then override it per stack or container with `stacky.notify` labels (e.g. `stacky.notify.updates: true`).
+- **Notifications.** Pushover, ntfy, Gotify, Discord, Apprise or webhooks, for failed deploys, new image updates, unhealthy containers and self-updates. Each message names the host and stack it came from. Set a default for each event, then override it per stack or container with `stacky.notify` labels (e.g. `stacky.notify.updates: true`).
 - **File browser.** A read-only view of the stacks directory and stacky's data directory, with a text viewer and an image viewer.
 - **App icons.** Matched by image name from the selfh.st set, or picked with a `stacky.display.icon` label: any of What's Up Docker's icon sets, or an image URL.
 - **Self-update.** Stacky can update its own stack from inside the UI, with automatic rollback.
@@ -55,6 +55,7 @@ Open `http://<host>:5005` and create the admin account. From then on, stacky app
 | `STACKY_UPDATE_INTERVAL`                      | `6`            | Legacy hours between update checks, if `STACKY_UPDATE_SCHEDULE` is unset  |
 | `STACKY_BASE_URL`                             | (none)         | Public URL, used for links and OIDC callbacks                             |
 | `STACKY_DOCKER_HOST`                          | host of the UI | Host (name or IP) that port links point at, when it differs from stacky's |
+| `STACKY_DISPLAY_NAME`                         | Docker host    | Name of this stacky in notifications (defaults to the Docker host's name) |
 
 ## Integrations
 

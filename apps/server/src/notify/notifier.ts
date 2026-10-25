@@ -28,6 +28,10 @@ export class Notifier {
   >()
   /** Decides which stacks and containers send each event; without one, all of them do. */
   policy: Pick<NotifyPolicy, 'containerEnabled' | 'imageEnabled' | 'stackEnabled'> | undefined
+  /** Which stacky this is, named in every message (see `resolveHostName`). */
+  hostName: string | undefined
+  /** Names of the stacks whose containers run an image, from the update checker. */
+  stacksUsing: (ref: string) => string[] = () => []
 
   constructor(
     private readonly settings: SettingsStore,
@@ -74,6 +78,7 @@ export class Notifier {
         title: 'Test from stacky',
         body: 'Notifications are working.',
         level: 'info',
+        host: this.hostName,
         url: this.link(),
       },
       this.fetchImpl,
@@ -88,7 +93,7 @@ export class Notifier {
   }
 
   async emit(msg: Message) {
-    msg = { ...msg, url: msg.url ?? this.link(msg.stack) }
+    msg = { ...msg, host: msg.host ?? this.hostName, url: msg.url ?? this.link(msg.stack) }
     const targets = this.stored().filter((c) => c.enabled && c.events.includes(msg.event))
     await Promise.all(
       targets.map((c) =>
@@ -128,16 +133,22 @@ export class Notifier {
     })
     if (fresh.length === 0) return
     this.settings.set(NOTIFIED_UPDATES_KEY, notified)
+    const stacksOf = new Map(fresh.map((u) => [u.ref, [...this.stacksUsing(u.ref)].sort()]))
+    const stacks = new Set([...stacksOf.values()].flat())
     void this.emit({
       event: 'update_available',
       level: 'info',
+      // one stack: name it and link to it; several are listed per image instead
+      stack: stacks.size === 1 ? [...stacks][0] : undefined,
       title:
         fresh.length === 1
           ? `Update available: ${fresh[0]!.ref}`
           : `${fresh.length} image updates available`,
       body: fresh
         .map((u) => {
-          const line = `${u.ref} → ${u.newerTag ?? 'new image for the same tag'}`
+          let line = `${u.ref} → ${u.newerTag ?? 'new image for the same tag'}`
+          const using = stacksOf.get(u.ref) ?? []
+          if (stacks.size > 1 && using.length > 0) line += ` in ${using.join(', ')}`
           return u.newerLink ? `${line} (${u.newerLink})` : line
         })
         .join('\n'),

@@ -24,6 +24,14 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ STACKY_ADMIN_USER: 'admin' })).toThrow(ConfigError)
   })
 
+  it('reads the display name for notifications, separate from the bind address', () => {
+    const config = loadConfig({ STACKY_DISPLAY_NAME: ' nas ', STACKY_HOSTNAME: '0.0.0.0' })
+    expect(config.displayName).toBe('nas')
+    expect(config.hostname).toBe('0.0.0.0')
+    expect(loadConfig({ STACKY_DISPLAY_NAME: '  ' }).displayName).toBeUndefined()
+    expect(loadConfig({}).displayName).toBeUndefined()
+  })
+
   it('rejects an invalid port', () => {
     expect(() => loadConfig({ STACKY_PORT: 'nope' })).toThrow(ConfigError)
   })
