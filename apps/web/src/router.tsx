@@ -16,6 +16,7 @@ import { SettingsPage } from '@/features/settings/settings-page'
 import { NewStackPage } from '@/features/stacks/new-stack-page'
 import { StackPage, type StackSearch } from '@/features/stacks/stack-page'
 import { sessionQuery } from '@/hooks/use-session'
+import { isViewMode } from '@/hooks/use-view-mode'
 
 const rootRoute = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: () => <Outlet />,
@@ -86,6 +87,7 @@ const containersRoute = createRoute({
     size: num(s.size),
     page: num(s.page),
     sort: str(s.sort),
+    view: isViewMode(s.view) ? s.view : undefined,
   }),
   component: ContainersPage,
 })
@@ -105,6 +107,7 @@ const stackRoute = createRoute({
       : undefined,
     service: str(s.service),
     container: str(s.container),
+    view: isViewMode(s.view) ? s.view : undefined,
   }),
   component: StackPage,
 })

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LogViewer } from '@/features/logs/log-viewer'
 import { ShellTab } from '@/features/terminal/shell-tab'
 import { useStack } from '@/hooks/use-stacks'
+import type { ViewMode } from '@/hooks/use-view-mode'
 import { HistoryTab } from './history-tab'
 import { OverviewTab } from './overview-tab'
 import { SelfActions } from '@/features/self-update/self-actions'
@@ -20,6 +21,7 @@ export interface StackSearch {
   tab?: 'overview' | 'editor' | 'logs' | 'terminal' | 'history'
   service?: string
   container?: string
+  view?: ViewMode
 }
 
 export function StackPage() {
@@ -127,7 +129,11 @@ export function StackPage() {
           {stack.managed && <TabsTrigger value="history">History</TabsTrigger>}
         </TabsList>
         <TabsContent value="overview" className="mt-3">
-          <OverviewTab stack={stack} />
+          <OverviewTab
+            stack={stack}
+            view={search.view}
+            onViewChange={() => setSearch({ view: undefined })}
+          />
         </TabsContent>
         {stack.managed && (
           <TabsContent value="editor" className="mt-3 flex min-h-[560px] flex-1 flex-col">
