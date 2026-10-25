@@ -471,11 +471,11 @@ describe('UpdateChecker schedules', () => {
       undefined,
       'weekly',
     )
-    let release = false
+    let release: string | undefined = undefined
     c.selfRelease = () => release
     await c.checkDue()
     expect(checked).toHaveLength(1)
-    release = true
+    release = '0.2.0'
     now += 10 * 60_000
     await c.checkDue()
     expect(checked).toHaveLength(1)
@@ -498,7 +498,7 @@ describe('UpdateChecker schedules', () => {
       undefined,
       'weekly',
     )
-    c.selfRelease = () => true
+    c.selfRelease = () => '0.2.0'
     await c.checkDue()
     now += 60 * 60_000
     await c.checkDue()
@@ -523,12 +523,61 @@ describe('UpdateChecker schedules', () => {
     now += 60 * 60_000
     await c.checkDue()
     expect(checked).toHaveLength(1)
-    c.selfRelease = () => true
+    c.selfRelease = () => '0.2.0'
     await c.checkDue()
     expect(checked).toHaveLength(2)
     await c.checkDue()
     expect(checked).toHaveLength(2)
     now += 16 * 60_000
+    await c.checkDue()
+    expect(checked).toHaveLength(3)
+  })
+
+  it("re-checks stacky's own image while it shows an older version than the release", async () => {
+    let tags = ['0.14.1', '0.14.2']
+    const registry = {
+      manifestDigest: async (r: { tag: string }) => {
+        checked.push(r.tag)
+        return 'sha256:a'
+      },
+      listTags: async () => tags,
+    }
+    const c = checker(
+      [
+        stack(
+          [{ service: 'stacky', image: 'ghcr.io/patsissons/stacky:0.14.1', imageId: 'i1' }],
+          true,
+        ),
+      ],
+      { i1: ['sha256:a'] },
+      registry,
+      undefined,
+      'weekly',
+    )
+    let release = '0.14.2'
+    c.selfRelease = () => release
+    await c.checkDue()
+    expect(checked).toHaveLength(1)
+    expect(c.summary().updates[0]?.newerTag).toBe('0.14.2')
+    // the badge matches the release: no early re-check
+    now += 16 * 60_000
+    await c.checkDue()
+    expect(checked).toHaveLength(1)
+    // a newer release is out before its image
+    release = '0.15.0'
+    await c.checkDue()
+    expect(checked).toHaveLength(2)
+    expect(c.summary().updates[0]?.newerTag).toBe('0.14.2')
+    now += 10 * 60_000
+    await c.checkDue()
+    expect(checked).toHaveLength(2)
+    // the image is in the registry now
+    tags = ['0.14.1', '0.14.2', '0.15.0']
+    now += 6 * 60_000
+    await c.checkDue()
+    expect(checked).toHaveLength(3)
+    expect(c.summary().updates[0]?.newerTag).toBe('0.15.0')
+    now += 60 * 60_000
     await c.checkDue()
     expect(checked).toHaveLength(3)
   })

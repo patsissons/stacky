@@ -11,6 +11,7 @@ import { OperationEngine } from './ops/engine'
 import { detectSelf, type SelfIdentity } from './self/identity'
 import { runPreflight } from './self/preflight'
 import { ReleaseChecker } from './self/release'
+import { syncSelfRelease } from './self/sync'
 import { SelfUpdater } from './self/updater'
 import { StackRepository } from './stacks/repository'
 import { RevisionStore } from './stacks/revisions'
@@ -94,19 +95,7 @@ export async function createRuntime(
   state.on('change', (list) => notifier.onStacks(list))
   setInterval(() => notifier.tick(), 15_000).unref()
   const releases = new ReleaseChecker(config.updateCheck && /^\d/.test(VERSION))
-  // keep the release banner and the badge on stacky's own image in sync: finding either update
-  // looks for the other right away (the image reaches the registry a little after the release)
-  updates.selfRelease = () => !!releases.peek(VERSION)
-  releases.on('change', () => {
-    if (releases.peek(VERSION)) void updates.checkSelf()
-  })
-  updates.onSelfChecked = (result) => {
-    if (result.status === 'update_available' && !releases.peek(VERSION)) void releases.refresh()
-  }
-  // known without anyone opening the UI
-  const refreshRelease = () => void releases.available(VERSION)
-  refreshRelease()
-  setInterval(refreshRelease, 60 * 60_000).unref()
+  syncSelfRelease(releases, updates, VERSION)
   const hub = new Hub(state, engine, docker, logger, updates, releases)
 
   let auth: AuthService | undefined

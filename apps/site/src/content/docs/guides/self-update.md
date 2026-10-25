@@ -49,4 +49,4 @@ The **System** section in Settings tells you whether self-update is available, a
 
 - **Inspecting the updater:** it logs to `docker logs stacky-updater-<timestamp>` and is kept until the next successful start.
 - **Job records:** stored in the data directory under `self-update/`.
-- **Turning off release checks:** stacky looks up the latest release on GitHub every hour, and right away when the image check finds a new stacky image. Set `STACKY_UPDATE_CHECK=false` to disable this.
+- **Turning off release checks:** stacky looks up the latest release on GitHub every hour, and right away when the image check finds a stacky image newer than the release it knows about. Set `STACKY_UPDATE_CHECK=false` to disable this.
