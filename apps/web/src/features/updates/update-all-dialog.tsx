@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/dialog'
 import { groupByStack, type UpdatePlan } from '@/features/containers/rows'
 import { runStackAction } from '@/features/operations/actions'
+import { operationStore } from '@/features/operations/store'
+import { isSelfOperation } from '@/features/self-update/store'
 
 /** `deploy` applies the updates; `pull` only downloads the newer images. */
 export type UpdateAllMode = 'pull' | 'deploy'
@@ -38,7 +40,8 @@ const COPY: Record<
 
 /**
  * Confirms and applies (or prefetches) every available update, one operation per stack.
- * With `stack` the plan covers that stack only: the title names it and its output drawer opens.
+ * With `stack` the plan covers that stack only and the title names it. The output drawer opens
+ * with a tab per stack.
  */
 export function UpdateAllDialog({
   plan,
@@ -58,31 +61,25 @@ export function UpdateAllDialog({
 
   const apply = async () => {
     setBusy(true)
-    let started = 0
-    for (const { stack, services } of groupByStack(plan.steps)) {
+    // one tab per stack in the output drawer
+    const ids: string[] = []
+    for (const { stack: name, services } of groupByStack(plan.steps)) {
       try {
-        await runStackAction(
-          stack,
+        const op = await runStackAction(
+          name,
           mode === 'pull' ? 'pull-updates' : 'deploy-updates',
           { services, prune: mode === 'deploy' },
           undefined,
-          { openDrawer: !!stack },
+          { openDrawer: false },
         )
-        started++
+        if (!isSelfOperation(op.action)) ids.push(op.id)
       } catch (err) {
-        toast.error(`${stack}: ${err instanceof Error ? err.message : String(err)}`)
+        toast.error(`${name}: ${err instanceof Error ? err.message : String(err)}`)
       }
     }
     setBusy(false)
     onClose()
-    if (started > 0 && !stack) {
-      toast.message(
-        `${mode === 'pull' ? 'Pulling' : 'Updating'} ${started} stack${started === 1 ? '' : 's'}`,
-        {
-          description: 'Each one reports back when it finishes.',
-        },
-      )
-    }
+    operationStore.openAll(ids)
   }
 
   return (

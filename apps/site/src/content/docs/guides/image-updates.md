@@ -48,7 +48,7 @@ The arrow next to **Update** is always available and has three more options:
 - **Pull updates only:** downloads the newer images ahead of time (`docker pull <image>:<new tag>`, and `docker compose pull` for services with only a new digest). The compose file and the running containers are left alone, so nothing changes yet.
 - **Re-pull current tags:** the plain pull of the current tags, for when you want the newest build of your current tags without applying the newer versions.
 
-**Update all** on the containers page runs the same thing for every stack with an update, after one confirmation that lists each change. Its arrow menu has **Pull all updates**, which runs **Pull updates only** for every stack instead. Either way each stack runs as one operation. Ignored updates, external stacks and stacky itself are left out; update stacky from its own stack page.
+**Update all** on the containers page runs the same thing for every stack with an update, after one confirmation that lists each change. Its arrow menu has **Pull all updates**, which runs **Pull updates only** for every stack instead. Either way each stack runs as one operation, and the output drawer shows a tab for each stack so you can follow every log. Ignored updates, external stacks and stacky itself are left out; update stacky from its own stack page.
 
 ## When checks run
 

@@ -63,7 +63,7 @@ Each stack page has an action bar:
 
 Not sure what an action does? The **?** button at the end of the action bar (also in the top bar, and **Help** in the command palette) opens a short explanation of every operation and the `docker compose` command behind it, with links back to these docs.
 
-Every action streams its output in a drawer at the bottom of the screen. When it finishes, a notification tells you whether it worked. If it failed, you get a plain explanation and a suggested fix (see [Errors](/how-it-works/errors/)).
+Every action streams its output in a drawer at the bottom of the screen. An action that covers several stacks, such as **Update all**, shows a tab for each stack. When it finishes, a notification tells you whether it worked. If it failed, you get a plain explanation and a suggested fix (see [Errors](/how-it-works/errors/)).
 
 The tabs:
 
