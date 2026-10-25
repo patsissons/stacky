@@ -1,6 +1,6 @@
 {
   "name": "stacky-monorepo",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "private": true,
   "description": "Stacky — a modern, compose-first Docker stack manager",
   "license": "MIT",
