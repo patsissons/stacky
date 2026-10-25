@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.15.0](https://github.com/patsissons/stacky/compare/v0.14.2...v0.15.0) (2026-10-25)
+
+
+### Features
+
+* name the host and stack in notifications ([d3a203f](https://github.com/patsissons/stacky/commit/d3a203fbc8ea5c61af18693c8fcde642c654344d))
+* open a container's logs from its service sheet ([2dba54e](https://github.com/patsissons/stacky/commit/2dba54e7c363727f2343e3b3ef3dcd993a931600))
+* show when each container's image was last checked for updates ([99f687c](https://github.com/patsissons/stacky/commit/99f687c02b03968fc5478f9b2edd7a25bd03a0c7))
+* switch between card and table views on the containers and stack pages ([7fafb52](https://github.com/patsissons/stacky/commit/7fafb52c2fe758de156feedf14c2db831ca4b60a))
+
 ## [0.14.2](https://github.com/patsissons/stacky/compare/v0.14.1...v0.14.2) (2026-10-25)
 
 
