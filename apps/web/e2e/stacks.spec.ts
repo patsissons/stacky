@@ -232,6 +232,13 @@ test('reserves the stats row before the first sample and fills it in', async () 
   await expect(stats).toContainText('%', { timeout: 30_000 })
 })
 
+test("shows the whole stack's CPU and memory above its services", async () => {
+  await page.goto('/stacks/e2e-app')
+  const totals = page.getByTestId('stack-stats')
+  await expect(totals).toContainText(/\d+ of \d+ containers? running/)
+  await expect(totals).toContainText('%', { timeout: 30_000 })
+})
+
 test('checks one image for updates from the container menu', async () => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Actions for e2e-app-app-1' }).click()

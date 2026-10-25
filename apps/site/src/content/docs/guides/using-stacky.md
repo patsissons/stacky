@@ -70,13 +70,13 @@ Every action streams its output in a drawer at the bottom of the screen. An acti
 
 The tabs:
 
-| Tab      | What it does                                                                                                                                         |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overview | Service cards (or a table) with state, image, ports, live CPU and memory, and per-service actions (restart, stop, recreate, pull, check for updates) |
-| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory (create and delete files too)                                                  |
-| Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download                                                    |
-| Shell    | An interactive shell in any running container (bash if available, otherwise sh)                                                                      |
-| History  | Every deployed version of the files (compare or restore one) and every operation with its full output                                                |
+| Tab      | What it does                                                                                                                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview | The stack's total CPU and memory with a one-minute trend, then service cards (or a table) with state, image, ports, live CPU and memory, and per-service actions (restart, stop, recreate, pull, check for updates) |
+| Editor   | Edit `compose.yaml`, `.env` and any other file in the stack directory (create and delete files too)                                                                                                                 |
+| Logs     | Live logs for the whole stack or one service, with search, history depth, timestamps and download                                                                                                                   |
+| Shell    | An interactive shell in any running container (bash if available, otherwise sh)                                                                                                                                     |
+| History  | Every deployed version of the files (compare or restore one) and every operation with its full output                                                                                                               |
 
 The buttons at the top of **Overview** switch the services between cards and a table. Like the containers page, the choice is remembered in your browser and `?view=` overrides it; phones always get cards.
 

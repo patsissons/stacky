@@ -43,6 +43,7 @@ import { portUrl } from '@/features/containers/rows'
 import { openFromClick, serviceSheetStore } from '@/features/containers/service-sheet-store'
 import { runServiceAction } from '@/features/operations/actions'
 import { useStackStats } from '@/hooks/use-stats'
+import { totalStats, type Stats } from './stack-stats'
 import { useDockerHost } from '@/hooks/use-system'
 import { ApiError } from '@/lib/api'
 import { useViewMode, type ViewMode } from '@/hooks/use-view-mode'
@@ -58,8 +59,6 @@ import {
 } from '@/components/ui/table'
 
 const UP = new Set(['running', 'healthy', 'unhealthy', 'starting', 'restarting', 'paused'])
-
-type Stats = ReturnType<typeof useStackStats>
 
 export function OverviewTab({
   stack,
@@ -108,6 +107,7 @@ export function OverviewTab({
           )}
         </div>
       )}
+      {runningIds.length > 0 && <StackStats stack={stack} runningIds={runningIds} stats={stats} />}
       {stack.services.length === 0 && (
         <p className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
           This stack defines no services yet. Open the editor to add one.
@@ -155,7 +155,7 @@ function ServiceCard({
 }) {
   const dockerHost = useDockerHost()
   const up = service.containers.some((c) => UP.has(c.state))
-  const { samples, latest, cpu, mem } = serviceStats(service, stats)
+  const { cpuHistory, memHistory, sampled, cpu, mem } = serviceStats(service, stats)
   const first = service.containers[0]
   const target = sheetTarget(stack, service)
 
@@ -220,32 +220,69 @@ function ServiceCard({
         >
           <span className="flex items-center gap-1.5" title="CPU">
             <Cpu className="size-3.5" />
-            {latest.length > 0 ? (
+            {sampled > 0 ? (
               <span className="text-foreground min-w-10 tabular-nums">{cpu.toFixed(1)}%</span>
             ) : (
               <Loader2 className="min-w-10 animate-spin" aria-label="Loading CPU" />
             )}
-            <Sparkline
-              className="text-primary"
-              values={samples.map((s) => s.cpuPercent)}
-              max={100}
-            />
+            <Sparkline className="text-primary" values={cpuHistory} max={100} />
           </span>
           <span className="flex items-center gap-1.5" title="Memory">
             <MemoryStick className="size-3.5" />
-            {latest.length > 0 ? (
+            {sampled > 0 ? (
               <span className="text-foreground min-w-14 tabular-nums">{formatBytes(mem)}</span>
             ) : (
               <Loader2 className="min-w-14 animate-spin" aria-label="Loading memory" />
             )}
-            <Sparkline
-              className="text-status-info"
-              values={samples.map((s) => s.memoryBytes)}
-              max={0}
-            />
+            <Sparkline className="text-status-info" values={memHistory} max={0} />
           </span>
         </div>
       )}
+    </div>
+  )
+}
+
+/** The whole stack's CPU and memory, summed over its running containers. */
+function StackStats({
+  stack,
+  runningIds,
+  stats,
+}: {
+  stack: StackSummary
+  runningIds: string[]
+  stats: Stats
+}) {
+  const { cpuHistory, memHistory, sampled, cpu, mem } = totalStats(runningIds, stats)
+  const total = stack.services.reduce((n, s) => n + s.containers.length, 0)
+  return (
+    <div
+      className="bg-card text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-4 py-3 text-xs"
+      data-testid="stack-stats"
+    >
+      <span className="text-foreground text-sm font-semibold">Stack</span>
+      <span className="ml-auto sm:order-last">
+        {runningIds.length} of {total} {total === 1 ? 'container' : 'containers'} running
+      </span>
+      <div className="flex basis-full items-center gap-4 sm:basis-auto">
+        <span className="flex items-center gap-1.5" title="Total CPU">
+          <Cpu className="size-3.5" />
+          {sampled > 0 ? (
+            <span className="text-foreground min-w-10 tabular-nums">{cpu.toFixed(1)}%</span>
+          ) : (
+            <Loader2 className="min-w-10 animate-spin" aria-label="Loading total CPU" />
+          )}
+          <Sparkline className="text-primary" values={cpuHistory} max={100} />
+        </span>
+        <span className="flex items-center gap-1.5" title="Total memory">
+          <MemoryStick className="size-3.5" />
+          {sampled > 0 ? (
+            <span className="text-foreground min-w-14 tabular-nums">{formatBytes(mem)}</span>
+          ) : (
+            <Loader2 className="min-w-14 animate-spin" aria-label="Loading total memory" />
+          )}
+          <Sparkline className="text-status-info" values={memHistory} max={0} />
+        </span>
+      </div>
     </div>
   )
 }
@@ -261,11 +298,10 @@ function sheetTarget(stack: StackSummary, service: ServiceSummary) {
 
 /** The service's CPU and memory history, and its latest totals across replicas. */
 function serviceStats(service: ServiceSummary, stats: Stats) {
-  const samples = service.containers.flatMap((c) => stats[c.id] ?? [])
-  const latest = service.containers.map((c) => stats[c.id]?.at(-1)).filter((s) => !!s)
-  const cpu = latest.reduce((a, s) => a + s.cpuPercent, 0)
-  const mem = latest.reduce((a, s) => a + s.memoryBytes, 0)
-  return { samples, latest, cpu, mem }
+  return totalStats(
+    service.containers.map((c) => c.id),
+    stats,
+  )
 }
 
 function PortLinks({
@@ -423,7 +459,7 @@ function ServiceTable({
             const update = byRef.get(imageRef(service))
             const target = sheetTarget(stack, service)
             const up = service.containers.some((c) => UP.has(c.state))
-            const { latest, cpu, mem } = serviceStats(service, stats)
+            const { sampled, cpu, mem } = serviceStats(service, stats)
             return (
               <TableRow
                 key={service.name}
@@ -485,10 +521,10 @@ function ServiceTable({
                   )}
                 </TableCell>
                 <TableCell className="text-xs tabular-nums">
-                  {up ? (latest.length > 0 ? `${cpu.toFixed(1)}%` : '…') : '—'}
+                  {up ? (sampled > 0 ? `${cpu.toFixed(1)}%` : '…') : '—'}
                 </TableCell>
                 <TableCell className="text-xs tabular-nums">
-                  {up ? (latest.length > 0 ? formatBytes(mem) : '…') : '—'}
+                  {up ? (sampled > 0 ? formatBytes(mem) : '…') : '—'}
                 </TableCell>
                 <TableCell>
                   <ServiceMenu stack={stack} service={service} update={update} />
