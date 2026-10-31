@@ -22,6 +22,8 @@ The **Update** column on the Containers page (and each service card) shows a bad
 | Blue  | New build or release number (`v2.8.3-ls364` → `-ls367`) |
 | Gray  | New image for the same tag ("new digest")               |
 
+On the Containers page, an arrow-in-a-circle icon also marks each container with an update. With **Group by stack** on, it marks the stack's heading too, even when a filter hides the container that has the update. An ignored update gets no icon.
+
 Click a badge to see the details:
 
 - **Pull &lt;tag&gt;:** pulls the rebuilt image and recreates the service.

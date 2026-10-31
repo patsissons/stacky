@@ -71,6 +71,11 @@ export function stackImageRefs(stack: StackSummary): string[] {
   return [...new Set(buildRows([stack]).map((r) => r.image))]
 }
 
+/** Whether any of a stack's containers has an update worth showing. */
+export function stackHasUpdate(stack: StackSummary, byRef: Map<string, ImageUpdate>): boolean {
+  return stackImageRefs(stack).some((ref) => isActionable(byRef.get(ref)))
+}
+
 /** Base URL for a published port on `host` (see `useDockerHost`). */
 export function portUrl(port: PortMapping, host = window.location.hostname): string | undefined {
   if (!port.hostPort) return undefined

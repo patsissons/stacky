@@ -1,17 +1,10 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import {
-  ArrowUpCircle,
-  Boxes,
-  FolderTree,
-  Layers,
-  Loader2,
-  Plus,
-  Search,
-  Settings,
-} from 'lucide-react'
-import { isActionable, useUpdates } from '@/hooks/use-updates'
+import { Boxes, FolderTree, Layers, Loader2, Plus, Search, Settings } from 'lucide-react'
+import { useUpdates } from '@/hooks/use-updates'
 import { useMemo, useState } from 'react'
 import type { StackSummary } from '@stacky/shared'
+import { stackHasUpdate } from '@/features/containers/rows'
+import { UpdateAvailableIcon } from '@/features/updates/update-badge'
 import { Logo } from '@/components/logo'
 import { VersionLink } from '@/components/version-link'
 import { stackStatusMeta, StatusDot } from '@/components/status'
@@ -166,9 +159,7 @@ function StackLink({
 }) {
   const meta = stackStatusMeta(stack.status)
   const { byRef } = useUpdates()
-  const hasUpdate = stack.services.some((s) =>
-    s.containers.some((c) => isActionable(byRef.get(c.image))),
-  )
+  const hasUpdate = stackHasUpdate(stack, byRef)
   const active = pathname === `/stacks/${stack.name}`
   const running = stack.services.filter((s) =>
     ['running', 'healthy', 'completed'].includes(s.state),
@@ -194,9 +185,7 @@ function StackLink({
       <span className={cn('flex-1 truncate', !stack.managed && 'text-muted-foreground')}>
         {stack.name}
       </span>
-      {hasUpdate && (
-        <ArrowUpCircle className="text-primary size-3.5" aria-label="update available" />
-      )}
+      {hasUpdate && <UpdateAvailableIcon />}
       {stack.isSelf && (
         <span className="bg-primary/10 text-primary rounded px-1 text-[10px] font-semibold">
           SELF
