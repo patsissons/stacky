@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/patsissons/stacky/compare/v0.16.0...v0.17.0) (2026-10-31)
+
+
+### Features
+
+* mark containers and stack headings that have an update ([#46](https://github.com/patsissons/stacky/issues/46)) ([06af915](https://github.com/patsissons/stacky/commit/06af915179a14a67ff96d982659bf4c1ee4a6408))
+
 ## [0.16.0](https://github.com/patsissons/stacky/compare/v0.15.1...v0.16.0) (2026-10-25)
 
 
