@@ -205,6 +205,50 @@ test('switches the containers page between a table and cards, remembering the ch
   await expect(cards).toBeHidden()
 })
 
+test('marks containers and stack headings that have an update', async ({ browser }) => {
+  const update = {
+    ref: IMAGE,
+    registry: 'docker.io',
+    repository: 'library/alpine',
+    tag: '3',
+    status: 'update_available',
+    kind: 'digest',
+    digestChanged: true,
+    checkedAt: Date.now(),
+    source: 'native',
+  }
+  const summary = { updates: [update], checking: false }
+  // a copy of the signed-in session, so the routes and view choice leave the shared page alone
+  const context = await browser.newContext({ storageState: await page.context().storageState() })
+  const updatesPage = await context.newPage()
+  await updatesPage.route('**/api/updates', (route) => route.fulfill({ json: summary }))
+  // the server replays its real summary on subscribe, which would replace the one above
+  await updatesPage.routeWebSocket(/\/ws$/, (ws) => {
+    const server = ws.connectToServer()
+    server.onMessage((raw) => {
+      const msg = JSON.parse(String(raw)) as { type: string }
+      ws.send(msg.type === 'updates' ? JSON.stringify({ ...msg, summary }) : raw)
+    })
+  })
+
+  await updatesPage.goto('/')
+  const icon = { name: 'Update available' }
+  const table = updatesPage.locator('table')
+  const row = table.getByRole('row').filter({ hasText: 'e2e-app-app-1' })
+  await expect(row.getByRole('img', icon)).toBeVisible()
+  const heading = table.getByRole('row').filter({ hasText: /e2e-app.*\d+ containers?$/ })
+  await expect(heading.getByRole('img', icon)).toBeVisible()
+
+  await updatesPage.getByRole('radio', { name: 'Card view' }).click()
+  const cards = updatesPage.getByTestId('container-cards')
+  const group = cards.getByTestId('container-group').filter({ hasText: 'e2e-app' })
+  await expect(group.getByRole('img', icon)).toBeVisible()
+  const card = cards.locator('.bg-card').filter({ hasText: 'e2e-app-app-1' })
+  await expect(card.getByRole('img', icon)).toBeVisible()
+
+  await context.close()
+})
+
 test('switches the stack overview between cards and a table', async () => {
   await page.goto('/stacks/e2e-app')
   await expect(page.getByTestId('service-app')).toBeVisible()

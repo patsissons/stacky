@@ -6,6 +6,7 @@ import {
   matchesStatus,
   planUpdates,
   portUrl,
+  stackHasUpdate,
   stackImageRefs,
   type ContainerRow,
 } from './rows'
@@ -208,6 +209,68 @@ describe('groupByStack', () => {
       { stack: 'media', services: ['plex', 'sonarr'] },
       { stack: 'db', services: ['postgres'] },
     ])
+  })
+})
+
+describe('stackHasUpdate', () => {
+  const running = (image: string, serviceImage = image) =>
+    stack({
+      services: [
+        {
+          name: 'web',
+          image: serviceImage,
+          state: 'running',
+          containers: [
+            {
+              id: 'c1',
+              name: 'app-web-1',
+              project: 'app',
+              service: 'web',
+              number: 1,
+              image,
+              imageId: 'sha256:x',
+              state: 'running',
+              statusText: 'Up',
+              createdAt: 1,
+              ports: [],
+            },
+          ],
+        },
+      ],
+    })
+  const byRef = (over: Partial<ImageUpdate>) =>
+    new Map<string, ImageUpdate>([
+      [
+        'nginx:1.27',
+        {
+          ref: 'nginx:1.27',
+          registry: 'docker.io',
+          repository: 'library/nginx',
+          tag: '1.27',
+          status: 'update_available',
+          checkedAt: 1,
+          source: 'native',
+          ...over,
+        },
+      ],
+    ])
+
+  it('is true when a container has an available update', () => {
+    expect(stackHasUpdate(running('nginx:1.27'), byRef({}))).toBe(true)
+  })
+
+  it('is false when no container has one', () => {
+    expect(stackHasUpdate(running('redis:7'), byRef({}))).toBe(false)
+    expect(stackHasUpdate(running('nginx:1.27'), byRef({ status: 'up_to_date' }))).toBe(false)
+  })
+
+  it('leaves out ignored updates and failed checks', () => {
+    expect(stackHasUpdate(running('nginx:1.27'), byRef({ ignored: true }))).toBe(false)
+    expect(stackHasUpdate(running('nginx:1.27'), byRef({ status: 'error' }))).toBe(false)
+  })
+
+  it('finds the update through the compose image when the engine reports an image id', () => {
+    expect(stackHasUpdate(running('sha256:abc', 'nginx:1.27'), byRef({}))).toBe(true)
   })
 })
 

@@ -34,7 +34,7 @@ import {
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { ImageUpdate, StackSummary } from '@stacky/shared'
-import { CheckedAt, UpdateBadge } from '@/features/updates/update-badge'
+import { CheckedAt, UpdateAvailableIcon, UpdateBadge } from '@/features/updates/update-badge'
 import { UpdateAllDialog, type UpdateAllMode } from '@/features/updates/update-all-dialog'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
 import { checkForUpdates, isActionable, useUpdates } from '@/hooks/use-updates'
@@ -80,6 +80,7 @@ import {
   matchesStatus,
   planUpdates,
   portUrl,
+  stackHasUpdate,
   type ContainerRow,
   type StatusFilter,
 } from './rows'
@@ -143,14 +144,17 @@ function makeColumns(
         <div className="flex min-w-0 items-center gap-2.5">
           <AppIcon icon={row.original.icon} name={row.original.service} />
           <div className="min-w-0">
-            <button
-              type="button"
-              className="block max-w-full truncate text-left font-medium hover:underline"
-              onClick={() => serviceSheetStore.open(sheetTarget(row.original))}
-              title={`Show the compose definition of ${row.original.name}`}
-            >
-              {row.original.name}
-            </button>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <button
+                type="button"
+                className="min-w-0 truncate text-left font-medium hover:underline"
+                onClick={() => serviceSheetStore.open(sheetTarget(row.original))}
+                title={`Show the compose definition of ${row.original.name}`}
+              >
+                {row.original.name}
+              </button>
+              {isActionable(byRef.get(row.original.image)) && <UpdateAvailableIcon />}
+            </div>
             <div className="text-muted-foreground truncate text-xs">
               {row.original.service}
               {row.original.number > 1 ? ` #${row.original.number}` : ''}
@@ -581,7 +585,13 @@ export function ContainersPage() {
               ? [...byStack].map(([name, list]) => {
                   const stack = stackByName.get(`${list[0]!.managed}:${name}`)
                   return (
-                    <GroupRows key={name} stack={stack} name={name} count={list.length}>
+                    <GroupRows
+                      key={name}
+                      stack={stack}
+                      name={name}
+                      count={list.length}
+                      hasUpdate={!!stack && stackHasUpdate(stack, byRef)}
+                    >
                       {table
                         .getRowModel()
                         .rows.filter((r) => r.original.stack === name)
@@ -656,6 +666,7 @@ export function ContainersPage() {
                     ) : (
                       <span className="truncate font-semibold">{name}</span>
                     )}
+                    {stack && stackHasUpdate(stack, byRef) && <UpdateAvailableIcon />}
                     {stack && <StackStatusBadge status={stack.status} />}
                     <span className="text-muted-foreground text-xs">
                       {plural(list.length, 'container')}
@@ -850,6 +861,7 @@ function ContainerCard({
           >
             {r.name}
           </button>
+          {isActionable(update) && <UpdateAvailableIcon />}
         </div>
         <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
           <RegistryIcon registry={r.registry} className="size-3" />
@@ -888,11 +900,13 @@ function GroupRows({
   stack,
   name,
   count,
+  hasUpdate,
   children,
 }: {
   stack?: StackSummary
   name: string
   count: number
+  hasUpdate: boolean
   children: React.ReactNode
 }) {
   return (
@@ -907,6 +921,7 @@ function GroupRows({
             ) : (
               <span className="font-semibold">{name}</span>
             )}
+            {hasUpdate && <UpdateAvailableIcon />}
             {stack && <StackStatusBadge status={stack.status} />}
             <span className="text-muted-foreground text-xs">
               {count} container{count === 1 ? '' : 's'}

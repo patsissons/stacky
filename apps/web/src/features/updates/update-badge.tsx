@@ -1,4 +1,4 @@
-import { ArrowUp, EyeOff, TriangleAlert } from 'lucide-react'
+import { ArrowUp, ArrowUpCircle, EyeOff, TriangleAlert } from 'lucide-react'
 import type { ImageUpdate, UpdateKind } from '@stacky/shared'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useNow } from '@/hooks/use-now'
@@ -15,6 +15,19 @@ const KIND: Record<UpdateKind, { label: string; className: string }> = {
 
 export function updateKindMeta(kind: UpdateKind) {
   return KIND[kind]
+}
+
+/** Marks a container or stack that has an update, next to its name. */
+export function UpdateAvailableIcon() {
+  return (
+    <ArrowUpCircle
+      className="text-primary size-3.5 shrink-0"
+      role="img"
+      aria-label="Update available"
+    >
+      <title>Update available</title>
+    </ArrowUpCircle>
+  )
 }
 
 /** WUD-style badge: ↑ new version, coloured by how big the change is. */
