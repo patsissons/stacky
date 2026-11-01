@@ -102,7 +102,7 @@ docker/         Dockerfile and example compose file
 
 ## Releases
 
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/). Every push to `main` runs CI and publishes `ghcr.io/patsissons/stacky:edge` (plus Docker Hub when credentials are configured). [release-please](https://github.com/googleapis/release-please) maintains a release PR; merging it tags a release and publishes `X.Y.Z`, `X.Y`, `X` (from 1.0 on) and `latest` for `linux/amd64` and `linux/arm64`.
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/). Every push to `main` publishes `ghcr.io/patsissons/stacky:edge` (plus Docker Hub when credentials are configured), after running CI unless PR CI already passed on that exact tree, or the push is a release merge on top of a green run. [release-please](https://github.com/googleapis/release-please) maintains a release PR; merging it tags a release and publishes `X.Y.Z`, `X.Y`, `X` (from 1.0 on) and `latest` for `linux/amd64` and `linux/arm64`.
 
 ## License
 

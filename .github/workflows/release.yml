@@ -1,7 +1,8 @@
 name: release
 
-# Every push to main is validated, then publishes the `edge` image. When
-# release-please cuts a release, the same run publishes semver + `latest`.
+# Every push to main publishes the `edge` image, after CI unless that CI would
+# repeat a result already validated (see the gate below). When release-please
+# cuts a release, the same run publishes semver + `latest`.
 on:
   push:
     branches: [main]
@@ -16,17 +17,22 @@ concurrency:
 
 jobs:
   ci:
+    needs: release-please
+    # != 'false' so CI still runs if release-please or the gate fails
+    if: ${{ !cancelled() && needs.release-please.outputs.run_ci != 'false' }}
     uses: ./.github/workflows/ci.yml
 
   release-please:
     runs-on: ubuntu-24.04
     permissions:
+      actions: read
       contents: write
       pull-requests: write
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
       version: ${{ steps.rp.outputs.version }}
+      run_ci: ${{ steps.gate.outputs.run_ci }}
     steps:
       - uses: googleapis/release-please-action@v5
         id: rp
@@ -34,8 +40,43 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+      # Lives in this job so that it doesn't bill a job of its own. CI is skipped
+      # only for a tree PR CI already passed, or a release merge (version files
+      # only) on top of a green run; anything else, API errors included, runs it.
+      - name: Decide whether this push needs CI
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_CREATED: ${{ steps.rp.outputs.release_created }}
+        run: |
+          api() { gh api "repos/$GITHUB_REPOSITORY/$1" --jq "$2" 2>/dev/null || true; }
+          succeeded() { [ "$(api "actions/workflows/$1/runs?head_sha=$2&status=success&per_page=1" .total_count)" -gt 0 ] 2>/dev/null; }
+
+          run_ci=true
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            if [ "$RELEASE_CREATED" = true ]; then
+              parent="$(api "commits/$GITHUB_SHA" '.parents[0].sha')"
+              if [ -n "$parent" ] && succeeded release.yml "$parent"; then
+                echo "::notice::Release merge on top of a green run; skipping CI."
+                run_ci=false
+              fi
+            else
+              head="$(api "commits/$GITHUB_SHA/pulls" '[.[] | select(.merged_at != null)][0].head.sha // empty')"
+              if [ -n "$head" ]; then
+                tree="$(api "git/commits/$GITHUB_SHA" .tree.sha)"
+                if [ -n "$tree" ] && [ "$tree" = "$(api "git/commits/$head" .tree.sha)" ] && succeeded ci.yml "$head"; then
+                  echo "::notice::PR CI already passed on this exact tree; skipping CI."
+                  run_ci=false
+                fi
+              fi
+            fi
+          fi
+          echo "run_ci=$run_ci" >> "$GITHUB_OUTPUT"
+
   image:
     needs: [ci, release-please]
+    # !cancelled() because a skipped `ci` would otherwise skip this job too
+    if: ${{ !cancelled() && needs.release-please.result == 'success' && contains(fromJSON('["success", "skipped"]'), needs.ci.result) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
