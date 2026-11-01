@@ -151,7 +151,7 @@ jobs:
           build-args: |
             STACKY_VERSION=${{ steps.names.outputs.version }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
           provenance: mode=max
           sbom: true
 
