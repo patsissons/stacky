@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2](https://github.com/patsissons/stacky/compare/v0.17.1...v0.17.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* omit the stack name from the single-stack update dialog ([#50](https://github.com/patsissons/stacky/issues/50)) ([3dd0b45](https://github.com/patsissons/stacky/commit/3dd0b4567d50d5f6c7a0d178baca4c86e9a192a8))
+
 ## [0.17.1](https://github.com/patsissons/stacky/compare/v0.17.0...v0.17.1) (2026-11-01)
 
 
