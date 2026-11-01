@@ -65,6 +65,41 @@ test('reaches a stack from its card and keeps the stack page within the screen',
   }
 })
 
+test('keeps service cards within the screen when names are long', async ({ page }) => {
+  await signIn(page)
+  const service = 'a_service_name_long_enough_that_it_has_nowhere_to_break_on_a_phone'
+  // never deployed, so nothing is pulled: declared services still get a card
+  const created = await page.request.post('/api/stacks', {
+    data: {
+      name: 'mobile-long-names',
+      compose: `services:
+  ${service}:
+    image: registry.example.test/some-organisation/a-rather-long-image-name:1.43.4.10903-e5521bd8c-ls328
+`,
+    },
+  })
+  expect(created.status()).toBe(201)
+  try {
+    await page.goto('/stacks/mobile-long-names')
+    const card = page.getByTestId(`service-${service}`)
+    await expect(card).toBeVisible()
+    await expectNoSidewaysScroll(page)
+    const box = await card.boundingBox()
+    expect((box?.x ?? 0) + (box?.width ?? Infinity)).toBeLessThanOrEqual(
+      page.viewportSize()?.width ?? 0,
+    )
+  } finally {
+    const op = await (
+      await page.request.post('/api/stacks/mobile-long-names/actions/delete')
+    ).json()
+    await expect
+      .poll(async () => (await (await page.request.get(`/api/operations/${op.id}`)).json()).state, {
+        timeout: 60_000,
+      })
+      .toMatch(/succeeded|failed|cancelled/)
+  }
+})
+
 test('browses files on a phone, one pane at a time', async ({ page }) => {
   await signIn(page)
   await page.goto('/files?root=data')
