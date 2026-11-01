@@ -34,7 +34,7 @@ Use **Updates available** in the status filter, or the **N updates** button, to 
 
 ## Applying updates to a whole stack
 
-The **Update** button on a stack page uses the results of the check. When the stack has updates, the button shows how many and opens a confirmation that lists each change; confirming does, for the services with an update:
+The **Update** button on a stack page uses the results of the check. When the stack has updates, the button shows how many and opens a confirmation that lists each change by service; confirming does, for the services with an update:
 
 1. writes each newer tag into the service's `image:` line (comments and formatting stay),
 2. pulls and recreates those services, and
@@ -50,7 +50,7 @@ The arrow next to **Update** is always available and has three more options:
 - **Pull updates only:** downloads the newer images ahead of time (`docker pull <image>:<new tag>`, and `docker compose pull` for services with only a new digest). The compose file and the running containers are left alone, so nothing changes yet.
 - **Re-pull current tags:** the plain pull of the current tags, for when you want the newest build of your current tags without applying the newer versions.
 
-**Update all** on the containers page runs the same thing for every stack with an update, after one confirmation that lists each change. Its arrow menu has **Pull all updates**, which runs **Pull updates only** for every stack instead. Either way each stack runs as one operation, and the output drawer shows a tab for each stack so you can follow every log. Ignored updates, external stacks and stacky itself are left out; update stacky from its own stack page.
+**Update all** on the containers page runs the same thing for every stack with an update, after one confirmation that lists each change by stack and service. Its arrow menu has **Pull all updates**, which runs **Pull updates only** for every stack instead. Either way each stack runs as one operation, and the output drawer shows a tab for each stack so you can follow every log. Ignored updates, external stacks and stacky itself are left out; update stacky from its own stack page.
 
 ## When checks run
 

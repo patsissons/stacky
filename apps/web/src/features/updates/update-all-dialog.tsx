@@ -40,8 +40,8 @@ const COPY: Record<
 
 /**
  * Confirms and applies (or prefetches) every available update, one operation per stack.
- * With `stack` the plan covers that stack only and the title names it. The output drawer opens
- * with a tab per stack.
+ * With `stack` the plan covers that stack only: the title names it and the rows leave it out.
+ * The output drawer opens with a tab per stack.
  */
 export function UpdateAllDialog({
   plan,
@@ -93,7 +93,7 @@ export function UpdateAllDialog({
           {plan.steps.map((s) => (
             <li key={`${s.stack}/${s.service}`} className="flex items-center gap-2">
               <span className="min-w-0 flex-1 truncate">
-                <span className="text-muted-foreground">{s.stack} / </span>
+                {!stack && <span className="text-muted-foreground">{s.stack} / </span>}
                 <span className="font-medium">{s.service}</span>
               </span>
               <span className="flex shrink-0 items-center gap-1.5 font-mono text-xs">
@@ -117,7 +117,8 @@ export function UpdateAllDialog({
             <p className="font-medium">Not included:</p>
             {plan.skipped.map((s) => (
               <p key={`${s.stack}/${s.service}`}>
-                {s.stack} / {s.service}: {s.reason}
+                {!stack && `${s.stack} / `}
+                {s.service}: {s.reason}
               </p>
             ))}
           </div>
