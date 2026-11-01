@@ -29,6 +29,14 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Resolve the Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @stacky/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      # the download usually takes ~20s, but has taken over 9 minutes
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
       # no --with-deps: the runner image already has Chrome's libraries, and
       # the apt install it adds crawls when the Ubuntu mirror is slow
       - name: Install Playwright browsers
