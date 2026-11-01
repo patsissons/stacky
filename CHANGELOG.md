@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/patsissons/stacky/compare/v0.17.0...v0.17.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* keep stack service cards within the screen on phones ([#48](https://github.com/patsissons/stacky/issues/48)) ([dc58dd3](https://github.com/patsissons/stacky/commit/dc58dd3c9650c3bbbf0b0eb9fe0af4ca62b09e42))
+
 ## [0.17.0](https://github.com/patsissons/stacky/compare/v0.16.0...v0.17.0) (2026-10-31)
 
 
