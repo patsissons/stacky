@@ -114,7 +114,8 @@ export function OverviewTab({
         </p>
       )}
       {/* phones always get cards */}
-      <div className={cn('grid gap-3 lg:grid-cols-2', view === 'table' && 'md:hidden')}>
+      {/* an explicit column: an implicit one grows to fit the longest image name */}
+      <div className={cn('grid grid-cols-1 gap-3 lg:grid-cols-2', view === 'table' && 'md:hidden')}>
         {stack.services.map((service) => (
           <ServiceCard
             key={service.name}
@@ -171,7 +172,7 @@ function ServiceCard({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="font-semibold hover:underline"
+              className="text-left font-semibold wrap-anywhere hover:underline"
               onClick={() => serviceSheetStore.open(target)}
               title={`Show the compose definition of ${service.name}`}
             >
@@ -204,7 +205,7 @@ function ServiceCard({
         <div className="mt-3 space-y-2">
           {service.containers.map((c) => (
             <div key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              <span className="text-muted-foreground font-mono">{c.name}</span>
+              <span className="text-muted-foreground font-mono wrap-anywhere">{c.name}</span>
               <span className="text-muted-foreground">{c.statusText}</span>
               <PortLinks ports={c.ports} host={dockerHost} className="ml-auto" />
             </div>
@@ -215,7 +216,7 @@ function ServiceCard({
       {/* reserved while the first sample is on its way, so the card does not jump */}
       {up && (
         <div
-          className="text-muted-foreground mt-3 flex items-center gap-4 border-t pt-3 text-xs"
+          className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3 text-xs"
           data-testid="service-stats"
         >
           <span className="flex items-center gap-1.5" title="CPU">
@@ -263,7 +264,7 @@ function StackStats({
       <span className="ml-auto sm:order-last">
         {runningIds.length} of {total} {total === 1 ? 'container' : 'containers'} running
       </span>
-      <div className="flex basis-full items-center gap-4 sm:basis-auto">
+      <div className="flex basis-full flex-wrap items-center gap-x-4 gap-y-2 sm:basis-auto">
         <span className="flex items-center gap-1.5" title="Total CPU">
           <Cpu className="size-3.5" />
           {sampled > 0 ? (
