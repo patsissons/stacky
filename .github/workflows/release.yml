@@ -43,14 +43,18 @@ jobs:
       # Lives in this job so that it doesn't bill a job of its own. CI is skipped
       # only for a tree PR CI already passed, or a release merge (version files
       # only) on top of a green run; anything else, API errors included, runs it.
+      # PRs restore caches from main, so a merge also runs CI to refill main's
+      # pnpm and Playwright caches when the lockfile changed or they were evicted.
       - name: Decide whether this push needs CI
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
           RELEASE_CREATED: ${{ steps.rp.outputs.release_created }}
         run: |
           api() { gh api "repos/$GITHUB_REPOSITORY/$1" --jq "$2" 2>/dev/null || true; }
           succeeded() { [ "$(api "actions/workflows/$1/runs?head_sha=$2&status=success&per_page=1" .total_count)" -gt 0 ] 2>/dev/null; }
+          cached() { [ "$(api "actions/caches?ref=refs/heads/main&key=playwright-&per_page=1" .total_count)" -gt 0 ] 2>/dev/null; }
 
           run_ci=true
           if [ "$GITHUB_EVENT_NAME" = push ]; then
@@ -62,7 +66,8 @@ jobs:
               fi
             else
               head="$(api "commits/$GITHUB_SHA/pulls" '[.[] | select(.merged_at != null)][0].head.sha // empty')"
-              if [ -n "$head" ]; then
+              lockfile_changed="$(api "compare/$BEFORE...$GITHUB_SHA" '[.files[].filename] | index("pnpm-lock.yaml") != null')"
+              if [ -n "$head" ] && [ "$lockfile_changed" = false ] && cached; then
                 tree="$(api "git/commits/$GITHUB_SHA" .tree.sha)"
                 if [ -n "$tree" ] && [ "$tree" = "$(api "git/commits/$head" .tree.sha)" ] && succeeded ci.yml "$head"; then
                   echo "::notice::PR CI already passed on this exact tree; skipping CI."
