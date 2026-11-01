@@ -22,8 +22,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  site:
     runs-on: ubuntu-24.04
+    # holds the Cloudflare secrets, so pull requests stay out of it
+    environment: ${{ github.event_name != 'pull_request' && 'site' || '' }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -36,33 +38,9 @@ jobs:
         run: pnpm --filter @stacky/site typecheck
       - name: Build (includes link validation)
         run: pnpm --filter @stacky/site build
-      - uses: actions/upload-artifact@v7
-        with:
-          name: site-dist
-          path: apps/site/dist
-          retention-days: 3
-
-  deploy:
-    needs: build
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-24.04
-    environment:
-      name: site
-      url: https://stacky.lgtm.page
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --filter @stacky/site...
-      - uses: actions/download-artifact@v8
-        with:
-          name: site-dist
-          path: apps/site/dist
       - name: Check for Cloudflare credentials
         id: cf
+        if: github.event_name != 'pull_request'
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
