@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/patsissons/stacky/compare/v0.17.2...v0.18.0) (2026-11-07)
+
+
+### Features
+
+* **web:** link the deployed version to its release notes ([#55](https://github.com/patsissons/stacky/issues/55)) ([0249d5a](https://github.com/patsissons/stacky/commit/0249d5a4222b623c7915045a8e18db70cc2d8002))
+
 ## [0.17.2](https://github.com/patsissons/stacky/compare/v0.17.1...v0.17.2) (2026-11-01)
 
 
