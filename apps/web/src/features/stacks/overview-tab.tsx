@@ -24,6 +24,7 @@ import type {
   StackSummary,
 } from '@stacky/shared'
 import { checkImageNow } from '@/features/updates/check-image'
+import { ReleaseNotesLink } from '@/features/updates/tag-chip'
 import { CheckedAt, UpdateBadge } from '@/features/updates/update-badge'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
 import { useUpdates } from '@/hooks/use-updates'
@@ -190,6 +191,7 @@ function ServiceCard({
             <span className="text-muted-foreground truncate font-mono" title={service.image}>
               {service.image ?? 'built locally'}
             </span>
+            <ReleaseNotesLink tag={update?.tag} href={update?.currentLink} />
             {imageRef(service) && (
               <>
                 <span className="text-muted-foreground">·</span>
@@ -485,9 +487,12 @@ function ServiceTable({
                   </div>
                 </TableCell>
                 <TableCell className="hidden xl:table-cell">
-                  <span className="text-muted-foreground font-mono text-xs" title={service.image}>
-                    {service.image ?? 'built locally'}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground font-mono text-xs" title={service.image}>
+                      {service.image ?? 'built locally'}
+                    </span>
+                    <ReleaseNotesLink tag={update?.tag} href={update?.currentLink} />
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-col items-start gap-0.5">

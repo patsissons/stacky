@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Browser, type Page } from '@playwright/test'
 import { ADMIN, IMAGE, compose, setEditorText } from './helpers'
 
 // One server, one admin: these run in order, build on each other and share one
@@ -205,19 +205,9 @@ test('switches the containers page between a table and cards, remembering the ch
   await expect(cards).toBeHidden()
 })
 
-test('marks containers and stack headings that have an update', async ({ browser }) => {
-  const update = {
-    ref: IMAGE,
-    registry: 'docker.io',
-    repository: 'library/alpine',
-    tag: '3',
-    status: 'update_available',
-    kind: 'digest',
-    digestChanged: true,
-    checkedAt: Date.now(),
-    source: 'native',
-  }
-  const summary = { updates: [update], checking: false }
+/** A page on a copy of the signed-in session that sees these update check results. */
+async function withUpdates(browser: Browser, updates: object[]) {
+  const summary = { updates, checking: false }
   // a copy of the signed-in session, so the routes and view choice leave the shared page alone
   const context = await browser.newContext({ storageState: await page.context().storageState() })
   const updatesPage = await context.newPage()
@@ -230,6 +220,22 @@ test('marks containers and stack headings that have an update', async ({ browser
       ws.send(msg.type === 'updates' ? JSON.stringify({ ...msg, summary }) : raw)
     })
   })
+  return { context, updatesPage }
+}
+
+test('marks containers and stack headings that have an update', async ({ browser }) => {
+  const update = {
+    ref: IMAGE,
+    registry: 'docker.io',
+    repository: 'library/alpine',
+    tag: '3',
+    status: 'update_available',
+    kind: 'digest',
+    digestChanged: true,
+    checkedAt: Date.now(),
+    source: 'native',
+  }
+  const { context, updatesPage } = await withUpdates(browser, [update])
 
   await updatesPage.goto('/')
   const icon = { name: 'Update available' }
@@ -245,6 +251,49 @@ test('marks containers and stack headings that have an update', async ({ browser
   await expect(group.getByRole('img', icon)).toBeVisible()
   const card = cards.locator('.bg-card').filter({ hasText: 'e2e-app-app-1' })
   await expect(card.getByRole('img', icon)).toBeVisible()
+
+  await context.close()
+})
+
+test('links the version in use to its release notes', async ({ browser }) => {
+  const currentLink = 'https://example.com/releases/v3.0.0'
+  const { context, updatesPage } = await withUpdates(browser, [
+    {
+      ref: IMAGE,
+      registry: 'docker.io',
+      repository: 'library/alpine',
+      tag: '3',
+      status: 'up_to_date',
+      checkedAt: Date.now(),
+      source: 'native',
+      currentLink,
+    },
+  ])
+  const notes = { name: 'Release notes for 3' }
+
+  await updatesPage.goto('/')
+  await updatesPage.getByRole('radio', { name: 'Table view' }).click()
+  const row = updatesPage.locator('table').getByRole('row').filter({ hasText: 'e2e-app-app-1' })
+  await expect(row.getByRole('link', { name: '3', exact: true })).toHaveAttribute(
+    'href',
+    currentLink,
+  )
+  await updatesPage.getByRole('radio', { name: 'Card view' }).click()
+  const card = updatesPage
+    .getByTestId('container-cards')
+    .locator('.bg-card')
+    .filter({ hasText: 'e2e-app-app-1' })
+  await expect(card.getByRole('link', { name: '3', exact: true })).toHaveAttribute(
+    'href',
+    currentLink,
+  )
+
+  await updatesPage.goto('/stacks/e2e-app')
+  await updatesPage.getByRole('radio', { name: 'Card view' }).click()
+  await expect(updatesPage.getByTestId('service-app').getByRole('link', notes)).toHaveAttribute(
+    'href',
+    currentLink,
+  )
 
   await context.close()
 })
