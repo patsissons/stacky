@@ -120,7 +120,7 @@ Stacky also reads What's Up Docker's `wud.tag.include` and `wud.tag.exclude`, so
 
 ## Release links
 
-A `stacky.link.template` label turns each version into a link to its release notes. The update dialog links both tags and shows a **Release notes** link next to the registry's tags page; update notifications and the API include the newer version's link too.
+A `stacky.link.template` label turns each version into a link to its release notes. The version in use links to its release notes even when no update is available: click the version on the Containers page, or the link icon next to the image in a stack's overview. The update dialog links both tags and shows a **Release notes** link next to the registry's tags page; update notifications and the API include the newer version's link too. Links appear once the image has been checked.
 
 ```yaml
 services:

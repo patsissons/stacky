@@ -15,9 +15,9 @@ import { bumpServiceImage, runServiceAction } from '@/features/operations/action
 import { operationStore } from '@/features/operations/store'
 import { isSelfOperation } from '@/features/self-update/store'
 import { api, ApiError } from '@/lib/api'
-import { cn } from '@/lib/utils'
 import { checkImageNow } from './check-image'
 import { updateLinks } from './registry-link'
+import { TagChip } from './tag-chip'
 import { updateKindMeta } from './update-badge'
 
 export interface UpdateTarget {
@@ -215,21 +215,5 @@ export function UpdateDialog({ target, onClose }: { target?: UpdateTarget; onClo
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
-
-/** A tag, linked to its release notes when a link template gives one. */
-function TagChip({ tag, href, className }: { tag: string; href?: string; className: string }) {
-  if (!href) return <span className={className}>{tag}</span>
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      title={`Release notes for ${tag}`}
-      className={cn(className, 'hover:underline')}
-    >
-      {tag}
-    </a>
   )
 }
