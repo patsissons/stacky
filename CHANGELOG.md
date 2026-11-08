@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0](https://github.com/patsissons/stacky/compare/v0.18.0...v0.19.0) (2026-11-08)
+
+
+### Features
+
+* **mcp:** add bump_image and hint when update keeps a pinned tag ([80eb0c9](https://github.com/patsissons/stacky/commit/80eb0c99a36a150469a8c7327a1aca2dd7d82b82)), closes [#53](https://github.com/patsissons/stacky/issues/53)
+
+
+### Bug Fixes
+
+* **mcp:** reject edits that carry a redacted copy of a secret ([33fc7bf](https://github.com/patsissons/stacky/commit/33fc7bfb6c7f0da371011f6ab9c90ed97abcbd3f)), closes [#54](https://github.com/patsissons/stacky/issues/54)
+
 ## [0.18.0](https://github.com/patsissons/stacky/compare/v0.17.2...v0.18.0) (2026-11-07)
 
 
