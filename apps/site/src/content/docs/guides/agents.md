@@ -86,6 +86,10 @@ Action tools wait for their operation (60 seconds by default, `waitSeconds` up t
 
 Stacky's own settings, git sync, self-update, container shells and API tokens are not exposed over MCP.
 
+### Editing files
+
+`get_stack` returns `compose.yaml` and `.env` exactly as they are on disk, secrets included. Some agent clients mask secrets in tool output (e.g. `ghp_xe...5BzQ`). If an agent sends that masked text back, `update_stack_files` rejects it with `redacted_secret` and names the lines, so the mask never replaces the real value. Nothing is written in that case.
+
 ## What gets recorded
 
 Each tool call that changes something is written to **Settings → Activity log** as `MCP /api/mcp/<tool>/<stack>`, credited to the token (`token:claude`), with the result status. Read-only calls are not logged.

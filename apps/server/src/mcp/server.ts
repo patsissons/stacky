@@ -9,7 +9,7 @@ const INSTRUCTIONS = `stacky manages Docker Compose stacks on one Docker host. E
 - Start with list_stacks. Stacks with managed=false are compose projects outside the stacks directory: you can inspect them but not change them.
 - Changes run as operations, one at a time per stack. Action tools wait up to waitSeconds and return the operation with the tail of its output; when done is false, call get_operation with its id to keep waiting.
 - A failed operation has an error with a code, message and hint (e.g. port_in_use names the container holding the port). Use get_logs to look at the containers.
-- To change a stack, read it with get_stack, edit the compose text, then update_stack_files with deploy=true. Invalid files are rejected with line numbers and nothing is written.
+- To change a stack, read it with get_stack, edit the compose text, then update_stack_files with deploy=true. Invalid files are rejected with line numbers and nothing is written. Send the real text back: an edit carrying a masked copy of a secret is rejected (redacted_secret).
 - The stack with isSelf=true runs stacky itself; deploying, restarting or updating it restarts this server.
 - delete_stack and stack_action down (with removeVolumes) remove things for good; confirm with the user first.`
 
