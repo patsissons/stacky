@@ -78,17 +78,20 @@ Read-only tools are marked as such, so clients can run them without asking you e
 | `update_stack_files`  | Replaces `compose.yaml` and/or `.env` (validated), optionally deploying                            |
 | `stack_action`        | `deploy`, `start`, `stop`, `restart`, `down`, `pull`, `update`, `pull-updates` or `deploy-updates` |
 | `service_action`      | `start`, `stop`, `restart`, `recreate`, `pull` or `update` one service                             |
+| `bump_image`          | Moves one service to another image tag (edits only its `image:` line), then pulls and recreates it |
 | `delete_stack`        | Stops a stack and deletes its directory (destructive)                                              |
 | `cancel_operation`    | Cancels a queued or running operation                                                              |
 | `check_image_updates` | Starts an image update check in the background                                                     |
 
 Action tools wait for their operation (60 seconds by default, `waitSeconds` up to 600) and return the result with the end of its output. A failed operation includes the same error code, message and hint the UI shows, e.g. which container already holds a port. If an operation is still running when the wait ends, the agent can keep waiting with `get_operation`.
 
-Stacky's own settings, git sync, self-update, container shells and API tokens are not exposed over MCP.
+Stacky's own settings, git sync, container shells and API tokens are not exposed over MCP.
 
-### Editing files
+### Editing files and moving to a new version
 
-`get_stack` returns `compose.yaml` and `.env` exactly as they are on disk, secrets included. Some agent clients mask secrets in tool output (e.g. `ghp_xe...5BzQ`). If an agent sends that masked text back, `update_stack_files` rejects it with `redacted_secret` and names the lines, so the mask never replaces the real value. Nothing is written in that case.
+- `get_stack` returns `compose.yaml` and `.env` exactly as they are on disk, secrets included. Some agent clients mask secrets in tool output (e.g. `ghp_xe...5BzQ`). If an agent sends that masked text back, `update_stack_files` rejects it with `redacted_secret` and names the lines, so the mask never replaces the real value. Nothing is written in that case.
+- `update` (in `stack_action` or `service_action`) pulls the tags the compose file already pins. For a pinned version like `nginx:1.27.3` that changes nothing, so when the [update check](/guides/image-updates/) knows a newer tag, the result carries a `hint` pointing at `bump_image`.
+- `bump_image` moves a service to another tag (e.g. `newerTag` from `list_image_updates`) by editing only its `image:` line, then pulls and recreates it. On the stack that runs stacky itself, it runs the [self-update](/guides/self-update/) to that version, with the same rollback if the new version doesn't come up healthy.
 
 ## What gets recorded
 
@@ -99,7 +102,7 @@ Each tool call that changes something is written to **Settings → Activity log*
 An API token can do everything the admin can (except manage tokens), and that includes deleting stacks. Some tips:
 
 - Use a separate token per agent, and revoke it when you no longer use the agent.
-- Let your client ask before running tools marked destructive (`stack_action`, `delete_stack`).
+- Let your client ask before running tools marked destructive (`stack_action`, `bump_image`, `delete_stack`).
 - Acting on the stack that runs stacky itself restarts stacky, just like in the UI. The connection drops until stacky is back.
 
 ## llms.txt

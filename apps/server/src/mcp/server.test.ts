@@ -77,6 +77,7 @@ describe('MCP endpoint', () => {
     const tools = Object.fromEntries(body.result.tools.map((t: any) => [t.name, t]))
     expect(Object.keys(tools).sort()).toEqual(
       [
+        'bump_image',
         'cancel_operation',
         'check_image_updates',
         'create_stack',
@@ -97,6 +98,7 @@ describe('MCP endpoint', () => {
     )
     expect(tools.list_stacks.annotations.readOnlyHint).toBe(true)
     expect(tools.delete_stack.annotations.destructiveHint).toBe(true)
+    expect(tools.bump_image.annotations.destructiveHint).toBe(true)
     expect(tools.stack_action.inputSchema.properties.action.enum).not.toContain('delete')
 
     // the docs list every tool
@@ -177,5 +179,30 @@ describe('MCP endpoint', () => {
       compose: compose.replace('1.27', '1.28'),
     })
     expect(ok.isError).toBeFalsy()
+  })
+
+  it('bumps an image tag with a targeted edit', async () => {
+    // an unreachable registry: the pull fails at once and nothing is started
+    const compose =
+      'services:\n  web:\n    # pinned on purpose\n    image: localhost:1/stacky-test:1.27 # web\n'
+    await call('create_stack', { name: 'web', compose })
+    const res = await call('bump_image', {
+      name: 'web',
+      service: 'web',
+      tag: '1.28',
+      waitSeconds: 0,
+    })
+    expect(res.isError).toBeFalsy()
+    expect(res.structuredContent.operation).toMatchObject({ stack: 'web', action: 'update web' })
+    expect(fs.readFileSync(path.join(tmp, 'stacks/web/compose.yaml'), 'utf8')).toBe(
+      compose.replace(':1.27', ':1.28'),
+    )
+    await runtime.engine.waitFor(res.structuredContent.operation.id, 60_000)
+
+    const bad = await call('bump_image', { name: 'web', service: 'web', tag: '-bad' })
+    expect(bad.isError).toBe(true)
+    expect(bad.structuredContent.error.code).toBe('bad_request')
+    const missing = await call('bump_image', { name: 'web', service: 'db', tag: '1' })
+    expect(missing.structuredContent.error.code).toBe('not_found')
   })
 })

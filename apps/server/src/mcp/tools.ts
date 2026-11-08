@@ -6,6 +6,7 @@ import {
   serviceActions,
   stackActions,
   stackNameSchema,
+  type ImageUpdate,
   type LogLine,
   type OperationSummary,
   type StackSummary,
@@ -16,6 +17,7 @@ import { readLogs } from '../docker/logs'
 import { AppError, notFound } from '../lib/errors'
 import { logTargets } from '../stacks/log-targets'
 import { assertStackName } from '../stacks/paths'
+import { planStackUpdates } from '../stacks/update-plan'
 
 /** Output kept in a tool result: enough to see why something failed without flooding the context. */
 const OUTPUT_TAIL = 8 * 1024
@@ -98,7 +100,7 @@ const formatLogs = (lines: LogLine[]) =>
     )
     .join('\n')
 
-async function operationResult(env: ToolEnv, op: OperationSummary, wait: number) {
+async function operationResult(env: ToolEnv, op: OperationSummary, wait: number, extra?: Data) {
   const current = (await env.ctx.engine.waitFor(op.id, wait * 1000)) ?? op
   const done = current.state !== 'queued' && current.state !== 'running'
   const output = env.ctx.engine.output(op.id)
@@ -109,7 +111,25 @@ async function operationResult(env: ToolEnv, op: OperationSummary, wait: number)
     ...(done
       ? {}
       : { next: `Still ${current.state}; call get_operation with id "${op.id}" to keep waiting.` }),
+    ...extra,
   })
+}
+
+/**
+ * `update` re-pulls the tags a stack pins. When the update check found newer tags for
+ * those services, says so and points at bump_image, so a no-op update isn't mistaken
+ * for moving to the new version.
+ */
+export function pinnedUpdateHint(
+  stack: StackSummary | undefined,
+  updates: ImageUpdate[],
+  only?: string[],
+): string | undefined {
+  if (!stack) return undefined
+  const { bumps } = planStackUpdates(stack, updates, { only })
+  if (!bumps.length) return undefined
+  const list = bumps.map((b) => `${b.service} → ${b.to}`).join(', ')
+  return `Newer tags are available (${list}). "update" re-pulls the tag compose.yaml pins; call bump_image to move a service to a newer tag.`
 }
 
 /**
@@ -357,7 +377,7 @@ export function registerTools(server: McpServer, env: ToolEnv) {
     {
       title: 'Update stack files',
       description:
-        "Replaces a stack's compose.yaml and/or .env. The result is validated first and nothing is written if it is invalid, or if it contains a redacted copy of an existing value (e.g. `ghp_ab...wxyz`; error redacted_secret). Changes take effect on deploy.",
+        "Replaces a stack's compose.yaml and/or .env. The result is validated first and nothing is written if it is invalid, or if it contains a redacted copy of an existing value (e.g. `ghp_ab...wxyz`; error redacted_secret). Changes take effect on deploy. To change only an image tag, use bump_image.",
       annotations: changes(),
       input: {
         name: stackName,
@@ -397,8 +417,16 @@ export function registerTools(server: McpServer, env: ToolEnv) {
         waitSeconds,
       },
     },
-    async ({ name, action, options, waitSeconds: wait }) =>
-      operationResult(
+    async ({ name, action, options, waitSeconds: wait }) => {
+      const hint =
+        action === 'update'
+          ? pinnedUpdateHint(
+              ctx.state.get(assertStackName(name)),
+              ctx.updates.summary().updates,
+              options?.services,
+            )
+          : undefined
+      return operationResult(
         env,
         await ctx.stacks.stackAction(
           assertStackName(name),
@@ -406,7 +434,9 @@ export function registerTools(server: McpServer, env: ToolEnv) {
           options ?? {},
         ),
         wait,
-      ),
+        hint ? { hint } : undefined,
+      )
+    },
   )
 
   tool(
@@ -423,12 +453,42 @@ export function registerTools(server: McpServer, env: ToolEnv) {
         waitSeconds,
       },
     },
-    async ({ name, service, action, waitSeconds: wait }) =>
-      operationResult(
+    async ({ name, service, action, waitSeconds: wait }) => {
+      const hint =
+        action === 'update'
+          ? pinnedUpdateHint(ctx.state.get(assertStackName(name)), ctx.updates.summary().updates, [
+              service,
+            ])
+          : undefined
+      return operationResult(
         env,
         await ctx.stacks.serviceAction(assertStackName(name), service, action),
         wait,
-      ),
+        hint ? { hint } : undefined,
+      )
+    },
+  )
+
+  tool(
+    'bump_image',
+    {
+      title: 'Bump image tag',
+      description: [
+        "Moves one service to another tag of its image: rewrites only that service's `image:` tag in compose.yaml",
+        '(comments and formatting stay), then pulls and recreates the service.',
+        'Use it with newerTag from list_image_updates; `update` alone re-pulls the pinned tag.',
+        "On the stack with isSelf=true this runs stacky's self-update to that version (rolled back if it fails), restarting this server.",
+      ].join(' '),
+      annotations: changes({ destructiveHint: true }),
+      input: {
+        name: stackName,
+        service: z.string().min(1),
+        tag: z.string().min(1).max(128).describe('The new tag, e.g. "1.27.2" (no image name)'),
+        waitSeconds,
+      },
+    },
+    async ({ name, service, tag, waitSeconds: wait }) =>
+      operationResult(env, await ctx.stacks.bumpImage(assertStackName(name), service, tag), wait),
   )
 
   tool(
