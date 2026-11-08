@@ -30,3 +30,5 @@ When a `docker compose` command fails, stacky reads its output and matches it ag
 Anything else is reported as `command_failed`, using the last line of the output as the message.
 
 Validation (before saving or deploying) uses the same tools. YAML syntax errors and `docker compose config` errors are mapped back to the line in your file, and a deploy with an invalid file is rejected before anything is written to disk.
+
+Saving also rejects an edit with `redacted_secret` when it holds a masked copy of a value already in the file (e.g. `ghp_xe...5BzQ` in place of a token). AI agent clients often mask secrets in what they read, and saving their text as-is would replace the real secret with the mask.

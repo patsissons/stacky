@@ -157,4 +157,25 @@ describe('MCP endpoint', () => {
     const logs = await call('get_logs', { name: 'app' })
     expect(logs.content[0].text).toBe('(no log lines)')
   })
+
+  it('rejects an edit carrying a masked copy of a secret', async () => {
+    const token = 'ghp_xeAbCdEfGhIjKlMnOpQrStUvWxYz0123455BzQ'
+    const compose = `services:\n  web:\n    image: nginx:1.27\n    environment:\n      TOKEN: ${token}\n`
+    await call('create_stack', { name: 'web', compose })
+    const masked = compose.replace(token, 'ghp_xe...5BzQ').replace('1.27', '1.28')
+    const res = await call('update_stack_files', { name: 'web', compose: masked })
+    expect(res.isError).toBe(true)
+    expect(res.structuredContent.error).toMatchObject({
+      code: 'redacted_secret',
+      details: { file: 'compose.yaml', lines: [5] },
+    })
+    expect(fs.readFileSync(path.join(tmp, 'stacks/web/compose.yaml'), 'utf8')).toBe(compose)
+
+    // the real text goes through
+    const ok = await call('update_stack_files', {
+      name: 'web',
+      compose: compose.replace('1.27', '1.28'),
+    })
+    expect(ok.isError).toBeFalsy()
+  })
 })

@@ -26,6 +26,7 @@ import { withTag } from '../self/image-ref'
 import { parseDocument } from 'yaml'
 import { composeTags } from './compose-file'
 import { composeMismatch, previewDeploy } from './preview'
+import { findRedactedValues } from './redaction'
 import { planServices, planStackUpdates, TAG_PATTERN } from './update-plan'
 import { validateCompose } from './validate'
 
@@ -204,6 +205,8 @@ export class StackService {
   async saveValidated(name: string, files: { compose?: string; env?: string }) {
     this.requireManaged(name)
     const current = await this.repo.read(name)
+    assertNotRedacted('compose.yaml', current.compose, files.compose)
+    assertNotRedacted('.env', current.hasEnv ? current.env : '', files.env)
     await this.assertValid(
       name,
       files.compose ?? current.compose,
@@ -436,4 +439,23 @@ export class StackService {
     }
     return stack
   }
+}
+
+/**
+ * Rejects an edit that carries a redacted copy (e.g. `ghp_xe...5BzQ`) of a value the
+ * file holds: agent clients mask secrets in what they read, and sending that text back
+ * would overwrite the real secret with the mask.
+ */
+function assertNotRedacted(file: string, current: string, incoming: string | undefined) {
+  if (incoming === undefined) return
+  const found = findRedactedValues(current, incoming)
+  if (!found.length) return
+  const lines = [...new Set(found.map((f) => f.line))]
+  throw new AppError(
+    422,
+    'redacted_secret',
+    `${file} contains a redacted copy of an existing value (line ${lines.join(', ')})`,
+    'Send the real value instead of the masked one. To change an image tag, use the targeted image bump so the file is not round-tripped.',
+    { file, lines },
+  )
 }

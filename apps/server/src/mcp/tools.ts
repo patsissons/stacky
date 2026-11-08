@@ -176,7 +176,7 @@ export function registerTools(server: McpServer, env: ToolEnv) {
     {
       title: 'Get stack',
       description:
-        'Returns one stack in full (services, containers, ports) plus its compose.yaml and .env text when stacky manages it.',
+        'Returns one stack in full (services, containers, ports) plus its compose.yaml and .env text when stacky manages it. The file text is returned verbatim, secrets included: if your client masks secrets in tool output, do not send that masked text back with update_stack_files.',
       annotations: readOnly,
       input: { name: stackName },
     },
@@ -357,7 +357,7 @@ export function registerTools(server: McpServer, env: ToolEnv) {
     {
       title: 'Update stack files',
       description:
-        "Replaces a stack's compose.yaml and/or .env. The result is validated first and nothing is written if it is invalid. Changes take effect on deploy.",
+        "Replaces a stack's compose.yaml and/or .env. The result is validated first and nothing is written if it is invalid, or if it contains a redacted copy of an existing value (e.g. `ghp_ab...wxyz`; error redacted_secret). Changes take effect on deploy.",
       annotations: changes(),
       input: {
         name: stackName,
