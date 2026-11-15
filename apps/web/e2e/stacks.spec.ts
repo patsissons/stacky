@@ -287,6 +287,11 @@ test('links the version in use to its release notes', async ({ browser }) => {
     'href',
     currentLink,
   )
+  await card.getByRole('button', { name: 'e2e-app-app-1', exact: true }).click()
+  const sheet = updatesPage.getByRole('dialog')
+  await expect(sheet.getByRole('link', notes)).toHaveAttribute('href', currentLink)
+  await updatesPage.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
 
   await updatesPage.goto('/stacks/e2e-app')
   await updatesPage.getByRole('radio', { name: 'Card view' }).click()
@@ -572,6 +577,8 @@ test("opens a container's logs from its service sheet", async () => {
   await page.getByRole('button', { name: 'e2e-app-app-1', exact: true }).click()
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByText('Service app in')).toBeVisible()
+  // no `stacky.link.template` label, so no release notes link
+  await expect(sheet.getByRole('link', { name: /^Release notes/ })).toHaveCount(0)
   await sheet.getByRole('link', { name: 'Logs' }).click()
   await expect(page).toHaveURL(/\/stacks\/e2e-app\?.*tab=logs/)
   await expect(page).toHaveURL(/service=app/)
