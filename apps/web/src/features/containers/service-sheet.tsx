@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   AlertTriangle,
+  ExternalLink,
   FileCode2,
   Info,
   Loader2,
@@ -24,6 +25,7 @@ import { SERVICE_FILE_SUFFIX } from '@/features/editor/schema'
 import { IssueList, ValidationStatus } from '@/features/editor/validation'
 import { runStackAction } from '@/features/operations/actions'
 import { useStacks } from '@/hooks/use-stacks'
+import { useUpdates } from '@/hooks/use-updates'
 import { api, ApiError } from '@/lib/api'
 import { serviceSheetStore, useServiceSheet, type ServiceSheetTarget } from './service-sheet-store'
 
@@ -55,6 +57,9 @@ function SheetBody({ target }: { target: ServiceSheetTarget }) {
   const service = stack?.services.find((s) => s.name === target.service)
   const container =
     service?.containers.find((c) => c.id === target.containerId) ?? service?.containers[0]
+  const { byRef } = useUpdates()
+  // the release notes of the version in use, when a `stacky.link.template` label gives them
+  const update = container ? byRef.get(container.image) : undefined
 
   return (
     <>
@@ -83,6 +88,19 @@ function SheetBody({ target }: { target: ServiceSheetTarget }) {
             )}
           </SheetDescription>
         </div>
+        {update?.currentLink && (
+          <Button size="sm" variant="ghost" asChild className="shrink-0">
+            <a
+              href={update.currentLink}
+              target="_blank"
+              rel="noreferrer"
+              title={`Release notes for ${update.tag}`}
+              aria-label={`Release notes for ${update.tag}`}
+            >
+              <ExternalLink /> Release notes
+            </a>
+          </Button>
+        )}
       </div>
       {target.managed ? (
         <ManagedService stack={stack} target={target} />
