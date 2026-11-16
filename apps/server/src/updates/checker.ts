@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type Docker from 'dockerode'
-import type { ImageUpdate, UpdatesSummary } from '@stacky/shared'
+import { releaseLinks, type ImageUpdate, type UpdatesSummary } from '@stacky/shared'
 import type { Db } from '../db'
 import { imageUpdates } from '../db/schema'
 import type { SettingsStore } from '../db/settings'
@@ -16,7 +16,6 @@ import {
   ScheduleError,
   type Schedule,
 } from './schedule'
-import { renderLink } from './links'
 import { isVersionTag, newestTag, type TagFilter } from './tags'
 import { WudClient, type WudSettings } from './wud'
 
@@ -324,18 +323,7 @@ export class UpdateChecker extends EventEmitter<CheckerEvents> {
     const { value: template, error } = agreed(target.linkTemplates, 'stacky.link.template')
     if (error) return { linkTemplateError: error }
     if (!template) return {}
-    const current = renderLink(template, u.tag)
-    const newer = u.newerTag ? renderLink(template, u.newerTag) : undefined
-    const failed = [current, newer].find((r) => r && 'error' in r)
-    return {
-      linkTemplate: template,
-      ...(failed && 'error' in failed
-        ? { linkTemplateError: failed.error }
-        : {
-            ...(current && 'url' in current ? { currentLink: current.url } : {}),
-            ...(newer && 'url' in newer ? { newerLink: newer.url } : {}),
-          }),
-    }
+    return { linkTemplate: template, ...releaseLinks(template, u.tag, u.newerTag) }
   }
 
   /** Names of the containers that run an image right now. */

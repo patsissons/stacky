@@ -25,8 +25,11 @@ import { SERVICE_FILE_SUFFIX } from '@/features/editor/schema'
 import { IssueList, ValidationStatus } from '@/features/editor/validation'
 import { runStackAction } from '@/features/operations/actions'
 import { useStacks } from '@/hooks/use-stacks'
+import { releaseLink } from '@/features/updates/release-link'
 import { useUpdates } from '@/hooks/use-updates'
 import { api, ApiError } from '@/lib/api'
+import { parseImageRef } from '@/lib/format'
+import { containerImageRef } from './rows'
 import { serviceSheetStore, useServiceSheet, type ServiceSheetTarget } from './service-sheet-store'
 
 const CodeEditor = lazy(() => import('@/features/editor/code-editor'))
@@ -59,7 +62,9 @@ function SheetBody({ target }: { target: ServiceSheetTarget }) {
     service?.containers.find((c) => c.id === target.containerId) ?? service?.containers[0]
   const { byRef } = useUpdates()
   // the release notes of the version in use, when a `stacky.link.template` label gives them
-  const update = container ? byRef.get(container.image) : undefined
+  const ref = service && containerImageRef(service, container)
+  const notes = releaseLink(ref, container?.linkTemplate, ref ? byRef.get(ref) : undefined)
+  const notesLabel = `Release notes for ${ref ? parseImageRef(ref).tag : target.service}`
 
   return (
     <>
@@ -88,14 +93,14 @@ function SheetBody({ target }: { target: ServiceSheetTarget }) {
             )}
           </SheetDescription>
         </div>
-        {update?.currentLink && (
+        {notes && (
           <Button size="sm" variant="ghost" asChild className="shrink-0">
             <a
-              href={update.currentLink}
+              href={notes}
               target="_blank"
               rel="noreferrer"
-              title={`Release notes for ${update.tag}`}
-              aria-label={`Release notes for ${update.tag}`}
+              title={notesLabel}
+              aria-label={notesLabel}
             >
               <ExternalLink /> Release notes
             </a>

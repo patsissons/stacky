@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ImageUpdate, StackSummary } from '@stacky/shared'
 import {
   buildRows,
+  containerImageRef,
   groupByStack,
   matchesStatus,
   planUpdates,
@@ -311,5 +312,29 @@ describe('stackImageRefs', () => {
         }),
       ),
     ).toEqual(['nginx:1.27', 'redis:7'])
+  })
+})
+
+describe('containerImageRef', () => {
+  it('uses the reference the container runs', () => {
+    expect(containerImageRef({ image: 'nginx:1' }, { image: 'nginx:1.27' })).toBe('nginx:1.27')
+  })
+
+  it('falls back to the compose image when the engine reports a bare id', () => {
+    expect(
+      containerImageRef(
+        { image: 'jc21/nginx-proxy-manager:2.17.0' },
+        { image: 'sha256:0123456789abcdef' },
+      ),
+    ).toBe('jc21/nginx-proxy-manager:2.17.0')
+  })
+
+  it('keeps the id when the compose file names no image', () => {
+    expect(containerImageRef({}, { image: 'sha256:0123' })).toBe('sha256:0123')
+  })
+
+  it('uses the compose image when there is no container', () => {
+    expect(containerImageRef({ image: 'nginx:1.27' }, undefined)).toBe('nginx:1.27')
+    expect(containerImageRef({}, undefined)).toBeUndefined()
   })
 })

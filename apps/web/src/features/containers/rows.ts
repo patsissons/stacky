@@ -1,4 +1,11 @@
-import type { ContainerState, ImageUpdate, PortMapping, StackSummary } from '@stacky/shared'
+import type {
+  ContainerState,
+  ContainerSummary,
+  ImageUpdate,
+  PortMapping,
+  ServiceSummary,
+  StackSummary,
+} from '@stacky/shared'
 import { isActionable } from '@/hooks/use-updates'
 import { parseImageRef } from '@/lib/format'
 
@@ -19,6 +26,8 @@ export interface ContainerRow {
   ports: PortMapping[]
   createdAt: number
   icon?: string
+  /** The container's `stacky.link.template` label. */
+  linkTemplate?: string
 }
 
 export type StatusFilter = 'all' | 'running' | 'problems' | 'stopped' | 'updates'
@@ -33,14 +42,25 @@ export function matchesStatus(state: ContainerState, filter: StatusFilter): bool
   return !RUNNING.has(state) && !PROBLEMS.has(state)
 }
 
+/**
+ * The image reference the update checker knows a container by. The engine reports a bare
+ * `sha256:` id once the tag has moved on to a newer image, so fall back to the compose file's.
+ */
+export function containerImageRef(
+  service: Pick<ServiceSummary, 'image'>,
+  container: Pick<ContainerSummary, 'image'> | undefined,
+): string | undefined {
+  const running = container?.image
+  return running && !running.startsWith('sha256:') ? running : (service.image ?? running)
+}
+
 /** One row per container across all stacks, with the image split for display. */
 export function buildRows(stacks: StackSummary[]): ContainerRow[] {
   const rows: ContainerRow[] = []
   for (const stack of stacks) {
     for (const service of stack.services) {
       for (const c of service.containers) {
-        // Prefer the reference from the compose file; the engine may report a bare id.
-        const ref = c.image.startsWith('sha256:') ? (service.image ?? c.image) : c.image
+        const ref = containerImageRef(service, c) ?? c.image
         const { registry, repository, tag } = parseImageRef(ref)
         rows.push({
           id: c.id,
@@ -59,6 +79,7 @@ export function buildRows(stacks: StackSummary[]): ContainerRow[] {
           ports: c.ports,
           createdAt: c.createdAt,
           icon: c.icon,
+          linkTemplate: c.linkTemplate,
         })
       }
     }

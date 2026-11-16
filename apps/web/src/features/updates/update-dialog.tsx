@@ -11,12 +11,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { containerImageRef } from '@/features/containers/rows'
 import { bumpServiceImage, runServiceAction } from '@/features/operations/actions'
 import { operationStore } from '@/features/operations/store'
 import { isSelfOperation } from '@/features/self-update/store'
+import { useStacks } from '@/hooks/use-stacks'
 import { api, ApiError } from '@/lib/api'
 import { checkImageNow } from './check-image'
 import { updateLinks } from './registry-link'
+import { containerLinks } from './release-link'
 import { TagChip } from './tag-chip'
 import { updateKindMeta } from './update-badge'
 
@@ -30,9 +33,16 @@ export interface UpdateTarget {
 /** Details of one available update, with the actions that apply it. */
 export function UpdateDialog({ target, onClose }: { target?: UpdateTarget; onClose: () => void }) {
   const [busy, setBusy] = useState<string>()
+  const { data: stacks } = useStacks()
   if (!target) return null
   const { update, stack, service, managed } = target
-  const links = updateLinks(update)
+  // the service's own link template, so another container's label can't take its links away
+  const svc = stacks
+    ?.find((s) => s.name === stack && s.managed === managed)
+    ?.services.find((s) => s.name === service)
+  const own = svc?.containers.find((c) => containerImageRef(svc, c) === update.ref)
+  const release = containerLinks(update, own?.linkTemplate)
+  const links = updateLinks({ ...update, ...release })
   const short = (d?: string) => (d ? d.replace('sha256:', '').slice(0, 12) : '?')
 
   const run = async (key: string, fn: () => Promise<unknown>) => {
@@ -85,13 +95,13 @@ export function UpdateDialog({ target, onClose }: { target?: UpdateTarget; onClo
             <div className="flex items-center gap-2 font-mono">
               <TagChip
                 tag={update.tag}
-                href={update.currentLink}
+                href={release.currentLink}
                 className="bg-muted rounded px-2 py-0.5"
               />
               <ArrowRight className="text-muted-foreground size-4 shrink-0" />
               <TagChip
                 tag={update.newerTag}
-                href={update.newerLink}
+                href={release.newerLink}
                 className="bg-primary/15 text-primary rounded px-2 py-0.5 font-semibold"
               />
             </div>
@@ -159,10 +169,10 @@ export function UpdateDialog({ target, onClose }: { target?: UpdateTarget; onClo
               count as newer versions.
             </p>
           )}
-          {update.linkTemplateError && (
+          {release.linkTemplateError && (
             <p className="text-muted-foreground text-xs">
               Its <span className="font-mono">stacky.link.template</span> label gives no release
-              link: {update.linkTemplateError}.
+              link: {release.linkTemplateError}.
             </p>
           )}
         </div>

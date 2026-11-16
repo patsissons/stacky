@@ -34,6 +34,7 @@ import {
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { ImageUpdate, StackSummary } from '@stacky/shared'
+import { releaseLink } from '@/features/updates/release-link'
 import { TagChip } from '@/features/updates/tag-chip'
 import { CheckedAt, UpdateAvailableIcon, UpdateBadge } from '@/features/updates/update-badge'
 import { UpdateAllDialog, type UpdateAllMode } from '@/features/updates/update-all-dialog'
@@ -218,7 +219,11 @@ function makeColumns(
       cell: ({ row }) => (
         <TagChip
           tag={row.original.tag}
-          href={byRef.get(row.original.image)?.currentLink}
+          href={releaseLink(
+            row.original.image,
+            row.original.linkTemplate,
+            byRef.get(row.original.image),
+          )}
           className="bg-muted rounded-md px-2 py-0.5 font-mono text-xs"
         />
       ),
@@ -881,7 +886,11 @@ function ContainerCard({
             <span className="truncate">{r.stack}</span>
           )}
           <span>·</span>
-          <TagChip tag={r.tag} href={update?.currentLink} className="font-mono" />
+          <TagChip
+            tag={r.tag}
+            href={releaseLink(r.image, r.linkTemplate, update)}
+            className="font-mono"
+          />
         </div>
       </div>
       <div className="flex flex-col items-end gap-1">

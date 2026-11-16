@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { renderLink, tagVars } from './links'
+import { releaseLinks, renderLink, tagVars } from './links'
 
 describe('tagVars', () => {
   it('splits a tag into WUD template variables', () => {
@@ -45,5 +45,32 @@ describe('renderLink', () => {
       error: 'not an http(s) URL',
     })
     expect(renderLink('${original}', '1.2.3')).toEqual({ error: 'not an http(s) URL' })
+  })
+})
+
+describe('releaseLinks', () => {
+  const template = 'https://example.com/releases/v${original}'
+
+  it('links a tag and its newer tag', () => {
+    expect(releaseLinks(template, '2.17.0', '2.18.0')).toEqual({
+      currentLink: 'https://example.com/releases/v2.17.0',
+      newerLink: 'https://example.com/releases/v2.18.0',
+    })
+    expect(releaseLinks(template, '2.17.0')).toEqual({
+      currentLink: 'https://example.com/releases/v2.17.0',
+    })
+  })
+
+  it('gives no link for a tag without the numbers the template needs', () => {
+    expect(releaseLinks('https://example.com/v${major}', 'latest')).toEqual({})
+  })
+
+  it('says why a broken template gives no links', () => {
+    expect(releaseLinks('see ${original}', '1.0')).toEqual({
+      linkTemplateError: 'not an http(s) URL',
+    })
+    expect(releaseLinks('https://example.com/${nope}', '1.0')).toEqual({
+      linkTemplateError: 'unknown variable ${nope}',
+    })
   })
 })

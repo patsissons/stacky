@@ -120,7 +120,7 @@ Stacky also reads What's Up Docker's `wud.tag.include` and `wud.tag.exclude`, so
 
 ## Release links
 
-A `stacky.link.template` label turns each version into a link to its release notes. The version in use links to its release notes even when no update is available: click the version on the Containers page, the link icon next to the image in a stack's overview, or **Release notes** in its service panel. The update dialog links both tags and shows a **Release notes** link next to the registry's tags page; update notifications and the API include the newer version's link too. Links appear once the image has been checked.
+A `stacky.link.template` label turns each version into a link to its release notes. The version in use links to its release notes even when no update is available: click the version on the Containers page, the link icon next to the image in a stack's overview, or **Release notes** in its service panel. The update dialog links both tags and shows a **Release notes** link next to the registry's tags page; update notifications and the API include the newer version's link too. The version in use links as soon as its container runs with the label; the newer version's link appears once the image has been checked.
 
 ```yaml
 services:
@@ -141,7 +141,7 @@ Write `$${major}` rather than `${major}` in a compose file; otherwise Compose re
 | `${patch}`                | The third number: `3` (`0` if there isn't one)            |
 | `${prerelease}`           | Whatever follows the first `-` after the numbers: `ls364` |
 
-Stacky also reads `wud.link.template`, and `stacky.link.template` wins if both are set. The template is only filled in, never run as code, and must give an `http(s)` URL. A tag without numbers, such as `latest`, gets no link from a template that uses `${major}`. An unknown variable, or containers of one image with different templates, give no links, and the update dialog says why.
+Stacky also reads `wud.link.template`, and `stacky.link.template` wins if both are set. The template is only filled in, never run as code, and must give an `http(s)` URL. A tag without numbers, such as `latest`, gets no link from a template that uses `${major}`. An unknown variable gives no links, and the update dialog says why. Each container's links come from its own label, so one container with a wrong template doesn't take the links away from others running the same image. Update notifications and the API cover the image as a whole, so they give no link until its containers' templates agree.
 
 ## Rate limits
 
