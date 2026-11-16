@@ -24,6 +24,7 @@ import type {
   StackSummary,
 } from '@stacky/shared'
 import { checkImageNow } from '@/features/updates/check-image'
+import { releaseLink } from '@/features/updates/release-link'
 import { ReleaseNotesLink } from '@/features/updates/tag-chip'
 import { CheckedAt, UpdateBadge } from '@/features/updates/update-badge'
 import { UpdateDialog, type UpdateTarget } from '@/features/updates/update-dialog'
@@ -40,7 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { portUrl } from '@/features/containers/rows'
+import { containerImageRef, portUrl } from '@/features/containers/rows'
 import { openFromClick, serviceSheetStore } from '@/features/containers/service-sheet-store'
 import { runServiceAction } from '@/features/operations/actions'
 import { useStackStats } from '@/hooks/use-stats'
@@ -136,10 +137,14 @@ export function OverviewTab({
   )
 }
 
-/** The reference the update checker knows the service by (the engine may report a bare id). */
+/** The release notes link for the version the service runs. */
+function serviceReleaseLink(service: ServiceSummary, update: ImageUpdate | undefined) {
+  return releaseLink(imageRef(service), service.containers[0]?.linkTemplate, update)
+}
+
+/** The reference the update checker knows the service by. */
 function imageRef(service: ServiceSummary) {
-  const running = service.containers[0]?.image
-  return running && !running.startsWith('sha256:') ? running : (service.image ?? '')
+  return containerImageRef(service, service.containers[0]) ?? ''
 }
 
 function ServiceCard({
@@ -191,7 +196,7 @@ function ServiceCard({
             <span className="text-muted-foreground truncate font-mono" title={service.image}>
               {service.image ?? 'built locally'}
             </span>
-            <ReleaseNotesLink tag={update?.tag} href={update?.currentLink} />
+            <ReleaseNotesLink tag={update?.tag} href={serviceReleaseLink(service, update)} />
             {imageRef(service) && (
               <>
                 <span className="text-muted-foreground">·</span>
@@ -491,7 +496,10 @@ function ServiceTable({
                     <span className="text-muted-foreground font-mono text-xs" title={service.image}>
                       {service.image ?? 'built locally'}
                     </span>
-                    <ReleaseNotesLink tag={update?.tag} href={update?.currentLink} />
+                    <ReleaseNotesLink
+                      tag={update?.tag}
+                      href={serviceReleaseLink(service, update)}
+                    />
                   </div>
                 </TableCell>
                 <TableCell>
