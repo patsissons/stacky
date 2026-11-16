@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.1](https://github.com/patsissons/stacky/compare/v0.20.0...v0.20.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **web:** link each container's release notes from its own label ([#61](https://github.com/patsissons/stacky/issues/61)) ([3fb3bb1](https://github.com/patsissons/stacky/commit/3fb3bb19b64d729a6da6dba9a05a87d029f02301))
+
 ## [0.20.0](https://github.com/patsissons/stacky/compare/v0.19.0...v0.20.0) (2026-11-15)
 
 
